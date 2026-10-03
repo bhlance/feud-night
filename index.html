@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Feud Night">
+<title>Feud Night</title>
+<style>
+  :root {
+    --bg1: #0b2a8f; --bg2: #04114a; --gold: #ffc93c; --ink: #10163a; --red: #e5273a;
+    --tile1: #2b6bff; --tile2: #123bb8; --font: "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
+    --big: Impact, "Arial Black", "Avenir Next Condensed", sans-serif;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: var(--font); color: #fff; background: radial-gradient(ellipse at 50% 30%, var(--bg1), var(--bg2) 75%); user-select: none; -webkit-user-select: none;
+         padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  #app { height: 100%; height: 100dvh; display: flex; flex-direction: column; gap: 1.2vh; padding: 1.5vh 2vw; }
+
+  /* ---- top bar ---- */
+  #top { display: grid; grid-template-columns: 1fr auto 1fr; gap: 2vw; align-items: stretch; }
+  .team { background: linear-gradient(#173fcb, #0c2290); border: .35vh solid var(--gold); border-radius: 1.6vh; padding: .8vh 1.2vw; display: flex; align-items: center; justify-content: space-between; gap: 1vw; min-width: 0; position: relative; }
+  .team .nm { font-weight: 800; font-size: clamp(14px, 2.4vh, 28px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .team .sc { font-family: var(--big); font-size: clamp(30px, 6.5vh, 76px); color: var(--gold); line-height: 1; }
+  .team.ctrl { box-shadow: 0 0 0 .5vh #fff, 0 0 3vh var(--gold); }
+  .team.ctrl::after { content: "▶ PLAYING"; position: absolute; top: -1.6vh; left: 1vw; background: var(--gold); color: var(--ink); font-size: clamp(10px, 1.6vh, 16px); font-weight: 900; padding: .2vh .8vw; border-radius: 99px; }
+  .team.t1.ctrl::after { content: "PLAYING ◀"; left: auto; right: 1vw; }
+  #mid { text-align: center; display: flex; flex-direction: column; justify-content: center; min-width: 14vw; }
+  #mid .rd { font-size: clamp(11px, 1.8vh, 18px); letter-spacing: 2px; opacity: .8; }
+  #mid .pot { font-family: var(--big); font-size: clamp(26px, 5.5vh, 64px); color: #fff; line-height: 1; }
+  #mid .pot small { font-size: .4em; color: var(--gold); display: block; letter-spacing: 2px; font-family: var(--font); font-weight: 800; }
+  #menuBtn, #peekBtn { position: fixed; z-index: 30; top: .8vh; border: 0; border-radius: 99px; background: rgba(255,255,255,.18); color: #fff; font-size: clamp(12px, 1.8vh, 16px); font-weight: 800; padding: .6vh 1.2vw; cursor: pointer; }
+  #menuBtn { left: 50%; transform: translateX(-50%); top: auto; bottom: .6vh; }
+  #peekBtn { right: 1vw; top: auto; bottom: .6vh; }
+  body.board #menuBtn, body.board #peekBtn, body.board #ctl { display: none !important; }
+
+  /* ---- question ---- */
+  #q { text-align: center; font-weight: 900; font-size: clamp(18px, 4vh, 46px); line-height: 1.12; padding: 1.2vh 2vw; background: rgba(255,255,255,.08); border-radius: 1.6vh; min-height: 8vh; display: flex; align-items: center; justify-content: center; }
+
+  /* ---- board ---- */
+  #stage { flex: 1; min-height: 0; display: flex; gap: 2vw; align-items: stretch; }
+  #board { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); grid-auto-flow: column; gap: 1.2vh 1.4vw; min-height: 0; padding: 1.2vh 1.4vw; background: #020a33; border-radius: 2vh; border: .5vh solid #3a56c9; }
+  .tile { perspective: 1000px; position: relative; min-height: 0; }
+  .tile .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s; }
+  .tile.flip .in { transform: rotateX(180deg); }
+  .tile .f, .tile .b { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 1.2vh; display: flex; align-items: center; justify-content: center; }
+  .tile .f { background: linear-gradient(var(--tile1), var(--tile2)); border: .3vh solid #9fb8ff; flex-direction: column; }
+  .tile .f .no { font-family: var(--big); font-size: clamp(26px, 6vh, 70px); color: #fff; text-shadow: 0 .3vh 0 rgba(0,0,0,.35); }
+  .tile .f .pk { font-size: clamp(10px, 1.7vh, 17px); color: #ffe9a8; font-weight: 700; margin-top: -.4vh; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .b { transform: rotateX(180deg); background: linear-gradient(#ffd96a, #f0a81a); color: var(--ink); border: .3vh solid #fff3c4; justify-content: space-between; padding: 0 1.2vw; gap: 1vw; }
+  .tile.dim .b { background: linear-gradient(#8a93b8, #596291); color: #e8ecff; border-color: #aab3da; }
+  .tile .b .tx { font-weight: 900; font-size: clamp(14px, 3.2vh, 38px); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .tile .b .pt { font-family: var(--big); font-size: clamp(20px, 4.6vh, 56px); background: var(--ink); color: var(--gold); padding: 0 .8vw; border-radius: .8vh; }
+  .tile.empty .f { background: #060f45; border: .3vh solid #17267a; } .tile.empty .no, .tile.empty .pk { display: none; }
+  #strikes { width: 12vw; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2vh; }
+  .xbox { width: 100%; flex: 1; max-height: 15vh; border: .4vh solid #3a56c9; border-radius: 1.4vh; background: #020a33; display: flex; align-items: center; justify-content: center; font-family: var(--big); font-size: clamp(40px, 12vh, 140px); color: #2a3470; }
+  .xbox.on { color: var(--red); text-shadow: 0 0 2vh rgba(229,39,58,.8); }
+
+  /* ---- controls (MC only) ---- */
+  #ctl { background: rgba(0,0,0,.35); border-radius: 1.6vh; padding: 1vh 1.4vw 3.2vh; display: flex; align-items: center; gap: 1.4vw; flex-wrap: wrap; min-height: 9vh; }
+  #ctl .say { flex: 1 1 28vw; font-size: clamp(13px, 2.2vh, 22px); font-weight: 700; line-height: 1.25; }
+  #ctl .say b { color: var(--gold); }
+  .cb { border: 0; border-radius: 99px; padding: 1.1vh 1.8vw; font-family: var(--font); font-weight: 900; font-size: clamp(14px, 2.2vh, 22px); background: #fff; color: var(--ink); cursor: pointer; }
+  .cb:active { transform: scale(.96); }
+  .cb.go { background: #35c97a; color: #fff; } .cb.bad { background: var(--red); color: #fff; } .cb.gold { background: var(--gold); } .cb.ghost { background: rgba(255,255,255,.2); color: #fff; }
+  .cb[disabled] { opacity: .35; }
+  .nums { display: flex; flex-wrap: wrap; gap: .8vh .8vw; }
+
+  /* ---- flash X ---- */
+  #flash { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,.35); }
+  #flash .xs { display: flex; gap: 2vw; }
+  #flash .x { font-family: var(--big); color: var(--red); font-size: 42vh; line-height: 1; text-shadow: 0 0 4vh #fff, 0 1vh 0 rgba(0,0,0,.4); animation: slam .35s cubic-bezier(.2,1.5,.4,1); }
+  @keyframes slam { from { transform: scale(2.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* ---- fast money ---- */
+  #fm { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; text-align: center; min-height: 0; }
+  #fm .ttl { font-family: var(--big); font-size: clamp(28px, 7vh, 80px); color: var(--gold); letter-spacing: 3px; }
+  #fm .who { font-size: clamp(16px, 3vh, 34px); font-weight: 800; opacity: .9; }
+  #timer { font-family: var(--big); font-size: clamp(80px, 26vh, 300px); line-height: 1; color: #fff; }
+  #timer.low { color: var(--red); }
+  #fm table { width: min(96vw, 1300px); border-collapse: separate; border-spacing: 0 .8vh; font-size: clamp(13px, 2.6vh, 30px); }
+  #fm td { background: rgba(255,255,255,.1); padding: .9vh 1vw; font-weight: 800; text-transform: uppercase; }
+  #fm td.a { width: 32%; text-align: left; border-radius: 1vh 0 0 1vh; } #fm td.c { width: 36%; text-align: center; font-size: .6em; opacity: .85; text-transform: none; }
+  #fm td.d { width: 32%; text-align: right; border-radius: 0 1vh 1vh 0; }
+  #fm td .p { display: inline-block; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; margin: 0 .5vw; font-family: var(--big); }
+  #fm .tot { font-family: var(--big); font-size: clamp(34px, 9vh, 100px); color: var(--gold); }
+  #fm .verdict { font-weight: 900; font-size: clamp(20px, 4.5vh, 52px); }
+
+  /* ---- panels / modals ---- */
+  .wait { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; text-align: center; font-size: 4vh; font-weight: 800; background: radial-gradient(ellipse at 50% 30%, var(--bg1), var(--bg2) 75%); padding: 4vw; }
+  .modal { position: fixed; inset: 0; z-index: 60; display: none; align-items: center; justify-content: center; background: rgba(2,8,40,.88); padding: 2vh 2vw; }
+  .modal .card { background: #fff; color: var(--ink); border-radius: 2.4vh; padding: 2.4vh 2vw; width: min(900px, 100%); max-height: 96%; overflow-y: auto; display: flex; flex-direction: column; gap: 1.2vh; }
+  .modal h2 { margin: 0; font-size: 26px; } .modal h3 { margin: .8vh 0 0; font-size: 16px; }
+  .modal label { font-weight: 800; font-size: 14px; }
+  .modal input, .modal textarea { font-family: var(--font); font-size: 17px; border: 2px solid #c9d2f5; border-radius: 12px; padding: 9px; width: 100%; user-select: text; -webkit-user-select: text; }
+  .modal textarea { min-height: 120px; resize: vertical; }
+  .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .modal .btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .modal .note { font-size: 13px; color: #55608f; line-height: 1.4; }
+  .mb { border: 0; border-radius: 99px; padding: 11px 22px; font-family: var(--font); font-weight: 900; font-size: 16px; background: #e6eaff; color: var(--ink); cursor: pointer; }
+  .mb.go { background: #35c97a; color: #fff; } .mb.gold { background: var(--gold); } .mb.bad { background: var(--red); color: #fff; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="team t0" id="tm0"><span class="nm"></span><span class="sc">0</span></div>
+    <div id="mid"><div class="rd" id="rd"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div>
+    <div class="team t1" id="tm1"><span class="nm"></span><span class="sc">0</span></div>
+  </div>
+  <div id="q"></div>
+  <div id="stage">
+    <div id="board"></div>
+    <div id="strikes"></div>
+    <div id="fm"></div>
+  </div>
+  <div id="ctl"></div>
+</div>
+<button id="menuBtn">☰ Menu</button>
+<button id="peekBtn">👁 Hold to peek</button>
+<div id="flash"><div class="xs"></div></div>
+<div class="wait" id="wait">Waiting for the host to start the game…</div>
+
+<!-- Setup -->
+<div class="modal" id="setup"><div class="card">
+  <h2>🎤 Feud Night — Game Setup</h2>
+  <div class="row">
+    <div><label for="n0">Team 1 name</label><input id="n0" maxlength="24"><label for="p0">Team 1 players (one per line or commas)</label><textarea id="p0" placeholder="Optional — used to announce face-off players"></textarea></div>
+    <div><label for="n1">Team 2 name</label><input id="n1" maxlength="24"><label for="p1">Team 2 players (one per line or commas)</label><textarea id="p1" placeholder="Optional — used to announce face-off players"></textarea></div>
+  </div>
+  <div class="row">
+    <div><label for="tgt">Points to win (then Fast Money)</label><input id="tgt" type="number" inputmode="numeric"></div>
+    <div><label for="fmt">Fast Money target</label><input id="fmt" type="number" inputmode="numeric"></div>
+  </div>
+  <div class="btns">
+    <button class="mb go" id="startBtn">▶ Start new game</button>
+    <button class="mb gold" id="resumeBtn" style="display:none">↩ Resume saved game</button>
+    <button class="mb" id="editQBtn">✏️ Edit questions</button>
+    <button class="mb" id="sheetBtn">🖨 Print MC cheat sheet</button>
+  </div>
+  <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> and drag that window onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
+</div></div>
+
+<!-- Questions editor -->
+<div class="modal" id="qed"><div class="card">
+  <h2>✏️ Your Questions</h2>
+  <div class="note">One question per block. Start with <b>Q:</b>, then one answer per line as <b>Answer | points</b>, best answer first. Leave off the points and they're assigned automatically by order. Up to 8 answers per question. Blank lines between questions are fine.</div>
+  <h3>Main-round questions (<span id="cMain">0</span>)</h3>
+  <textarea id="qMain" style="min-height:240px"></textarea>
+  <h3>Fast Money questions — the first 5 are used (<span id="cFast">0</span>)</h3>
+  <textarea id="qFast" style="min-height:200px"></textarea>
+  <div class="btns">
+    <button class="mb go" id="qSave">Save</button>
+    <button class="mb" id="qSample">Load starter questions</button>
+    <button class="mb" id="qCancel">Cancel</button>
+  </div>
+  <div class="note" id="qMsg"></div>
+</div></div>
+
+<!-- Menu -->
+<div class="modal" id="menu"><div class="card">
+  <h2>☰ Menu</h2>
+  <h3>Fix a score</h3>
+  <div class="row"><div><label id="sl0" for="s0"></label><input id="s0" type="number" inputmode="numeric"></div><div><label id="sl1" for="s1"></label><input id="s1" type="number" inputmode="numeric"></div></div>
+  <div class="btns">
+    <button class="mb go" id="scoreSave">Save scores</button>
+    <button class="mb gold" id="openBoard">📺 Open board window</button>
+    <button class="mb" id="menuSheet">🖨 MC cheat sheet</button>
+    <button class="mb" id="menuQ">✏️ Edit questions</button>
+    <button class="mb bad" id="menuNew">New game…</button>
+    <button class="mb" id="menuClose">Close</button>
+  </div>
+  <div class="note" id="menuNote"></div>
+</div></div>
+
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const isBoard = new URLSearchParams(location.search).has('board');
+  if (isBoard) document.body.classList.add('board');
+  const LS = 'feud.state.v1', QK = 'feud.questions.v1', CK = 'feud.cfg.v1';
+
+  // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
+  const SAMPLE_MAIN = `Q: Name something you do first thing in the morning
+Drink coffee | 38
+Check your phone | 22
+Brush your teeth | 17
+Take medication | 11
+Read the news | 7
+Let the dog out | 5
+
+Q: Name something you're always losing around the house
+Glasses | 30
+Keys | 26
+Phone | 18
+TV remote | 14
+Wallet | 7
+Pen | 5
+
+Q: Name a reason people wake up at 3 a.m.
+Bathroom | 42
+Can't stop thinking / worrying | 20
+Too hot | 12
+Noise | 10
+Pain / aches | 8
+The dog | 5
+Hungry | 3
+
+Q: Name something grandkids love doing at Grandma and Grandpa's house
+Baking cookies | 28
+Playing games | 22
+Eating treats / ice cream | 20
+Swimming | 12
+Staying up late | 10
+Watching movies | 8
+
+Q: Name something you do more of since the kids moved out
+Travel | 30
+Sleep | 18
+Eat out | 16
+Watch TV | 14
+Read / relax | 12
+Golf / hobbies | 10
+
+Q: Name a TV show from the 1970s
+Happy Days | 24
+M*A*S*H | 20
+The Brady Bunch | 18
+Charlie's Angels | 12
+The Waltons | 10
+Gilligan's Island | 10
+Little House on the Prairie | 6
+
+Q: Name a place retirees love to travel
+Hawaii | 24
+Europe | 20
+Alaska | 16
+Florida | 14
+National parks | 14
+Cruise | 12
+
+Q: Name something you bring to a potluck
+Casserole | 26
+Dessert | 20
+Salad | 18
+Chips and dip | 14
+Rolls / bread | 12
+Fruit tray | 10
+
+Q: Name something that gets harder as you get older
+Reading small print | 28
+Staying up late | 18
+Bending over | 16
+Losing weight | 14
+Hearing | 12
+Remembering names | 12
+
+Q: Name a singer or band from the 1960s or '70s
+The Beatles | 30
+Elvis | 22
+The Beach Boys | 14
+ABBA | 12
+Fleetwood Mac | 12
+Elton John | 10
+
+Q: Name something Idaho is famous for
+Potatoes | 50
+Skiing | 14
+Fishing | 12
+Rafting / rivers | 10
+Hunting | 8
+Mountains | 6
+
+Q: Name something you'd see at a family barbecue
+Burgers | 30
+Hot dogs | 24
+Potato salad | 16
+Corn on the cob | 12
+Watermelon | 10
+Baked beans | 8`;
+  const SAMPLE_FAST = `Q: Name something you put in your coffee
+Cream | 40
+Sugar | 30
+Milk | 14
+Sweetener | 8
+Flavored syrup | 5
+Honey | 3
+
+Q: Name a pet people have
+Dog | 55
+Cat | 30
+Fish | 8
+Bird | 4
+Hamster | 3
+
+Q: Name a holiday families gather for
+Thanksgiving | 40
+Christmas | 35
+Easter | 12
+Fourth of July | 8
+Memorial Day | 5
+
+Q: Name something you check before leaving the house
+Stove | 28
+Keys | 24
+Wallet / purse | 20
+Phone | 16
+Lights | 8
+Door locked | 4
+
+Q: Name a kind of pie
+Apple | 38
+Pumpkin | 24
+Cherry | 16
+Pecan | 12
+Key lime | 6
+Banana cream | 4
+
+Q: Name something you carry in your purse or pocket
+Phone | 36
+Keys | 26
+Wallet | 18
+Tissues | 10
+Gum / mints | 6
+Lip balm | 4
+
+Q: Name something you do on a road trip
+Listen to music | 32
+Snack | 26
+Stop for gas / restroom | 18
+Sing along | 10
+Play road games | 8
+Sleep | 6`;
+
+  const WEIGHTS = [38, 26, 16, 10, 6, 4, 3, 2];
+  function parseQs(text) {
+    const out = []; let cur = null;
+    String(text || '').split(/\r?\n/).forEach(raw => {
+      const line = raw.trim(); if (!line) return;
+      const m = line.match(/^q\s*[:.)]\s*(.*)$/i);
+      if (m) { cur = { text: m[1].trim(), answers: [] }; out.push(cur); return; }
+      if (!cur) return;
+      const parts = line.split('|'); const t = parts[0].trim(); if (!t) return;
+      const pts = parts.length > 1 ? parseInt(parts[1].replace(/[^\d-]/g, ''), 10) : NaN;
+      cur.answers.push({ text: t, pts: isNaN(pts) ? null : pts });
+    });
+    return out.filter(q => q.text && q.answers.length).map(q => {
+      q.answers.forEach((a, i) => { if (a.pts === null) a.pts = WEIGHTS[Math.min(i, WEIGHTS.length - 1)]; });
+      q.answers = q.answers.map((a, i) => ({ a, i })).sort((x, y) => y.a.pts - x.a.pts || x.i - y.i).map(o => o.a).slice(0, 8);
+      return q;
+    });
+  }
+  const load = (k, d) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : d; } catch (e) { return d; } };
+  const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+
+  // ---------------- state ----------------
+  let S = null, undo = [], boardOpen = false, peek = false, lastFlash = 0, flashTimer = 0, flashInit = false;
+  const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('feud-game') : null;
+  const other = t => 1 - t;
+  const tn = t => S.teams[t].name;
+  const pname = t => { const p = S.teams[t].players; return p.length ? p[S.pi[t] % p.length] : 'the next player'; };
+  const clone = o => JSON.parse(JSON.stringify(o));
+
+  function commit() { if (!isBoard) { store(LS, S); if (bc) bc.postMessage({ t: 'state', S }); } render(); }
+  function act(fn) { if (!S) return; undo.push(JSON.stringify(S)); if (undo.length > 40) undo.shift(); fn(); commit(); }
+  function flash(n) { S.flash = { k: (S.flash ? S.flash.k : 0) + 1, n }; }
+
+  // ---------------- audio ----------------
+  let ac = null;
+  function tone(f, d, type, v, when) {
+    if (isBoard) return;
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
+      const t = ac.currentTime + (when || 0), o = ac.createOscillator(), g = ac.createGain();
+      o.type = type || 'sine'; o.frequency.value = f; g.gain.setValueAtTime(v || .2, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
+      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + .02); } catch (e) {}
+  }
+  const sDing = () => { tone(988, .25, 'triangle', .25); tone(1319, .5, 'triangle', .25, .12); };
+  const sBuzz = () => { tone(110, .75, 'sawtooth', .3); tone(104, .75, 'square', .15); };
+  const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
+  const sTick = () => tone(1200, .06, 'square', .08);
+
+  // ---------------- game logic ----------------
+  function startGame(cfg) {
+    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, fo: [], roundWinner: null, awarded: 0, showAll: false, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(load(QK, { main: SAMPLE_MAIN }).main) };
+    undo = [];
+    if (!S.qs.length) { alert('No main-round questions found. Open ✏️ Edit questions first.'); S = null; return false; }
+    nextRound(); return true;
+  }
+  function nextRound() {
+    S.qi++; S.round++;
+    S.q = clone(S.qs[(S.qi) % S.qs.length]); S.q.answers.forEach(a => a.revealed = false);
+    S.pot = 0; S.ctrl = null; S.fw = null; S.strikes = 0; S.first = null; S.fo = []; S.roundWinner = null; S.awarded = 0; S.showAll = false;
+    S.phase = 'buzz';
+  }
+  function reveal(i) { const a = S.q.answers[i]; if (!a || a.revealed) return false; a.revealed = true; S.pot += a.pts; sDing(); return true; }
+  const allRevealed = () => S.q.answers.every(a => a.revealed);
+  function endRound(w) {
+    S.teams[w].score += S.pot; S.roundWinner = w; S.awarded = S.pot; S.phase = 'roundEnd'; S.pi[0]++; S.pi[1]++; sWin();
+  }
+  function resolveFaceoff() {
+    const a = S.fo[0], b = S.fo[1];
+    if (a.rank === null && b.rank === null) { S.phase = 'foTie'; return; }
+    S.fw = (a.rank !== null && (b.rank === null || a.rank < b.rank)) ? a.team : b.team; S.phase = 'playpass';
+  }
+  function onTile(i) {
+    if (isBoard || !S) return;
+    const p = S.phase;
+    if (p === 'fo1') { if (S.q.answers[i].revealed) return; act(() => { reveal(i); S.fo.push({ team: S.first, rank: i }); if (i === 0) { S.fw = S.first; S.phase = 'playpass'; } else S.phase = 'fo2'; }); }
+    else if (p === 'fo2') { if (S.q.answers[i].revealed) return; act(() => { reveal(i); S.fo.push({ team: other(S.first), rank: i }); resolveFaceoff(); }); }
+    else if (p === 'play') { if (S.q.answers[i].revealed) return; act(() => { reveal(i); if (allRevealed()) endRound(S.ctrl); }); }
+    else if (p === 'steal') { if (S.q.answers[i].revealed) return; act(() => { reveal(i); endRound(other(S.ctrl)); }); }
+  }
+  function doAct(a, v) {
+    v = v === undefined ? null : v;
+    if (a === 'undo') { if (undo.length) { S = JSON.parse(undo.pop()); commit(); } return; }
+    if (a === 'first') act(() => { S.first = +v; S.fo = []; S.phase = 'fo1'; });
+    else if (a === 'x') act(() => {
+      const p = S.phase;
+      if (p === 'fo1') { S.fo.push({ team: S.first, rank: null }); S.phase = 'fo2'; flash(1); sBuzz(); }
+      else if (p === 'fo2') { S.fo.push({ team: other(S.first), rank: null }); flash(1); sBuzz(); resolveFaceoff(); }
+      else if (p === 'play') { S.strikes++; flash(S.strikes); sBuzz(); if (S.strikes >= 3) S.phase = 'steal'; }
+      else if (p === 'steal') { flash(1); sBuzz(); endRound(S.ctrl); }
+    });
+    else if (a === 'again') act(() => { S.phase = 'buzz'; S.first = null; S.fo = []; });
+    else if (a === 'play' || a === 'pass') act(() => { S.ctrl = a === 'play' ? S.fw : other(S.fw); S.strikes = 0; S.phase = 'play'; if (allRevealed()) endRound(S.ctrl); });
+    else if (a === 'revealall') act(() => { S.showAll = true; });
+    else if (a === 'next') act(() => {
+      const [x, y] = [S.teams[0].score, S.teams[1].score];
+      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; sWin(); } else nextRound();
+    });
+    else if (a === 'fmgo') act(() => fmSetup());
+    else if (a === 'fmbegin') act(() => { S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
+    else if (a === 'fmpick') act(() => fmPick(v === 'none' ? null : +v));
+    else if (a === 'fmrev') act(() => { S.fm.revealN++; const f = S.fm; const r = f.revealN - 1; const pts = (f.p[0][r] ? f.p[0][r].pts : 0) + (f.p[1][r] ? f.p[1][r].pts : 0); if (pts > 0) sDing(); else sTick(); if (f.revealN >= f.n) { f.done = true; if (fmTotal() >= S.fmTarget) sWin(); else sBuzz(); } });
+    else if (a === 'again2') act(() => { S.phase = 'gameOver'; });
+    else if (a === 'newgame') openSetup();
+  }
+
+  // ---------------- fast money ----------------
+  function fmSetup() {
+    const qs = parseQs(load(QK, { fast: SAMPLE_FAST }).fast).slice(0, 5);
+    S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 20, idx: 0, p: [[], []], revealN: 0, done: false };
+    S.phase = 'fm'; S.fm.win = S.champ;
+  }
+  function fmPick(rank) {
+    const f = S.fm, q = f.qs[f.idx], a = rank === null ? null : q.answers[rank];
+    f.p[f.pl - 1][f.idx] = a ? { text: a.text, pts: a.pts, rank } : { text: '— no match —', pts: 0, rank: null };
+    if (a) sDing(); else sBuzz();
+    f.idx++; if (f.idx >= f.n) fmFinishPlayer();
+  }
+  function fmFinishPlayer() {
+    const f = S.fm; f.running = false;
+    if (f.pl === 1) { f.pl = 2; f.idx = 0; f.secs = 25; } else { S.phase = 'fmResult'; }
+  }
+  function fmTotal() { const f = S.fm; let t = 0; for (let r = 0; r < f.revealN; r++) t += (f.p[0][r] ? f.p[0][r].pts : 0) + (f.p[1][r] ? f.p[1][r].pts : 0); return t; }
+  function fmTimeLeft() { const f = S.fm; return f.running ? Math.max(0, Math.ceil((f.end - Date.now()) / 1000)) : f.secs; }
+  setInterval(() => {
+    if (!S || S.phase !== 'fm') return;
+    const f = S.fm, tl = fmTimeLeft(), el = $('timer');
+    if (el) { el.textContent = tl; el.classList.toggle('low', f.running && tl <= 5); }
+    if (f.running && !isBoard) {
+      if (tl <= 5 && tl > 0 && tl !== f._lt) sTick(); f._lt = tl;
+      if (Date.now() >= f.end) act(() => { for (let i = f.idx; i < f.n; i++) f.p[f.pl - 1][i] = { text: '— time —', pts: 0, rank: null }; sBuzz(); flash(1); fmFinishPlayer(); });
+    }
+  }, 250);
+
+  // ---------------- rendering ----------------
+  const tiles = [];
+  for (let i = 0; i < 8; i++) {
+    const t = document.createElement('div'); t.className = 'tile empty';
+    t.innerHTML = '<div class="in"><div class="f"><span class="no">' + (i + 1) + '</span><span class="pk"></span></div><div class="b"><span class="tx"></span><span class="pt"></span></div></div>';
+    t.onclick = () => onTile(i); $('board').appendChild(t); tiles.push(t);
+  }
+  function render() {
+    if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
+    $('wait').style.display = 'none';
+    const fm = S.phase === 'fm' || S.phase === 'fmResult';
+    $('board').style.display = fm ? 'none' : 'grid'; $('strikes').style.display = fm ? 'none' : 'flex'; $('fm').style.display = fm ? 'flex' : 'none';
+    // teams
+    [0, 1].forEach(t => { const el = $('tm' + t); el.querySelector('.nm').textContent = S.teams[t].name; el.querySelector('.sc').textContent = S.teams[t].score;
+      el.classList.toggle('ctrl', ['play', 'steal'].includes(S.phase) && (S.phase === 'play' ? S.ctrl === t : other(S.ctrl) === t)); });
+    $('rd').textContent = fm ? 'FAST MONEY' : (S.phase === 'gameOver' ? 'GAME OVER' : 'ROUND ' + S.round);
+    $('pot').style.visibility = fm || S.phase === 'gameOver' ? 'hidden' : 'visible';
+    $('pot').querySelector('span').textContent = S.phase === 'roundEnd' ? S.awarded : S.pot;
+    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? S.fm.qs[S.fm.idx].text : 'Get ready…') : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : S.q.text);
+    // board
+    if (!fm && S.q) {
+      const priv = !isBoard && (boardOpen || peek);
+      tiles.forEach((t, i) => { const a = S.q.answers[i]; t.classList.toggle('empty', !a);
+        if (a) { t.querySelector('.tx').textContent = a.text; t.querySelector('.pt').textContent = a.pts;
+          t.classList.toggle('flip', !!a.revealed || S.showAll); t.classList.toggle('dim', !a.revealed && S.showAll);
+          t.querySelector('.pk').textContent = priv && !a.revealed ? a.text + ' · ' + a.pts : ''; } else t.classList.remove('flip'); });
+      $('strikes').innerHTML = [0, 1, 2].map(i => '<div class="xbox' + ((S.phase === 'steal' || S.phase === 'roundEnd' && S.strikes >= 3 ? 3 : S.strikes) > i ? ' on' : '') + '">✕</div>').join('');
+    }
+    if (fm) renderFM();
+    // flash
+    if (!flashInit) { flashInit = true; lastFlash = S.flash ? S.flash.k : 0; }
+    if (S.flash && S.flash.k !== lastFlash) { lastFlash = S.flash.k; if (S.flash.n) {
+      $('flash').querySelector('.xs').innerHTML = Array.from({ length: S.flash.n }, () => '<span class="x">✕</span>').join('');
+      $('flash').style.display = 'flex'; clearTimeout(flashTimer); flashTimer = setTimeout(() => { $('flash').style.display = 'none'; }, 1300); } }
+    if (!isBoard) $('ctl').innerHTML = controls();
+  }
+  function renderFM() {
+    const f = S.fm, el = $('fm');
+    if (S.phase === 'fm') {
+      el.innerHTML = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — Player ' + f.pl + (f.running ? ' · Question ' + (f.idx + 1) + ' of ' + f.n : ' · ' + f.secs + ' seconds') + '</div><div id="timer">' + fmTimeLeft() + '</div>';
+    } else {
+      let h = '<div class="ttl">FAST MONEY — ' + S.fmTarget + ' TO WIN</div><table>';
+      for (let r = 0; r < f.n; r++) { const on = r < f.revealN, a = f.p[0][r], b = f.p[1][r];
+        h += '<tr><td class="a">' + (on ? a.text + '<span class="p">' + a.pts + '</span>' : '&nbsp;') + '</td><td class="c">' + f.qs[r].text.replace(/^name\s+/i, '') + '</td><td class="d">' + (on ? '<span class="p">' + b.pts + '</span>' + b.text : '&nbsp;') + '</td></tr>'; }
+      h += '</table><div class="tot">TOTAL: ' + fmTotal() + '</div>';
+      if (f.done) h += '<div class="verdict">' + (fmTotal() >= S.fmTarget ? '🎉 ' + tn(f.win) + ' wins it all!' : 'So close! They needed ' + (S.fmTarget - fmTotal()) + ' more.') + '</div>';
+      el.innerHTML = h;
+    }
+  }
+  function controls() {
+    const b = (act, label, cls, v) => '<button class="cb ' + (cls || '') + '" data-act="' + act + '"' + (v !== undefined ? ' data-v="' + v + '"' : '') + '>' + label + '</button>';
+    const p = S.phase, say = t => '<div class="say">' + t + '</div>', un = undo.length ? b('undo', '↩ Undo', 'ghost') : '';
+    const priv = boardOpen || peek;
+    if (p === 'buzz') return say('<b>FACE-OFF!</b> ' + pname(0) + ' (' + tn(0) + ') vs. ' + pname(1) + ' (' + tn(1) + '). Read the question. Who buzzed in first?') + b('first', tn(0) + ' first', 'gold', 0) + b('first', tn(1) + ' first', 'gold', 1) + un;
+    if (p === 'fo1') return say('<b>' + tn(S.first) + '</b> answers first. Tap the matching answer on the board — or if it\'s not up there:') + b('x', '✕ Not on the board', 'bad') + un;
+    if (p === 'fo2') return say('Now <b>' + tn(other(S.first)) + '</b> answers. Tap the answer, or:') + b('x', '✕ Not on the board', 'bad') + un;
+    if (p === 'foTie') return say('Neither answer was on the board.') + b('again', 'Buzz again', 'gold') + un;
+    if (p === 'playpass') return say('<b>' + tn(S.fw) + '</b> wins the face-off! Do they play or pass?') + b('play', '▶ PLAY', 'go') + b('pass', 'PASS to ' + tn(other(S.fw)), 'gold') + un;
+    if (p === 'play') return say('<b>' + tn(S.ctrl) + '</b> is playing — ' + S.strikes + ' strike' + (S.strikes === 1 ? '' : 's') + '. Tap each answer they get.') + b('x', '✕ STRIKE', 'bad') + un;
+    if (p === 'steal') return say('<b>STEAL!</b> ' + tn(other(S.ctrl)) + ' gets one guess at any remaining answer. Tap it if they get one:') + b('x', '✕ Missed', 'bad') + un;
+    if (p === 'roundEnd') return say('<b>' + tn(S.roundWinner) + '</b> wins the round and <b>' + S.awarded + '</b> points!') + (S.showAll ? '' : b('revealall', 'Reveal the rest', 'gold')) + b('next', 'Next ▶', 'go') + un;
+    if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money — Player 2 must be out of earshot.') + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
+    if (p === 'fm') {
+      const f = S.fm;
+      if (!f.running) return say('<b>Fast Money — Player ' + f.pl + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring Player 2 in. No repeating Player 1\'s answers!' : 'Player 2 should be out of earshot.')) + b('fmbegin', '▶ Start the clock', 'go') + un;
+      const q = f.qs[f.idx], used = f.pl === 2 && f.p[0][f.idx] ? f.p[0][f.idx].rank : null;
+      return say('<b>Q' + (f.idx + 1) + ':</b> tap the answer they gave' + (priv ? '' : ' (use your cheat sheet\'s number)') + ':') + '<div class="nums">' + q.answers.map((a, i) => '<button class="cb gold" data-act="fmpick" data-v="' + i + '"' + (used === i ? ' disabled' : '') + '>' + (i + 1) + (priv ? ' · ' + a.text + ' (' + a.pts + ')' : '') + '</button>').join('') + b('fmpick', '✕ None (0)', 'bad', 'none') + '</div>';
+    }
+    if (p === 'fmResult') { const f = S.fm; return say(f.done ? 'That\'s Fast Money!' : 'Reveal the answers one question at a time.') + (f.done ? b('again2', '← Back', 'ghost') + b('newgame', 'New game', 'go') : b('fmrev', 'Reveal Q' + (f.revealN + 1), 'gold')) + un; }
+    return '';
+  }
+
+  // ---------------- wiring ----------------
+  $('ctl').onclick = e => { const el = e.target.closest('[data-act]'); if (el && !el.disabled) doAct(el.dataset.act, el.dataset.v); };
+  const pk = (on) => () => { if (!S) return; peek = on; render(); };
+  $('peekBtn').addEventListener('pointerdown', pk(true)); ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('peekBtn').addEventListener(ev, pk(false)));
+  if (bc) bc.onmessage = e => {
+    const m = e.data || {};
+    if (isBoard && m.t === 'state') { S = m.S; render(); }
+    if (!isBoard && m.t === 'hello') { boardOpen = true; if (S) bc.postMessage({ t: 'state', S }); render(); }
+  };
+  if (isBoard && bc) { bc.postMessage({ t: 'hello' }); setTimeout(() => { if (!S) bc.postMessage({ t: 'hello' }); }, 1500); }
+
+  // setup / questions / menu (host page only)
+  const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; };
+  const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+  function openSetup() {
+    const c = load(CK, { n: ['Team 1', 'Team 2'], p: ['', ''], tgt: 300, fmt: 200 });
+    $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
+    $('resumeBtn').style.display = load(LS, null) ? 'inline-block' : 'none'; show('menu', false); show('setup', true);
+  }
+  $('startBtn').onclick = () => {
+    const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200 };
+    store(CK, c);
+    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt })) { show('setup', false); commit(); }
+  };
+  $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; show('setup', false); commit(); } };
+  function openEditor() { const q = load(QK, { main: SAMPLE_MAIN, fast: SAMPLE_FAST }); $('qMain').value = q.main; $('qFast').value = q.fast; count(); $('qMsg').textContent = ''; show('qed', true); }
+  function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
+  $('qMain').oninput = $('qFast').oninput = count;
+  $('qSample').onclick = () => { $('qMain').value = SAMPLE_MAIN; $('qFast').value = SAMPLE_FAST; count(); $('qMsg').textContent = 'Starter questions loaded — tap Save to keep them.'; };
+  $('qSave').onclick = () => { store(QK, { main: $('qMain').value, fast: $('qFast').value }); show('qed', false); if (S) { S.qs = parseQs($('qMain').value); } };
+  $('qCancel').onclick = () => show('qed', false);
+  $('editQBtn').onclick = openEditor; $('menuQ').onclick = () => { show('menu', false); openEditor(); };
+  function sheet() {
+    const q = load(QK, { main: SAMPLE_MAIN, fast: SAMPLE_FAST });
+    const blk = (title, qs) => '<h2>' + title + '</h2>' + qs.map((x, i) => '<div class="q"><b>' + (i + 1) + '. ' + x.text + '</b><ol>' + x.answers.map(a => '<li>' + a.text + ' <i>(' + a.pts + ')</i></li>').join('') + '</ol></div>').join('');
+    const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to open the cheat sheet.'); return; }
+    w.document.write('<!doctype html><title>MC Cheat Sheet</title><style>body{font-family:Arial,sans-serif;margin:24px;max-width:780px}h1{margin:0 0 6px}h2{border-bottom:2px solid #000;margin-top:26px}.q{break-inside:avoid;margin:10px 0}ol{margin:4px 0 0 20px;padding:0}li{margin:1px 0}@media print{button{display:none}}</style><h1>MC Cheat Sheet</h1><button onclick="print()">Print</button>' + blk('Main rounds (in play order)', parseQs(q.main)) + blk('Fast Money (first 5 are used)', parseQs(q.fast).slice(0, 5)) + '</body>');
+    w.document.close();
+  }
+  $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
+  $('menuBtn').onclick = () => { if (!S) return; $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
+  $('menuClose').onclick = () => show('menu', false);
+  $('scoreSave').onclick = () => act(() => { S.teams[0].score = parseInt($('s0').value, 10) || 0; S.teams[1].score = parseInt($('s1').value, 10) || 0; show('menu', false); });
+  $('openBoard').onclick = () => { const w = window.open(location.pathname + '?board=1', 'feudboard'); if (!w) alert('Allow pop-ups, then try again.'); $('menuNote').textContent = 'Board window opened. Drag it to the TV and press F (or the green button) for full screen.'; };
+  $('menuNew').onclick = () => openSetup();
+
+  if (!isBoard) { openSetup(); } else { render(); }
+})();
+</script>
+</body>
+</html>
