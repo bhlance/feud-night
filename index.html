@@ -775,7 +775,7 @@ Sleep | 6`;
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
       const win = f.won ? '🎉 <b>' + fmTotal() + ' points — target reached!</b> ' : '';
       if (r < f.n) { const e = f.p[who][r] || { text: '— no answer —', pts: 0 }, st = (f.stage || [0, 0])[who];
-        return say(win + '<b>Player ' + f.pl + ' — Q' + (r + 1) + '.</b> ' + (st === 0 ? 'Tap to show what they said.' : 'Their answer is up. Tap again for the points — ' + (e.pts > 0 ? 'cha-ching!' : 'that one is a strike.')) + (priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + e.text + ', ' + e.pts + ')</i>' : '')) + b('fmrev', st === 0 ? 'Show Q' + (r + 1) + ' answer' : 'Show Q' + (r + 1) + ' points', 'gold') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
+        return say(win + '<b>Player ' + f.pl + ' — Q' + (r + 1) + '.</b> ' + (st === 0 ? (e.text ? 'Tap to show what they said.' : 'No answer was given — tap to show the empty slot.') : (e.text ? 'Their answer is up. ' : 'Nothing to show. ') + 'Tap again for the points — ' + (e.pts > 0 ? 'cha-ching!' : 'that one is a strike.')) + (priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + e.text + ', ' + e.pts + ')</i>' : '')) + b('fmrev', st === 0 ? 'Show Q' + (r + 1) + ' answer' : 'Show Q' + (r + 1) + ' points', 'gold') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
       if (f.won) return say(win + 'All of Player ' + f.pl + '\'s answers are up.') + b('finishfm', '🏁 Finish Fast Money', 'go') + (f.pl === 1 ? b('fmnext', 'Play Player 2 anyway', 'ghost') : '') + un;
       return say('<b>Player ' + f.pl + ' scored ' + fmTotal() + '.</b> Now bring in Player 2 — they haven\'t heard any of these answers.') + b('fmnext', '▶ Bring in Player 2', 'go') + un; }
     if (p === 'fmResult') { const f = S.fm; return say('That\'s Fast Money! Final total: <b>' + fmTotal() + '</b>.') + b('again2', '← Back', 'ghost') + b('newgame', 'New game', 'go') + un; }
@@ -814,7 +814,7 @@ Sleep | 6`;
     const vals = [...$('fmFormRows').querySelectorAll('input')].map(x => x.value.trim());
     act(() => {
       f.p[w] = vals.map((typed, i) => {
-        if (!typed) return { text: '— no answer —', pts: 0, rank: null, typed: '' };
+        if (!typed) return { text: '', pts: 0, rank: null, typed: '' };   // nothing typed = nothing shown, 0 points
         const m = matchFor(f, w, i, typed);
         if (m.r !== null) { const a = f.qs[i].answers[m.r]; return { text: a.text, pts: a.pts, rank: m.r, typed }; }
         return { text: typed, pts: 0, rank: null, typed, dup: !!m.dup };
