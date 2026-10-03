@@ -95,6 +95,22 @@
   #fm td .p { display: inline-block; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; margin: 0 .5vw; font-family: var(--big); }
   #fm .tot { font-family: var(--big); font-size: clamp(34px, 9vh, 100px); color: var(--gold); }
   #fm .verdict { font-weight: 900; font-size: clamp(20px, 4.5vh, 52px); }
+  /* ---- Fast Money display: bigger everything, no team score boxes ---- */
+  body.fmmode #tm0, body.fmmode #tm1 { display: none; }
+  body.fmmode #top { grid-template-columns: 1fr; }
+  body.fmmode #mid { margin: 0 auto; }
+  body.fmmode #q { font-size: clamp(26px, 7vh, 96px); min-height: 11vh; }
+  body.fmmode #fm { gap: 1vh; }
+  body.fmmode #fm .who { font-size: clamp(20px, 4.2vh, 56px); }
+  body.fmmode #fm .ttl { font-size: clamp(26px, 5.5vh, 72px); }
+  body.fmmode #fm table { width: min(98vw, 1880px); font-size: clamp(20px, 4.7vh, 66px); border-spacing: 0 .7vh; }
+  body.fmmode #fm td { padding: 1vh 1.2vw; }
+  body.fmmode #mid .rd, body.fmmode #pot { display: none; }
+  body.fmtable #q { display: none; }   /* the results table already says what it is */
+  body.fmmode #fm { overflow: hidden; }
+  body.fmmode #fm td.a { width: 33%; } body.fmmode #fm td.d { width: 33%; }
+  body.fmmode #fm td.c { width: 34%; font-size: .8em; opacity: 1; line-height: 1.1; white-space: normal; }
+  body.fmmode #fm td .p { padding: 0 .7vw; margin: 0 .7vw; border-radius: 1vh; }
 
   /* ---- panels / modals ---- */
   .wait { position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center; text-align: center; font-size: 4vh; font-weight: 800; background: radial-gradient(ellipse at 50% 30%, var(--bg1), var(--bg2) 75%); padding: 4vw; }
@@ -704,6 +720,7 @@ Sleep | 6`;
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
     $('wait').style.display = 'none';
     const fm = ['fm', 'fmEntry', 'fmReveal', 'fmResult'].includes(S.phase);
+    document.body.classList.toggle('fmmode', fm); document.body.classList.toggle('fmtable', fm && S.phase !== 'fm');
     $('board').style.display = fm ? 'none' : 'grid'; $('strikes').style.display = fm ? 'none' : 'flex'; $('fm').style.display = fm ? 'flex' : 'none';
     // teams
     const h = hl();
@@ -736,6 +753,13 @@ Sleep | 6`;
       $('ctl').innerHTML = controls();
     }
   }
+  // Shrinks the results table only as much as needed so every row, the total and the verdict stay on screen.
+  function fitFM() {
+    const el = $('fm'), t = el && el.querySelector('table'); if (!t || el.style.display === 'none') return;
+    let px = innerHeight * 0.047; t.style.fontSize = px + 'px'; let guard = 0;
+    while (el.scrollHeight > el.clientHeight + 1 && px > 14 && guard++ < 40) { px *= 0.94; t.style.fontSize = px + 'px'; }
+  }
+  addEventListener('resize', () => { if (S) fitFM(); });
   function renderFM() {
     const f = S.fm, el = $('fm');
     if (S.phase === 'fm') {
@@ -749,7 +773,7 @@ Sleep | 6`;
         h += '<tr><td class="a">' + ((full1 || part1) && a ? a.text + pt(a, full1) : '&nbsp;') + '</td><td class="c">' + f.qs[r].text.replace(/^name\s+/i, '') + '</td><td class="d">' + ((full2 || part2) && b ? pt(b, full2) + b.text : '&nbsp;') + '</td></tr>'; }
       h += '</table><div class="tot">TOTAL: ' + fmTotal() + '</div>';
       if (f.done) h += '<div class="verdict">' + (fmTotal() >= S.fmTarget ? '🎉 ' + tn(f.win) + ' wins it all!' : 'So close! They needed ' + (S.fmTarget - fmTotal()) + ' more.') + '</div>';
-      el.innerHTML = h;
+      el.innerHTML = h; fitFM();
     }
   }
   function controls() {
