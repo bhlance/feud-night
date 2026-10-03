@@ -238,32 +238,10 @@
   <h3>⚡ Skip to Fast Money (for testing)</h3>
   <div class="note">Jumps straight to the Fast Money round, as if this team had just won the game. Undo brings you back.</div>
   <div class="btns"><button class="mb gold" id="skipFm0"></button><button class="mb gold" id="skipFm1"></button></div>
-  <details>
-    <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music</summary>
-    <div class="note" style="margin:6px 0">Pick songs from your laptop. They stay on this laptop only, and fade out at the end. Without a song, a built-in fanfare plays.</div>
-    <h3>Fallback song — any round that doesn't have its own song below</h3>
-    <div class="row"><div><label for="musicFile">Song file (mp3, m4a, wav)</label><input id="musicFile" type="file" accept="audio/*"></div>
-      <div class="row" style="gap:10px"><div><label for="musicStart">Start at (seconds in)</label><input id="musicStart" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen">Play for (seconds)</label><input id="musicLen" type="number" min="2" max="120" value="10" inputmode="numeric"></div></div></div>
-    <div class="btns"><button class="mb" id="musicTest">▶ Test</button><button class="mb" id="musicStop">■ Stop</button><button class="mb" id="musicRemove">Remove song</button></div>
-    <div class="note" id="musicNote"></div>
-    <h3>When a team wins the game (reaches the target score)</h3>
-    <div class="row"><div><label for="musicFileGame">Song file (mp3, m4a, wav)</label><input id="musicFileGame" type="file" accept="audio/*"></div>
-      <div class="row" style="gap:10px"><div><label for="musicStartGame">Start at (seconds in)</label><input id="musicStartGame" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLenGame">Play for (seconds)</label><input id="musicLenGame" type="number" min="2" max="120" value="20" inputmode="numeric"></div></div></div>
-    <div class="btns"><button class="mb" id="musicTestGame">▶ Test</button><button class="mb" id="musicStopGame">■ Stop</button><button class="mb" id="musicRemoveGame">Remove song</button></div>
-    <div class="note" id="musicNoteGame"></div>
-    <h3>When a team wins Fast Money</h3>
-    <div class="row"><div><label for="musicFileFm">Song file (mp3, m4a, wav)</label><input id="musicFileFm" type="file" accept="audio/*"></div>
-      <div class="row" style="gap:10px"><div><label for="musicStartFm">Start at (seconds in)</label><input id="musicStartFm" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLenFm">Play for (seconds)</label><input id="musicLenFm" type="number" min="2" max="120" value="30" inputmode="numeric"></div></div></div>
-    <div class="btns"><button class="mb" id="musicTestFm">▶ Test</button><button class="mb" id="musicStopFm">■ Stop</button><button class="mb" id="musicRemoveFm">Remove song</button></div>
-    <div class="note" id="musicNoteFm"></div>
-    <h3 style="margin-top:14px">🏁 Song after each round (the winning team of that round)</h3>
-    <div class="note">Round 1 gets its own song, round 2 a different one, and so on. If a round's win takes a team to the target score, the <b>game-winner song</b> plays instead. A round with no song here uses the fallback song above.</div>
-    <div id="roundSecs"></div>
-    <h3 style="margin-top:14px">👥 Audience reactions in Fast Money (played when the points are revealed)</h3>
-    <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="reactOn" style="width:auto"> Play audience reactions</label>
-    <div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>
-    <div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. The built-in crowd sounds are computer-made stand-ins; upload real recordings below if you have them and they'll be used instead.</div>
-    <div id="reactSecs"></div>
+  <details open>
+    <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music &amp; sounds — listed in the order they play</summary>
+    <div class="note" style="margin:6px 0">Pick songs from your laptop. Each one is saved on this laptop and fades out at the end. Without a song, a built-in sound plays. The numbers follow the order of a game.</div>
+    <div id="musicOrder"></div>
   </details>
   <div class="note" id="menuNote"></div>
 </div></div>
@@ -1216,12 +1194,20 @@ Nevada | 4`;
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
   $('testFmBtn').onclick = () => { $('startBtn').onclick(); if (S) skipToFM(0); };
   const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10 };
-  (function injectReactUI() {
-    const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Recording (mp3, m4a, wav) — optional</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
-      + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds)</label><input id="musicLen' + x + '" type="number" min="1" max="30" value="' + len + '" inputmode="numeric"></div></div></div>'
-      + '<div class="btns"><button class="mb" id="musicTest' + x + '">▶ Test</button><button class="mb" id="musicStop' + x + '">■ Stop</button><button class="mb" id="musicRemove' + x + '">Remove recording</button></div><div class="note" id="musicNote' + x + '"></div>';
-    $('roundSecs').innerHTML = [1, 2, 3, 4].map(n => sec('🎵 Round ' + n + ' winner song', 'R' + n, 10)).join('') + sec('🎵 Round 5 and later', 'R5', 10);
-    $('reactSecs').innerHTML = sec('😞 Disappointed “aww”', 'Aww', 3) + sec('👏 Generous applause', 'Clap', 4) + sec('🎉 Loud cheering', 'Cheer', 5);
+  (function injectMusicUI() {
+    const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Song or recording (mp3, m4a, wav)</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
+      + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds)</label><input id="musicLen' + x + '" type="number" min="1" max="120" value="' + len + '" inputmode="numeric"></div></div></div>'
+      + '<div class="btns"><button class="mb" id="musicTest' + x + '">▶ Test</button><button class="mb" id="musicStop' + x + '">■ Stop</button><button class="mb" id="musicRemove' + x + '">Remove</button></div><div class="note" id="musicNote' + x + '"></div>';
+    const reactIntro = '<div style="margin-top:14px;padding:10px 12px;background:#eef1ff;border-radius:12px"><div style="font-weight:800">👥 Fast Money audience reactions (played as each score is revealed)</div>'
+      + '<label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="reactOn" style="width:auto"> Play audience reactions</label>'
+      + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
+      + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
+    $('musicOrder').innerHTML =
+        sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 and later winner song', 'R5', 10)
+      + sec('6 · Fallback song — used for any round above that has no song of its own', '', 10)
+      + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
+      + reactIntro + sec('8 · Fast Money: disappointed “aww” (low scores)', 'Aww', 3) + sec('9 · Fast Money: generous applause (middle scores)', 'Clap', 4) + sec('10 · Fast Money: loud cheering (high scores)', 'Cheer', 5)
+      + sec('11 · Fast Money winner song — plays the moment the total reaches the Fast Money target', 'Fm', 30);
     const c = reactCfg(); $('reactOn').checked = c.on; $('reactLo').value = c.lo; $('reactHi').value = c.hi;
     const save = () => { try { localStorage.setItem('feud.react', JSON.stringify({ on: $('reactOn').checked, lo: +$('reactLo').value || 10, hi: +$('reactHi').value || 30 })); } catch (e) {} };
     $('reactOn').onchange = $('reactLo').onchange = $('reactHi').onchange = save;
