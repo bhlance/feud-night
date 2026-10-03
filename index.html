@@ -81,7 +81,7 @@
   .nums { display: flex; flex-wrap: wrap; gap: .8vh .8vw; }
 
   /* ---- flash X ---- */
-  #winFlash { position: fixed; inset: 0; z-index: 55; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 3vw; pointer-events: none; font-family: var(--big); color: #fff; line-height: 1.05; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 0 2vh #ffc93c, 0 0 5vh #ff8a3c, 0 .8vh 0 rgba(0,0,0,.55); animation: winBlink 1s steps(1) infinite; }
+  #winFlash { position: fixed; inset: 0; z-index: 54; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 3vw; pointer-events: none; font-family: var(--big); color: #fff; line-height: 1.05; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 0 2vh #ffc93c, 0 0 5vh #ff8a3c, 0 .8vh 0 rgba(0,0,0,.55); animation: winBlink 1s steps(1) infinite; }
   #winFlashText { display: inline-block; max-width: 94vw; }
   @keyframes winBlink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
   #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 57; pointer-events: none; }
@@ -260,7 +260,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 31';
+  const GAME_VERSION = '2026-10-03 · build 32';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -942,7 +942,7 @@ Nevada | 4`;
     return { r };
   }
   // The moment the revealed total reaches the target, the Fast Money song starts.
-  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true }; } }
+  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true, name: (S.teams[f.win] ? S.teams[f.win].name : '') }; } }
   function fmTotal() { const f = S.fm; let t = 0; for (let w = 0; w < 2; w++) for (let r = 0; r < f.rev[w]; r++) t += f.p[w][r] ? f.p[w][r].pts : 0; return t; }
   function fmTimeLeft() { const f = S.fm; return f.running ? Math.max(0, Math.ceil((f.end - Date.now()) / 1000)) : f.secs; }
   const clockLeft = () => { const t = S.tm; return !t.running ? t.secs : t.paused ? Math.ceil(t.rem / 1000) : Math.max(0, Math.ceil((t.end - Date.now()) / 1000)); };
@@ -973,7 +973,7 @@ Nevada | 4`;
   // ---------------- confetti (falls from the top of the screen on both windows) ----------------
   const cfx = $('confetti'), cctx = cfx.getContext('2d'); let confRaf = 0, lastCele = 0, celeInit = false;
   let confEndless = false;
-  function stopConfettiEndless() { confEndless = false; cancelAnimationFrame(confRaf); cctx.clearRect(0, 0, cfx.width, cfx.height); }
+  function stopConfettiEndless() { confEndless = false; cancelAnimationFrame(confRaf); cctx.clearRect(0, 0, cfx.width, cfx.height); hideWinner(); }
   function startConfetti(secs, endless) {
     confEndless = !!endless;
     const dpr = window.devicePixelRatio || 1; cfx.width = innerWidth * dpr; cfx.height = innerHeight * dpr;
@@ -1058,8 +1058,8 @@ Nevada | 4`;
       $('xs').innerHTML = [0, 1, 2].map(i => '<div class="xbox' + ((S.phase === 'steal' || S.phase === 'roundEnd' && S.strikes >= 3 ? 3 : S.strikes) > i ? ' on' : '') + '">✕</div>').join('');
     }
     if (fm) renderFM();
-    if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; if (S.cele && S.cele.endless && S.cele.active) startConfetti(0, true); }
-    else if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; if (S.cele.endless) startConfetti(0, true); else startConfetti(S.cele.secs || 12); }
+    if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; if (S.cele && S.cele.endless && S.cele.active) { startConfetti(0, true); if (S.cele.name) flashWinner(S.cele.name, 0, true); } }
+    else if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; if (S.cele.endless) { startConfetti(0, true); if (S.cele.name) flashWinner(S.cele.name, 0, true); } else startConfetti(S.cele.secs || 12); }
     if (confEndless && !(S.cele && S.cele.endless && S.cele.active)) stopConfettiEndless();   // new game, back, or the win was undone
     if (!fireInit) { fireInit = true; lastFire = S.fire ? S.fire.k : 0;
       if (S.fire && S.fire.endless && S.fire.active) { startFireworks(0, true); if (S.fire.name) flashWinner(S.fire.name, 0, true); } }   // a window opened mid-celebration joins in
