@@ -387,7 +387,7 @@ Sleep | 6`;
 
   // ---------------- game logic ----------------
   function startGame(cfg) {
-    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: true, roundWinner: null, awarded: 0, showAll: false, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(load(QK, { main: SAMPLE_MAIN }).main) };
+    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: false, roundWinner: null, awarded: 0, showAll: false, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(load(QK, { main: SAMPLE_MAIN }).main) };
     undo = [];
     if (!S.qs.length) { alert('No main-round questions found. Open ✏️ Edit questions first.'); S = null; return false; }
     nextRound(); return true;
@@ -500,7 +500,7 @@ Sleep | 6`;
       if (isBoard || S.tm.paused || S.tm.expired) return;
       const n = clockLeft();
       if (n <= 3 && n > 0 && n !== S.tm._lt) sTick(); S.tm._lt = n;
-      if (Date.now() >= S.tm.end) { if (S.auto !== false) act(() => miss()); else { S.tm.expired = true; sBuzz(); commit(); } }
+      if (Date.now() >= S.tm.end) { if (S.auto === true) act(() => miss()); else { S.tm.expired = true; sBuzz(); commit(); } }
     }
   }, 250);
 
@@ -619,7 +619,7 @@ Sleep | 6`;
     w.document.close();
   }
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
-  $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto !== false; $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
+  $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto === true; $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
   $('autoX').onchange = () => { if (S) { S.auto = $('autoX').checked; commit(); } };
   $('scoreSave').onclick = () => act(() => { S.teams[0].score = parseInt($('s0').value, 10) || 0; S.teams[1].score = parseInt($('s1').value, 10) || 0; show('menu', false); });
