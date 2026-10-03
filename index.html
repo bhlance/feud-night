@@ -26,7 +26,10 @@
   .team.ctrl { box-shadow: 0 0 0 .5vh #fff, 0 0 3vh var(--gold); }
   .team.ctrl::after { content: attr(data-l); position: absolute; top: -1.6vh; left: 1vw; background: var(--gold); color: var(--ink); font-size: clamp(10px, 1.6vh, 16px); font-weight: 900; padding: .2vh .8vw; border-radius: 99px; }
   .team.t1.ctrl::after { content: attr(data-r); left: auto; right: 1vw; }
-  #mid { text-align: center; display: flex; flex-direction: column; justify-content: center; min-width: 14vw; }
+  #mid { display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 1.1vw; min-width: 14vw; }
+  #midText { text-align: center; display: flex; flex-direction: column; justify-content: center; }
+  #logo { display: none; align-self: stretch; height: auto; width: auto; max-height: 13vh; object-fit: contain; filter: invert(1); opacity: .95; }
+  body.board #logo { display: block; }
   #brand { display: none; }
   body.board #brand { display: block; font-family: var(--big); color: var(--gold); font-size: clamp(20px, 4.6vh, 56px); letter-spacing: 3px; line-height: 1; text-shadow: 0 .3vh 0 rgba(0,0,0,.45); margin-bottom: .4vh; }
   #multBadge { display: none; margin: .4vh auto 0; background: var(--gold); color: var(--ink); font-weight: 900; font-size: clamp(10px, 1.9vh, 20px); letter-spacing: 1px; padding: .2vh 1vw; border-radius: 99px; white-space: nowrap; }
@@ -140,7 +143,7 @@
 <div id="app">
   <div id="top">
     <div class="team t0" id="tm0"><span class="nm"></span><span class="sc">0</span></div>
-    <div id="mid"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div>
+    <div id="mid"><img id="logo" src="logo.png" alt=""><div id="midText"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div></div>
     <div class="team t1" id="tm1"><span class="nm"></span><span class="sc">0</span></div>
   </div>
   <div id="q"></div>
@@ -157,7 +160,7 @@
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
 <div id="flash"><div class="xs"></div></div>
-<div class="wait" id="wait">FHE FEUD<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host to start the game…</span></div>
+<div class="wait" id="wait"><div><img src="logo.png" alt="" style="height:24vh;filter:invert(1);display:block;margin:0 auto 2vh">FHE FEUD<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host to start the game…</span></div></div>
 
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
