@@ -181,12 +181,20 @@
     <button class="mb bad" id="menuNew">New game…</button>
     <button class="mb" id="menuClose">Close</button>
   </div>
-  <h3>🎵 Round-win music</h3>
-  <div class="note">Pick a song from your laptop. It plays when a team wins a round, for the number of seconds below, then fades out. It stays on this laptop only.</div>
-  <div class="row"><div><label for="musicFile">Song file (mp3, m4a, wav)</label><input id="musicFile" type="file" accept="audio/*"></div>
-    <div class="row" style="gap:10px"><div><label for="musicStart">Start at (seconds in)</label><input id="musicStart" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen">Play for (seconds)</label><input id="musicLen" type="number" min="2" max="60" value="10" inputmode="numeric"></div></div></div>
-  <div class="btns"><button class="mb" id="musicTest">▶ Test the music</button><button class="mb" id="musicStop">■ Stop</button><button class="mb" id="musicRemove">Remove song</button></div>
-  <div class="note" id="musicNote"></div>
+  <details>
+    <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music</summary>
+    <div class="note" style="margin:6px 0">Pick songs from your laptop. They stay on this laptop only, and fade out at the end. Without a song, a built-in fanfare plays.</div>
+    <h3>When a team wins a round</h3>
+    <div class="row"><div><label for="musicFile">Song file (mp3, m4a, wav)</label><input id="musicFile" type="file" accept="audio/*"></div>
+      <div class="row" style="gap:10px"><div><label for="musicStart">Start at (seconds in)</label><input id="musicStart" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen">Play for (seconds)</label><input id="musicLen" type="number" min="2" max="120" value="10" inputmode="numeric"></div></div></div>
+    <div class="btns"><button class="mb" id="musicTest">▶ Test</button><button class="mb" id="musicStop">■ Stop</button><button class="mb" id="musicRemove">Remove song</button></div>
+    <div class="note" id="musicNote"></div>
+    <h3>When a team wins Fast Money</h3>
+    <div class="row"><div><label for="musicFileFm">Song file (mp3, m4a, wav)</label><input id="musicFileFm" type="file" accept="audio/*"></div>
+      <div class="row" style="gap:10px"><div><label for="musicStartFm">Start at (seconds in)</label><input id="musicStartFm" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLenFm">Play for (seconds)</label><input id="musicLenFm" type="number" min="2" max="120" value="30" inputmode="numeric"></div></div></div>
+    <div class="btns"><button class="mb" id="musicTestFm">▶ Test</button><button class="mb" id="musicStopFm">■ Stop</button><button class="mb" id="musicRemoveFm">Remove song</button></div>
+    <div class="note" id="musicNoteFm"></div>
+  </details>
   <div class="note" id="menuNote"></div>
 </div></div>
 
@@ -430,26 +438,30 @@ Sleep | 6`;
     try { getAC(); buildBuzz(ac, ac.destination, ac.currentTime); } catch (e) {}
   }
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
-  // Round-win music: an uploaded song plays for N seconds (default 10) with a short fade-out; falls back to the fanfare.
-  let music = { buf: null, name: '', start: 0, len: 10, node: null, blob: null };
+  // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
+  // 'fm' (winning Fast Money, default 30 s). Each fades out at the end; falls back to the built-in fanfare.
+  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null } };
+  let nowPlaying = null;
   const mdb = (mode, fn) => new Promise(res => { try { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => res(null);
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
-    if (isBoard || !music.blob || music.buf) return;
-    try { const ab = await music.blob.arrayBuffer(); music.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { music.buf = null; }
+    if (isBoard) return;
+    for (const k of ['win', 'fm']) { const m = mus[k]; if (!m.blob || m.buf) continue;
+      try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
   }
   function stopMusic() {
-    const n = music.node; if (!n) return; music.node = null;
+    const n = nowPlaying; if (!n) return; nowPlaying = null;
     try { n.g.gain.cancelScheduledValues(ac.currentTime); n.g.gain.setValueAtTime(n.g.gain.value, ac.currentTime); n.g.gain.linearRampToValueAtTime(0, ac.currentTime + .25); n.src.stop(ac.currentTime + .3); } catch (e) {}
   }
-  function playMusic() {
-    if (isBoard || !music.buf) return false;
-    try { getAC(); stopMusic(); const t = ac.currentTime, len = Math.max(2, music.len), src = ac.createBufferSource(), g = ac.createGain();
-      src.buffer = music.buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len);
-      src.connect(g); g.connect(ac.destination); src.start(t, Math.min(music.start, Math.max(0, music.buf.duration - 1))); src.stop(t + len + .05); music.node = { src, g }; return true; } catch (e) { return false; }
+  function playMusic(slot) {
+    const m = mus[slot]; if (isBoard || !m || !m.buf) return false;
+    try { getAC(); stopMusic(); const t = ac.currentTime, len = Math.max(2, m.len), src = ac.createBufferSource(), g = ac.createGain();
+      src.buffer = m.buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len);
+      src.connect(g); g.connect(ac.destination); src.start(t, Math.min(m.start, Math.max(0, m.buf.duration - 1))); src.stop(t + len + .05); nowPlaying = { src, g }; return true; } catch (e) { return false; }
   }
-  const winSound = () => { if (!playMusic()) sWin(); };
-  if (!isBoard) mdb('readonly', st => st.get('win')).then(async r => { if (r && r.blob) { music = Object.assign(music, { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || 10 }); refreshMusicUI(); } });
+  const winSound = () => { if (!playMusic('win')) sWin(); };
+  const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
+  if (!isBoard) ['win', 'fm'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   const sTick = () => tone(1200, .06, 'square', .08);
 
@@ -520,9 +532,9 @@ Sleep | 6`;
     else if (a === 'fmgo') act(() => fmSetup());
     else if (a === 'fmbegin') act(() => { S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
     else if (a === 'fmpick') act(() => fmPick(v === 'none' ? null : +v));
-    else if (a === 'fmrev') act(() => { S.fm.revealN++; const f = S.fm; const r = f.revealN - 1; const pts = (f.p[0][r] ? f.p[0][r].pts : 0) + (f.p[1][r] ? f.p[1][r].pts : 0); if (pts > 0) sDing(); else sTick(); if (f.revealN >= f.n) { f.done = true; if (fmTotal() >= S.fmTarget) sWin(); else sBuzz(); } });
-    else if (a === 'again2') act(() => { S.phase = 'gameOver'; });
-    else if (a === 'newgame') openSetup();
+    else if (a === 'fmrev') act(() => { S.fm.revealN++; const f = S.fm; const r = f.revealN - 1; const pts = (f.p[0][r] ? f.p[0][r].pts : 0) + (f.p[1][r] ? f.p[1][r].pts : 0); if (pts > 0) sDing(); else sTick(); if (f.revealN >= f.n) { f.done = true; if (fmTotal() >= S.fmTarget) fmWinSound(); else sBuzz(); } });
+    else if (a === 'again2') act(() => { stopMusic(); S.phase = 'gameOver'; });
+    else if (a === 'newgame') { stopMusic(); openSetup(); }
   }
   // Which team box is lit up: whoever is answering / deciding / playing right now; none between rounds.
   function hl() {
@@ -697,14 +709,20 @@ Sleep | 6`;
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
   $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto === true; $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
-  function refreshMusicUI() { $('musicNote').textContent = music.blob ? '🎵 Using: ' + music.name + ' — plays ' + music.len + ' seconds starting at ' + music.start + 's.' : 'No song added yet — a built-in fanfare plays instead.'; $('musicStart').value = music.start; $('musicLen').value = music.len; }
-  const saveMusic = () => mdb('readwrite', st => st.put({ blob: music.blob, name: music.name, start: music.start, len: music.len }, 'win'));
-  $('musicFile').onchange = async () => { const f = $('musicFile').files[0]; if (!f) return; music.blob = f; music.name = f.name; music.buf = null; await decodeMusic();
-    if (!music.buf) { music.blob = null; $('musicNote').textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await saveMusic(); refreshMusicUI(); };
-  $('musicStart').onchange = $('musicLen').onchange = () => { music.start = Math.max(0, +$('musicStart').value || 0); music.len = Math.min(60, Math.max(2, +$('musicLen').value || 10)); if (music.blob) saveMusic(); refreshMusicUI(); };
-  $('musicTest').onclick = async () => { await decodeMusic(); if (!playMusic()) $('musicNote').textContent = music.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
-  $('musicStop').onclick = stopMusic;
-  $('musicRemove').onclick = () => { stopMusic(); music = Object.assign(music, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete('win')); refreshMusicUI(); };
+  function refreshMusicUI() {
+    [['win', ''], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
+      $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : 'No song added yet — a built-in fanfare plays instead.';
+      $('musicStart' + x).value = m.start; $('musicLen' + x).value = m.len; });
+  }
+  [['win', ''], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
+    const save = () => mdb('readwrite', st => st.put({ blob: m.blob, name: m.name, start: m.start, len: m.len }, k));
+    $('musicFile' + x).onchange = async () => { const f = $('musicFile' + x).files[0]; if (!f) return; m.blob = f; m.name = f.name; m.buf = null; await decodeMusic();
+      if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); };
+    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(120, Math.max(2, +$('musicLen' + x).value || (k === 'fm' ? 30 : 10))); if (m.blob) save(); refreshMusicUI(); };
+    $('musicTest' + x).onclick = async () => { await decodeMusic(); if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
+    $('musicStop' + x).onclick = stopMusic;
+    $('musicRemove' + x).onclick = () => { stopMusic(); Object.assign(m, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete(k)); refreshMusicUI(); };
+  });
   $('testDing').onclick = () => sDing(); $('testBuzz').onclick = () => sBuzz();
   $('autoX').onchange = () => { if (S) { S.auto = $('autoX').checked; commit(); } };
   $('scoreSave').onclick = () => act(() => { S.teams[0].score = parseInt($('s0').value, 10) || 0; S.teams[1].score = parseInt($('s1').value, 10) || 0; show('menu', false); });
