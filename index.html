@@ -703,7 +703,8 @@ Nevada | 4`;
     if (isBoard || bundledTried) return; bundledTried = true;
     try { const r = await fetch('sounds/manifest.json', { cache: 'no-cache' }); if (!r.ok) return; const man = await r.json();
       for (const k of Object.keys(bundled)) { const f = man[k]; if (!f) continue;
-        try { const rr = await fetch('sounds/' + f, { cache: 'no-cache' }); if (!rr.ok) continue;   // always check for the newest copy of each recording const ab = await rr.arrayBuffer(); bundled[k] = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) {} }
+        // always check for the newest copy of each recording
+        try { const rr = await fetch('sounds/' + f, { cache: 'no-cache' }); if (!rr.ok) continue; const ab = await rr.arrayBuffer(); bundled[k] = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) {} }
       refreshMusicUI(); } catch (e) {}
   }
   function stopMusic() {
