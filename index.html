@@ -91,6 +91,7 @@
   #fm td { background: rgba(255,255,255,.1); padding: .9vh 1vw; font-weight: 800; text-transform: uppercase; }
   #fm td.a { width: 32%; text-align: left; border-radius: 1vh 0 0 1vh; } #fm td.c { width: 36%; text-align: center; font-size: .6em; opacity: .85; text-transform: none; }
   #fm td.d { width: 32%; text-align: right; border-radius: 0 1vh 1vh 0; }
+  #fm td .pvw { opacity: .5; font-style: italic; }
   #fm tr.cur td { background: rgba(255,201,60,.28); }
   #fm td .p.h { background: rgba(255,255,255,.25); color: rgba(255,255,255,.7); }
   #fm td .p { display: inline-block; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; margin: 0 .5vw; font-family: var(--big); }
@@ -768,13 +769,17 @@ Sleep | 6`;
     } else {
       let h = '<div class="ttl">FAST MONEY — ' + S.fmTarget + ' TO WIN</div><table><tr><td class="a" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 1</td><td class="c" style="background:none"></td><td class="d" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 2</td></tr>';
       const stg = f.stage || [0, 0];
-      const pt = (e, full) => '<span class="p' + (full ? '' : ' h') + '">' + (full ? e.pts : '?') + '</span>';
+      // With a separate TV window open, the MC's own screen shows everything up front (dimmed until revealed on the TV).
+      const mcFull = !isBoard && boardOpen;
+      const pt = (e, full, dim) => '<span class="p' + (full ? '' : ' h') + '">' + (full || dim ? e.pts : '?') + '</span>';
       for (let r = 0; r < f.n; r++) { const a = f.p[0][r], b = f.p[1][r];
         const p1Now = S.phase === 'fmReveal' && f.pl === 1 && r === f.rev[0], p2Now = S.phase === 'fmReveal' && f.pl === 2 && r === f.rev[1];
         const full1 = r < f.rev[0], part1 = p1Now && stg[0] >= 2, full2 = r < f.rev[1], part2 = p2Now && stg[1] >= 2;
-        const qShown = full1 || (p1Now && stg[0] >= 1) || f.rev[0] >= f.n;   // a question is on screen once it has been asked (all five stay up once Player 1 is done)
-        const cur = (p1Now && stg[0] >= 1) || p2Now;
-        h += '<tr' + (cur ? ' class="cur"' : '') + '><td class="a">' + ((full1 || part1) && a ? (a.text || '') + pt(a, full1) : '&nbsp;') + '</td><td class="c">' + (qShown ? f.qs[r].text.replace(/^name\s+/i, '') : '&nbsp;') + '</td><td class="d">' + ((full2 || part2) && b ? pt(b, full2) + (b.text || '') : '&nbsp;') + '</td></tr>'; }
+        const qShown = mcFull || full1 || (p1Now && stg[0] >= 1) || f.rev[0] >= f.n;   // on the TV a question appears once it has been asked
+        const cur = (p1Now && stg[0] >= 1) || p2Now || (mcFull && (p1Now || p2Now));
+        const L1 = (full1 || part1) && a ? (a.text || '') + pt(a, full1) : (mcFull && a ? '<span class="pvw">' + (a.text || '(blank)') + pt(a, false, true) + '</span>' : '&nbsp;');
+        const R1 = (full2 || part2) && b ? pt(b, full2) + (b.text || '') : (mcFull && b ? '<span class="pvw">' + pt(b, false, true) + (b.text || '(blank)') + '</span>' : '&nbsp;');
+        h += '<tr' + (cur ? ' class="cur"' : '') + '><td class="a">' + L1 + '</td><td class="c">' + (qShown ? f.qs[r].text.replace(/^name\s+/i, '') : '&nbsp;') + '</td><td class="d">' + R1 + '</td></tr>'; }
       h += '</table><div class="tot">TOTAL: ' + fmTotal() + '</div>';
       if (f.done) h += '<div class="verdict">' + (fmTotal() >= S.fmTarget ? '🎉 ' + tn(f.win) + ' wins it all!' : 'So close! They needed ' + (S.fmTarget - fmTotal()) + ' more.') + '</div>';
       el.innerHTML = h; fitFM();
