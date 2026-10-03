@@ -139,7 +139,7 @@
     <button class="mb" id="editQBtn">✏️ Edit questions</button>
     <button class="mb" id="sheetBtn">🖨 Print MC cheat sheet</button>
   </div>
-  <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> and drag that window onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
+  <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
 </div></div>
 
 <!-- Questions editor -->
@@ -580,9 +580,30 @@ Sleep | 6`;
   $('menuBtn').onclick = () => { if (!S) return; $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
   $('scoreSave').onclick = () => act(() => { S.teams[0].score = parseInt($('s0').value, 10) || 0; S.teams[1].score = parseInt($('s1').value, 10) || 0; show('menu', false); });
-  $('openBoard').onclick = () => { const w = window.open(location.pathname + '?board=1', 'feudboard'); if (!w) alert('Allow pop-ups, then try again.'); $('menuNote').textContent = 'Board window opened. Drag it to the TV and press F (or the green button) for full screen.'; };
+  // Opens the audience board in its own WINDOW (not a tab) so it can be dragged to the TV.
+  // If the browser can see a second screen (Chrome/Edge will ask permission), it opens right on that screen.
+  $('openBoard').onclick = async () => {
+    const url = location.pathname + '?board=1';
+    let left = 60, top = 60, w = 1280, h = 720, onTv = false;
+    try {
+      if (window.getScreenDetails) {
+        const d = await window.getScreenDetails();
+        const tv = d.screens.find(sc => sc !== d.currentScreen && !sc.isInternal) || d.screens.find(sc => sc !== d.currentScreen);
+        if (tv) { left = tv.availLeft; top = tv.availTop; w = tv.availWidth; h = tv.availHeight; onTv = true; }
+      }
+    } catch (e) {}
+    const feat = 'popup=yes,noopener=no,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',resizable=yes';
+    const win = window.open(url, 'feudboard', feat);
+    if (!win) { $('menuNote').textContent = 'Your browser blocked the pop-up window. Allow pop-ups for this page (look for an icon in the address bar), then tap this button again.'; return; }
+    $('menuNote').textContent = onTv ? 'Board window opened on your second screen. Double-click it (or press F) to make it full screen.' : 'Board window opened. Drag it onto the TV, then double-click it (or press F) for full screen.';
+  };
   $('menuNew').onclick = () => openSetup();
 
+  if (isBoard) {
+    const fs = () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) {} };
+    document.addEventListener('dblclick', fs);
+    document.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') fs(); });
+  }
   if (!isBoard) { openSetup(); } else { render(); }
 })();
 </script>
