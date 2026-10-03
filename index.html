@@ -76,6 +76,7 @@
   .nums { display: flex; flex-wrap: wrap; gap: .8vh .8vw; }
 
   /* ---- flash X ---- */
+  #confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 55; pointer-events: none; }
   #flash { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,.35); }
   #flash .xs { display: flex; gap: 2vw; }
   #flash .x { font-family: var(--big); color: var(--red); font-size: 42vh; line-height: 1; text-shadow: 0 0 4vh #fff, 0 1vh 0 rgba(0,0,0,.4); animation: slam .35s cubic-bezier(.2,1.5,.4,1); }
@@ -148,6 +149,7 @@
 </div>
 <button id="menuBtn">☰ Menu</button>
 <button id="peekBtn">👁 Hold to peek</button>
+<canvas id="confetti"></canvas>
 <div id="flash"><div class="xs"></div></div>
 <div class="wait" id="wait">FHE FEUD<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host to start the game…</span></div>
 
@@ -161,6 +163,10 @@
   <div class="row">
     <div><label for="tgt">Points to win (then Fast Money)</label><input id="tgt" type="number" inputmode="numeric"></div>
     <div><label for="fmt">Fast Money target</label><input id="fmt" type="number" inputmode="numeric"></div>
+  </div>
+  <div class="row">
+    <div><label for="setSel">Which game's questions?</label><select id="setSel" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:9px;width:100%"></select></div>
+    <div class="note" style="align-self:end">After you start a game, the next one defaults to the next set — so Game 2 is ready to go with no re-entering. Add more games in ✏️ Edit questions.</div>
   </div>
   <div class="row">
     <div><label for="mults">Round point multipliers (round 1, 2, 3, 4… — the last one repeats)</label><input id="mults" placeholder="1,1,2,3"></div>
@@ -189,6 +195,7 @@
 <div class="modal" id="qed"><div class="card">
   <h2>✏️ Your Questions</h2>
   <div class="note">One question per block. Start with <b>Q:</b>, then one answer per line as <b>Answer | points</b>, best answer first. Leave off the points and they're assigned automatically by order. Up to 8 answers per question. Blank lines between questions are fine.</div>
+  <div class="btns" id="setTabs"></div>
   <h3>Main-round questions (<span id="cMain">0</span>)</h3>
   <textarea id="qMain" style="min-height:240px"></textarea>
   <h3>Fast Money questions — the first 5 are used (<span id="cFast">0</span>)</h3>
@@ -196,6 +203,7 @@
   <div class="btns">
     <button class="mb go" id="qSave">Save</button>
     <button class="mb" id="qSample">Load starter questions</button>
+    <button class="mb bad" id="qDel">🗑 Delete this game</button>
     <button class="mb" id="qCancel">Cancel</button>
   </div>
   <div class="note" id="qMsg"></div>
@@ -249,7 +257,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const LS = 'feud.state.v1', QK = 'feud.questions.v1', CK = 'feud.cfg.v1';
+  const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
   const SAMPLE_MAIN = `Q: Name something you do first thing in the morning
@@ -403,6 +411,139 @@ Sing along | 10
 Play road games | 8
 Sleep | 6`;
 
+  const SAMPLE2_MAIN = `Q: Name something you'd find in a junk drawer
+Batteries | 26
+Tape | 20
+Scissors | 16
+Rubber bands | 14
+Pens | 14
+Takeout menus | 10
+
+Q: Name a reason you'd call a friend
+Just to chat | 32
+Share news | 24
+Ask for advice | 20
+Make plans | 14
+To complain | 10
+
+Q: Name something people do in a waiting room
+Read a magazine | 32
+Check their phone | 28
+Fill out forms | 16
+Watch TV | 14
+Nap | 10
+
+Q: Name a Christmas song
+Jingle Bells | 28
+White Christmas | 24
+Silent Night | 22
+Rudolph the Red-Nosed Reindeer | 14
+Frosty the Snowman | 12
+
+Q: Name something you do to stay in shape
+Walk | 38
+Swim | 18
+Golf | 14
+Pickleball | 14
+Yoga | 10
+Ride a bike | 6
+
+Q: Name a vegetable people grow in a garden
+Tomatoes | 36
+Carrots | 18
+Green beans | 14
+Peppers | 12
+Corn | 12
+Zucchini | 8
+
+Q: Name a board game or card game
+Monopoly | 26
+Scrabble | 20
+Uno | 16
+Rummikub | 14
+Yahtzee | 14
+Clue | 10
+
+Q: Name something grandparents give their grandkids
+Hugs | 30
+Money | 22
+Cookies | 20
+Advice | 14
+Toys | 14
+
+Q: Name a place you'd rather be on a snowy day
+Home by the fire | 30
+The beach | 28
+Hawaii | 18
+In bed | 14
+A cabin | 10
+
+Q: Name something you do every Sunday
+Go to church | 40
+Rest or nap | 20
+Family dinner | 16
+Watch football | 14
+Call family | 10
+
+Q: Name something that comes in pairs
+Shoes | 28
+Socks | 28
+Gloves | 18
+Earrings | 14
+Glasses | 12`;
+  const SAMPLE2_FAST = `Q: Name a color of car
+White | 30
+Black | 24
+Silver | 18
+Red | 14
+Blue | 10
+Gray | 4
+
+Q: Name a fruit that's red
+Apple | 34
+Strawberry | 28
+Cherry | 14
+Raspberry | 10
+Watermelon | 8
+Cranberry | 6
+
+Q: Name something you wear on your feet
+Shoes | 38
+Socks | 28
+Slippers | 16
+Boots | 10
+Sandals | 8
+
+Q: Name a day of the week people love
+Saturday | 40
+Friday | 30
+Sunday | 20
+Thursday | 6
+Wednesday | 4
+
+Q: Name a breakfast food
+Eggs | 32
+Bacon | 22
+Pancakes | 18
+Toast | 12
+Cereal | 10
+Waffles | 6
+
+Q: Name something you plug in
+Phone charger | 30
+Lamp | 24
+TV | 18
+Toaster | 12
+Coffee maker | 10
+Computer | 6
+
+Q: Name a state next to Idaho
+Oregon | 26
+Washington | 24
+Montana | 22
+Utah | 14
+Wyoming | 10
+Nevada | 4`;
   const WEIGHTS = [38, 26, 16, 10, 6, 4, 3, 2];
   function parseQs(text) {
     const out = []; let cur = null;
@@ -421,6 +562,14 @@ Sleep | 6`;
       return q;
     });
   }
+  // Saved question sets ("Game 1", "Game 2", …). Older single-set saves become Game 1; Game 2 starts with the second starter set.
+  function loadSets() {
+    const v2 = (function () { try { const r = localStorage.getItem(QK2); return r ? JSON.parse(r) : null; } catch (e) { return null; } })();
+    if (v2 && v2.sets && v2.sets.length) return v2.sets;
+    const v1 = (function () { try { const r = localStorage.getItem(QK); return r ? JSON.parse(r) : null; } catch (e) { return null; } })();
+    return [{ name: 'Game 1', main: (v1 && v1.main) || SAMPLE_MAIN, fast: (v1 && v1.fast) || SAMPLE_FAST }, { name: 'Game 2', main: SAMPLE2_MAIN, fast: SAMPLE2_FAST }];
+  }
+  const setFor = i => { const a = loadSets(); return a[i] || a[0]; };
   const load = (k, d) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : d; } catch (e) { return d; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
@@ -553,7 +702,7 @@ Sleep | 6`;
   const multFor = round => { const m = S.mults && S.mults.length ? S.mults : [1, 1, 2, 3]; return m[Math.min(round, m.length) - 1]; };
   const multWord = m => m === 2 ? 'DOUBLE' : m === 3 ? 'TRIPLE' : m === 4 ? 'QUADRUPLE' : '×' + m;
   function startGame(cfg) {
-    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, mults: cfg.mults, mult: 1, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: false, roundWinner: null, awarded: 0, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(load(QK, { main: SAMPLE_MAIN }).main) };
+    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, mults: cfg.mults, mult: 1, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: false, roundWinner: null, awarded: 0, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(setFor(cfg.set).main), fastText: setFor(cfg.set).fast, setIdx: cfg.set || 0 };
     undo = [];
     if (!S.qs.length) { alert('No main-round questions found. Open ✏️ Edit questions first.'); S = null; return false; }
     nextRound(); return true;
@@ -647,7 +796,7 @@ Sleep | 6`;
 
   // ---------------- fast money ----------------
   function fmSetup() {
-    const qs = parseQs(load(QK, { fast: SAMPLE_FAST }).fast).slice(0, 5);
+    const qs = parseQs(S.fastText != null ? S.fastText : setFor(S.setIdx || 0).fast).slice(0, 5);
     S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
     S.phase = 'fm'; S.fm.win = S.champ;
   }
@@ -683,7 +832,7 @@ Sleep | 6`;
     return { r };
   }
   // The moment the revealed total reaches the target, the Fast Money song starts.
-  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); } }
+  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); S.cele = { k: ((S.cele && S.cele.k) || 0) + 1, secs: Math.min(30, mus.fm.blob ? mus.fm.len : 12) }; } }
   function fmTotal() { const f = S.fm; let t = 0; for (let w = 0; w < 2; w++) for (let r = 0; r < f.rev[w]; r++) t += f.p[w][r] ? f.p[w][r].pts : 0; return t; }
   function fmTimeLeft() { const f = S.fm; return f.running ? Math.max(0, Math.ceil((f.end - Date.now()) / 1000)) : f.secs; }
   const clockLeft = () => { const t = S.tm; return !t.running ? t.secs : t.paused ? Math.ceil(t.rem / 1000) : Math.max(0, Math.ceil((t.end - Date.now()) / 1000)); };
@@ -711,6 +860,21 @@ Sleep | 6`;
     }
   }, 250);
 
+  // ---------------- confetti (falls from the top of the screen on both windows) ----------------
+  const cfx = $('confetti'), cctx = cfx.getContext('2d'); let confRaf = 0, lastCele = 0, celeInit = false;
+  function startConfetti(secs) {
+    const dpr = window.devicePixelRatio || 1; cfx.width = innerWidth * dpr; cfx.height = innerHeight * dpr;
+    const cols = ['#ffc93c', '#ff5fa2', '#35c97a', '#45c8ff', '#ffffff', '#ff8a3c', '#a46bff'], pieces = [], endAt = performance.now() + secs * 1000; let last = performance.now();
+    cancelAnimationFrame(confRaf);
+    (function step(now) {
+      const dt = Math.min(.05, (now - last) / 1000); last = now; cctx.clearRect(0, 0, cfx.width, cfx.height);
+      if (now < endAt) for (let k = 0, n = Math.round(80 * dt + Math.random()); k < n; k++) pieces.push({ x: Math.random() * cfx.width, y: -20 * dpr, vy: (170 + Math.random() * 230) * dpr, vx: (Math.random() - .5) * 90 * dpr, s: (9 + Math.random() * 11) * dpr, c: cols[Math.floor(Math.random() * cols.length)], r: Math.random() * 6, vr: (Math.random() - .5) * 9, sw: Math.random() * 6, sv: 2 + Math.random() * 3 });
+      for (let i = pieces.length - 1; i >= 0; i--) { const p = pieces[i]; p.y += p.vy * dt; p.sw += p.sv * dt; p.x += p.vx * dt + Math.sin(p.sw) * 40 * dpr * dt; p.r += p.vr * dt;
+        if (p.y > cfx.height + 30) { pieces.splice(i, 1); continue; }
+        cctx.save(); cctx.translate(p.x, p.y); cctx.rotate(p.r); cctx.fillStyle = p.c; cctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); cctx.restore(); }
+      if (pieces.length || now < endAt) confRaf = requestAnimationFrame(step); else cctx.clearRect(0, 0, cfx.width, cfx.height);
+    })(last);
+  }
   // ---------------- rendering ----------------
   const tiles = [];
   for (let i = 0; i < 8; i++) {
@@ -745,6 +909,8 @@ Sleep | 6`;
       $('xs').innerHTML = [0, 1, 2].map(i => '<div class="xbox' + ((S.phase === 'steal' || S.phase === 'roundEnd' && S.strikes >= 3 ? 3 : S.strikes) > i ? ' on' : '') + '">✕</div>').join('');
     }
     if (fm) renderFM();
+    if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; }
+    if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; startConfetti(S.cele.secs || 12); }
     // flash
     if (!flashInit) { flashInit = true; lastFlash = S.flash ? S.flash.k : 0; }
     if (S.flash && S.flash.k !== lastFlash) { lastFlash = S.flash.k; if (S.flash.n) {
@@ -876,30 +1042,47 @@ Sleep | 6`;
   // setup / questions / menu (host page only)
   const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+  function fillSetSel(sel) {
+    const a = loadSets(), box = $('setSel'); box.innerHTML = '';
+    a.forEach((g, i) => { const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money'; box.appendChild(o); });
+    box.value = String(Math.min(sel, a.length - 1));
+  }
   function openSetup() {
     const c = load(CK, { n: ['Team 1', 'Team 2'], p: ['', ''], tgt: 300, fmt: 200 });
-    $('mults').value = c.m || '1,1,2,3';
+    $('mults').value = c.m || '1,1,2,3'; fillSetSel(c.nextSet || 0);
     $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
     $('resumeBtn').style.display = load(LS, null) ? 'inline-block' : 'none'; show('menu', false); show('setup', true);
   }
   $('startBtn').onclick = () => {
-    const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, m: $('mults').value.trim() || '1,1,2,3' };
+    const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, m: $('mults').value.trim() || '1,1,2,3', set: +$('setSel').value || 0 };
+    c.nextSet = Math.min(c.set + 1, Math.max(0, loadSets().length - 1));
     store(CK, c);
-    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m) })) { show('setup', false); commit(); }
+    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { show('setup', false); commit(); }
   };
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
-  function openEditor() { const q = load(QK, { main: SAMPLE_MAIN, fast: SAMPLE_FAST }); $('qMain').value = q.main; $('qFast').value = q.fast; count(); $('qMsg').textContent = ''; show('qed', true); }
+  // Editor with one tab per game; each game has its own main-round and Fast Money questions.
+  let edSets = [], edIdx = 0;
+  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; } }
+  function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
+  function drawTabs() {
+    const box = $('setTabs'); box.innerHTML = '';
+    edSets.forEach((g, i) => { const t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' gold' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
+    const add = document.createElement('button'); add.className = 'mb go'; add.textContent = '＋ Add a game'; add.onclick = () => { edCommit(); edSets.push({ name: 'Game ' + (edSets.length + 1), main: '', fast: '' }); edIdx = edSets.length - 1; edLoad(); }; box.appendChild(add);
+  }
+  function openEditor() { edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast })); edIdx = 0; edLoad(); show('qed', true); }
   function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
   $('qMain').oninput = $('qFast').oninput = count;
-  $('qSample').onclick = () => { $('qMain').value = SAMPLE_MAIN; $('qFast').value = SAMPLE_FAST; count(); $('qMsg').textContent = 'Starter questions loaded — tap Save to keep them.'; };
-  $('qSave').onclick = () => { store(QK, { main: $('qMain').value, fast: $('qFast').value }); show('qed', false); if (S) { S.qs = parseQs($('qMain').value); } };
+  $('qSample').onclick = () => { const alt = edIdx % 2 === 1; $('qMain').value = alt ? SAMPLE2_MAIN : SAMPLE_MAIN; $('qFast').value = alt ? SAMPLE2_FAST : SAMPLE_FAST; count(); $('qMsg').textContent = 'Starter questions loaded into ' + edSets[edIdx].name + ' — tap Save to keep them.'; };
+  $('qDel').onclick = () => { if (edSets.length < 2) return; edSets.splice(edIdx, 1); edSets.forEach((g, i) => { g.name = 'Game ' + (i + 1); }); edIdx = Math.min(edIdx, edSets.length - 1); edLoad(); $('qMsg').textContent = 'Game removed — tap Save to keep the change.'; };
+  $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel(+$('setSel').value || 0); if (S && S.qs) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor; $('menuQ').onclick = () => { show('menu', false); openEditor(); };
   function sheet() {
-    const q = load(QK, { main: SAMPLE_MAIN, fast: SAMPLE_FAST });
+    const sets = loadSets();
     const blk = (title, qs) => '<h2>' + title + '</h2>' + qs.map((x, i) => '<div class="q"><b>' + (i + 1) + '. ' + x.text + '</b><ol>' + x.answers.map(a => '<li>' + a.text + ' <i>(' + a.pts + ')</i></li>').join('') + '</ol></div>').join('');
     const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to open the cheat sheet.'); return; }
-    w.document.write('<!doctype html><title>MC Cheat Sheet</title><style>body{font-family:Arial,sans-serif;margin:24px;max-width:780px}h1{margin:0 0 6px}h2{border-bottom:2px solid #000;margin-top:26px}.q{break-inside:avoid;margin:10px 0}ol{margin:4px 0 0 20px;padding:0}li{margin:1px 0}@media print{button{display:none}}</style><h1>MC Cheat Sheet</h1><p>Points shown are base values. Round multipliers: ' + (load(CK, {}).m || '1,1,2,3') + ' (applied automatically).</p><button onclick="print()">Print</button>' + blk('Main rounds (in play order)', parseQs(q.main)) + blk('Fast Money (first 5 are used)', parseQs(q.fast).slice(0, 5)) + '</body>');
+    w.document.write('<!doctype html><title>MC Cheat Sheet</title><style>body{font-family:Arial,sans-serif;margin:24px;max-width:780px}h1{margin:0 0 6px}h2{border-bottom:2px solid #000;margin-top:26px}.q{break-inside:avoid;margin:10px 0}ol{margin:4px 0 0 20px;padding:0}li{margin:1px 0}.g{page-break-before:always}@media print{button{display:none}}</style><h1>MC Cheat Sheet</h1><p>Points shown are base values. Round multipliers: ' + (load(CK, {}).m || '1,1,2,3') + ' (applied automatically).</p><button onclick="print()">Print</button>'
+      + sets.map((g, i) => '<div class="' + (i ? 'g' : '') + '"><h1 style="margin-top:20px">' + g.name + '</h1>' + blk('Main rounds (in play order)', parseQs(g.main)) + blk('Fast Money (first 5 are used)', parseQs(g.fast).slice(0, 5)) + '</div>').join('') + '</body>');
     w.document.close();
   }
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
