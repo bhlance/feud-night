@@ -589,7 +589,8 @@ Sleep | 6`;
     });
     else if (a === 'fmgo') act(() => fmSetup());
     else if (a === 'fmbegin') act(() => { S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
-    else if (a === 'fmq') act(() => { const f = S.fm; f.idx++; if (f.idx >= f.n) fmFinishPlayer(); });
+    else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
+    else if (a === 'fmpass') act(() => { if (fmPending(S.fm).length > 1) fmAdvance(S.fm, true); });
     else if (a === 'fmrev' || a === 'fmbuzz') act(() => {
       const f = S.fm, who = f.pl - 1, r = f.rev[who]; if (r >= f.n) return;
       let e = f.p[who][r] || { text: '— no answer —', pts: 0, rank: null };
@@ -601,7 +602,7 @@ Sleep | 6`;
     });
     else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; });
-    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; S.phase = 'fm'; });
+    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); S.phase = 'gameOver'; });
     else if (a === 'newgame') { stopMusic(); openSetup(); }
   }
@@ -618,8 +619,19 @@ Sleep | 6`;
   // ---------------- fast money ----------------
   function fmSetup() {
     const qs = parseQs(load(QK, { fast: SAMPLE_FAST }).fast).slice(0, 5);
-    S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], done: false, won: false, draft: [[], []] };
+    S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
     S.phase = 'fm'; S.fm.win = S.champ;
+  }
+  // Questions still to be answered (not yet moved past with Next). A Pass sends the question to the back of the line.
+  const fmPending = f => f.qs.map((_, i) => i).filter(i => !(f.doneQ || []).includes(i));
+  function fmAdvance(f, passing) {
+    f.doneQ = f.doneQ || []; f.passed = f.passed || [];
+    if (passing) { if (!f.passed.includes(f.idx)) f.passed.push(f.idx); } else { f.doneQ.push(f.idx); f.passed = f.passed.filter(i => i !== f.idx); }
+    const pend = fmPending(f);
+    if (!pend.length) { fmFinishPlayer(); return; }
+    const fresh = pend.filter(i => !f.passed.includes(i)), cand = pend.filter(i => i !== f.idx);
+    const pick = list => list.find(i => i > f.idx) !== undefined ? list.find(i => i > f.idx) : list[0];
+    if (fresh.length) f.idx = pick(fresh); else if (cand.length) f.idx = pick(cand);
   }
   function fmFinishPlayer() {
     const f = S.fm; f.running = false;
@@ -692,7 +704,7 @@ Sleep | 6`;
     $('pot').style.visibility = fm || S.phase === 'gameOver' ? 'hidden' : 'visible';
     $('pot').querySelector('span').textContent = S.phase === 'roundEnd' ? S.awarded : S.pot;
     const hideQ = (S.phase === 'buzz' || S.phase === 'fo') && !S.qVisible;
-    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? S.fm.qs[S.fm.idx].text : 'Get ready…') : S.phase === 'fmEntry' ? 'Fast Money — tallying Player ' + S.fm.pl + '’s answers…' : S.phase === 'fmReveal' ? 'Fast Money — Player ' + S.fm.pl + '’s answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : (boardOpen ? '🔒 (hidden on TV until the first answer is judged) ' : '') + S.q.text) : S.q.text));
+    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? ((S.fm.passed || []).includes(S.fm.idx) ? '↩ ' : '') + S.fm.qs[S.fm.idx].text : 'Get ready…') : S.phase === 'fmEntry' ? 'Fast Money — tallying Player ' + S.fm.pl + '’s answers…' : S.phase === 'fmReveal' ? 'Fast Money — Player ' + S.fm.pl + '’s answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : (boardOpen ? '🔒 (hidden on TV until the first answer is judged) ' : '') + S.q.text) : S.q.text));
     // board
     if (!fm && S.q) {
       const priv = !isBoard && (boardOpen || peek);
@@ -742,8 +754,8 @@ Sleep | 6`;
     if (p === 'fm') {
       const f = S.fm;
       if (!f.running) return say('<b>Fast Money — Player ' + f.pl + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring Player 2 in. They can\'t repeat Player 1\'s answers!' : 'Player 2 should be out of earshot.') + ' Someone writes down the answers as they\'re given — you\'ll type them in afterward.') + b('fmbegin', '▶ Start the clock', 'go') + un;
-      const last = f.idx >= f.n - 1;
-      return say('<b>Q' + (f.idx + 1) + ' of ' + f.n + ':</b> ' + f.qs[f.idx].text + ' — read it out. Tap Next when they\'re ready for the following question.') + b('fmq', last ? '✔ That was the last one' : 'Next question ▶', 'gold') + un;
+      const pend = fmPending(f), last = pend.length <= 1, back = (f.passed || []).includes(f.idx), ps = (f.passed || []).filter(i => i !== f.idx);
+      return say('<b>Q' + (f.idx + 1) + ' of ' + f.n + (back ? ' — back to a passed question' : '') + ':</b> ' + f.qs[f.idx].text + ' — read it out. <b>Next</b> when they answer, or <b>Pass</b> if they skip it.' + (ps.length ? ' <i>Passed so far: ' + ps.map(i => 'Q' + (i + 1)).join(', ') + '</i>' : '')) + b('fmq', last ? '✔ That was the last one' : 'Next question ▶', 'gold') + (last ? '' : b('fmpass', '⤼ Pass', 'bad')) + un;
     }
     if (p === 'fmEntry') { const f = S.fm; return say('<b>Player ' + f.pl + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
