@@ -55,6 +55,7 @@
   .tile.empty .f { background: #060f45; border: .3vh solid #17267a; } .tile.empty .no, .tile.empty .pk { display: none; }
   #strikes { width: 12vw; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2vh; }
   #clock { display: none; width: 100%; aspect-ratio: 1.3; max-height: 17vh; border-radius: 1.6vh; background: var(--gold); color: var(--ink); font-family: var(--big); font-size: clamp(34px, 10vh, 120px); align-items: center; justify-content: center; box-shadow: 0 0 3vh rgba(255,201,60,.6); }
+  #clock.ready { background: #8d7a3c; color: #2b2410; box-shadow: none; opacity: .8; }
   #clock.low { background: var(--red); color: #fff; animation: pulse .5s infinite alternate; box-shadow: 0 0 3vh rgba(229,39,58,.8); }
   @keyframes pulse { to { transform: scale(1.06); } }
   #xs { width: 100%; flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2vh; }
@@ -170,6 +171,8 @@
   <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="autoX" style="width:auto"> Automatically give a strike when the clock hits zero</label>
   <div class="btns">
     <button class="mb go" id="scoreSave">Save scores</button>
+    <button class="mb" id="testDing">🔔 Test correct ding</button>
+    <button class="mb" id="testBuzz">🔊 Test strike buzzer</button>
     <button class="mb gold" id="openBoard">📺 Open board window</button>
     <button class="mb" id="menuSheet">🖨 MC cheat sheet</button>
     <button class="mb" id="menuQ">✏️ Edit questions</button>
@@ -380,8 +383,32 @@ Sleep | 6`;
       o.type = type || 'sine'; o.frequency.value = f; g.gain.setValueAtTime(v || .2, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
       o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + .02); } catch (e) {}
   }
-  const sDing = () => { tone(988, .25, 'triangle', .25); tone(1319, .5, 'triangle', .25, .12); };
-  const sBuzz = () => { tone(110, .75, 'sawtooth', .3); tone(104, .75, 'square', .15); };
+  // Correct answer: three bright bell "dings" in a row.
+  function bell(f, when, vol) {
+    if (isBoard) return;
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
+      const t = ac.currentTime + when;
+      [[1, 1], [2.76, .35], [5.4, .15]].forEach(([m, v]) => {
+        const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f * m;
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * v, t + .005); g.gain.exponentialRampToValueAtTime(.001, t + .55);
+        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .6); }); } catch (e) {}
+  }
+  const sDing = () => { bell(1175, 0, .32); bell(1175, .26, .32); bell(1175, .52, .36); };
+  // Strike: the deep, harsh game-show buzzer (low detuned saw/square stack, gritty tremolo, slight drop at the end).
+  function sBuzz() {
+    if (isBoard) return;
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
+      const t = ac.currentTime, dur = 1.0;
+      const master = ac.createGain(); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(.55, t + .012); master.gain.setValueAtTime(.55, t + dur - .2); master.gain.linearRampToValueAtTime(0, t + dur);
+      const am = ac.createGain(); am.gain.value = .7;
+      const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 38; lg.gain.value = .3; lfo.connect(lg); lg.connect(am.gain);
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = 1.2;
+      lp.connect(am); am.connect(master); master.connect(ac.destination);
+      [['sawtooth', 148, .5], ['sawtooth', 154, .5], ['square', 74, .45], ['sawtooth', 222, .22]].forEach(([ty, f, v]) => {
+        const o = ac.createOscillator(), g = ac.createGain(); o.type = ty; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * .86, t + dur);
+        g.gain.value = v; o.connect(g); g.connect(lp); o.start(t); o.stop(t + dur + .05); });
+      lfo.start(t); lfo.stop(t + dur + .05); } catch (e) {}
+  }
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   const sTick = () => tone(1200, .06, 'square', .08);
 
@@ -405,7 +432,7 @@ Sleep | 6`;
     S.pi[0] += Math.max(1, S.fp[0]); S.pi[1] += Math.max(1, S.fp[1]); sWin();
   }
   // Clock: 5 seconds per answer in the face-off, 15 seconds per answer once a team is playing.
-  function startClock(secs) { S.tm = { secs, end: Date.now() + secs * 1000, paused: false, expired: false }; }
+  function startClock(secs) { S.tm = { secs, end: 0, running: false, paused: false, expired: false }; }  // 'ready' until the MC taps Start
   // Face-off: teams trade answers (the next player each time) until one is on the board.
   // A #1 answer wins control at once; otherwise the other team gets one chance to beat it.
   function foWin(w) { S.fw = w; S.phase = 'playpass'; S.turn = null; S.tm = null; }
@@ -434,10 +461,11 @@ Sleep | 6`;
   }
   function doAct(a, v) {
     v = v === undefined ? null : v;
-    if (a === 'undo') { if (undo.length) { S = JSON.parse(undo.pop()); if (S.tm) { S.tm.end = Date.now() + (S.tm.paused ? S.tm.rem : S.tm.secs * 1000); S.tm.expired = false; } commit(); } return; }
+    if (a === 'undo') { if (undo.length) { S = JSON.parse(undo.pop()); if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } commit(); } return; }
     if (a === 'first') act(() => { S.first = +v; S.turn = S.first; S.best = null; S.fp = [0, 0]; S.phase = 'fo'; startClock(5); });
     else if (a === 'x') act(() => miss());
-    else if (a === 'pause') { const t = S.tm; if (!t || t.expired) return; if (t.paused) { t.end = Date.now() + t.rem; t.paused = false; } else { t.rem = Math.max(0, t.end - Date.now()); t.paused = true; } commit(); }
+    else if (a === 'start') { const t = S.tm; if (!t || t.running) return; t.running = true; t.paused = false; t.expired = false; t.end = Date.now() + t.secs * 1000; commit(); }
+    else if (a === 'pause') { const t = S.tm; if (!t || !t.running || t.expired) return; if (t.paused) { t.end = Date.now() + t.rem; t.paused = false; } else { t.rem = Math.max(0, t.end - Date.now()); t.paused = true; } commit(); }
     else if (a === 'play' || a === 'pass') act(() => { S.ctrl = a === 'play' ? S.fw : other(S.fw); S.strikes = 0; S.phase = 'play'; if (allRevealed()) endRound(S.ctrl); else startClock(15); });
     else if (a === 'revealall') act(() => { S.showAll = true; });
     else if (a === 'next') act(() => {
@@ -479,12 +507,12 @@ Sleep | 6`;
   }
   function fmTotal() { const f = S.fm; let t = 0; for (let r = 0; r < f.revealN; r++) t += (f.p[0][r] ? f.p[0][r].pts : 0) + (f.p[1][r] ? f.p[1][r].pts : 0); return t; }
   function fmTimeLeft() { const f = S.fm; return f.running ? Math.max(0, Math.ceil((f.end - Date.now()) / 1000)) : f.secs; }
-  const clockLeft = () => { const t = S.tm; return t.paused ? Math.ceil(t.rem / 1000) : Math.max(0, Math.ceil((t.end - Date.now()) / 1000)); };
+  const clockLeft = () => { const t = S.tm; return !t.running ? t.secs : t.paused ? Math.ceil(t.rem / 1000) : Math.max(0, Math.ceil((t.end - Date.now()) / 1000)); };
   function paintClock() {
     const el = $('clock'); if (!el) return;
     const on = !!(S && S.tm && !['fm', 'fmResult'].includes(S.phase));
     el.style.display = on ? 'flex' : 'none'; if (!on) return;
-    const n = clockLeft(); el.textContent = (S.tm.paused ? '⏸ ' : '') + n; el.classList.toggle('low', n <= 3 || !!S.tm.expired);
+    const n = clockLeft(); el.textContent = (S.tm.paused ? '⏸ ' : '') + n; el.classList.toggle('ready', !S.tm.running); el.classList.toggle('low', S.tm.running && (n <= 3 || !!S.tm.expired));
   }
   setInterval(() => {
     if (!S) return;
@@ -497,7 +525,7 @@ Sleep | 6`;
       }
     } else if (S.tm) {
       paintClock();
-      if (isBoard || S.tm.paused || S.tm.expired) return;
+      if (isBoard || !S.tm.running || S.tm.paused || S.tm.expired) return;
       const n = clockLeft();
       if (n <= 3 && n > 0 && n !== S.tm._lt) sTick(); S.tm._lt = n;
       if (Date.now() >= S.tm.end) { if (S.auto === true) act(() => miss()); else { S.tm.expired = true; sBuzz(); commit(); } }
@@ -561,12 +589,12 @@ Sleep | 6`;
     const p = S.phase, say = t => '<div class="say">' + t + '</div>', un = undo.length ? b('undo', '↩ Undo', 'ghost') : '';
     const priv = boardOpen || peek;
     if (p === 'buzz') return say('<b>FACE-OFF!</b> ' + pname(0) + ' (' + tn(0) + ') vs. ' + pname(1) + ' (' + tn(1) + '). Read the question. Who buzzed in first? (They get 5 seconds.)') + b('first', tn(0) + ' first', 'gold', 0) + b('first', tn(1) + ' first', 'gold', 1) + un;
-    const pz = S.tm && !S.tm.expired ? b('pause', S.tm.paused ? '▶ Resume clock' : '⏸ Pause clock', 'ghost') : '';
+    const pz = S.tm ? (!S.tm.running ? b('start', '▶ Start clock', 'go') : (!S.tm.expired ? b('pause', S.tm.paused ? '▶ Resume clock' : '⏸ Pause clock', 'ghost') : '')) : '';
     if (p === 'fo') { const who = S.turn, hint = S.best ? ' <b>' + tn(S.best.team) + '</b> has the #' + (S.best.rank + 1) + ' answer — beat it to take control.' : '';
-      return say('<b>' + tn(who) + '</b> — ' + pname(who) + ' answers (5 sec).' + hint + ' Tap the matching answer, or:') + b('x', '✕ Not on the board', 'bad') + pz + un; }
+      return say('<b>' + tn(who) + '</b> — ' + pname(who) + ' answers (5 sec once you start the clock).' + hint + ' Tap the matching answer, or:') + pz + b('x', '✕ Not on the board', 'bad') + un; }
     if (p === 'playpass') return say('<b>' + tn(S.fw) + '</b> wins the face-off! Do they play or pass?') + b('play', '▶ PLAY', 'go') + b('pass', 'PASS to ' + tn(other(S.fw)), 'gold') + un;
-    if (p === 'play') return say('<b>' + tn(S.ctrl) + '</b> is playing — ' + S.strikes + ' strike' + (S.strikes === 1 ? '' : 's') + '. 15 seconds per answer. Tap each answer they get.') + b('x', '✕ STRIKE', 'bad') + pz + un;
-    if (p === 'steal') return say('<b>STEAL!</b> ' + tn(other(S.ctrl)) + ' gets one guess at any remaining answer (15 sec). Tap it if they get one:') + b('x', '✕ Missed', 'bad') + pz + un;
+    if (p === 'play') return say('<b>' + tn(S.ctrl) + '</b> is playing — ' + S.strikes + ' strike' + (S.strikes === 1 ? '' : 's') + '. 15 seconds per answer — start the clock when they begin. Tap each answer they get.') + pz + b('x', '✕ STRIKE', 'bad') + un;
+    if (p === 'steal') return say('<b>STEAL!</b> ' + tn(other(S.ctrl)) + ' gets one guess at any remaining answer (15 sec). Tap it if they get one:') + pz + b('x', '✕ Missed', 'bad') + un;
     if (p === 'roundEnd') return say('<b>' + tn(S.roundWinner) + '</b> wins the round and <b>' + S.awarded + '</b> points!') + (S.showAll ? '' : b('revealall', 'Reveal the rest', 'gold')) + b('next', 'Next ▶', 'go') + un;
     if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money — Player 2 must be out of earshot.') + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
     if (p === 'fm') {
@@ -582,6 +610,7 @@ Sleep | 6`;
   // ---------------- wiring ----------------
   $('ctl').onclick = e => { const el = e.target.closest('[data-act]'); if (el && !el.disabled) doAct(el.dataset.act, el.dataset.v); };
   const pk = (on) => () => { if (!S) return; peek = on; render(); };
+  document.addEventListener('keydown', e => { if (isBoard || !S || e.code !== 'Space' || /INPUT|TEXTAREA|BUTTON/.test((e.target.tagName || ''))) return; if (['fo', 'play', 'steal'].includes(S.phase) && S.tm) { e.preventDefault(); doAct(S.tm.running ? 'pause' : 'start'); } });
   $('peekBtn').addEventListener('pointerdown', pk(true)); ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('peekBtn').addEventListener(ev, pk(false)));
   if (bc) bc.onmessage = e => {
     const m = e.data || {};
@@ -603,7 +632,7 @@ Sleep | 6`;
     store(CK, c);
     if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt })) { show('setup', false); commit(); }
   };
-  $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm && !S.tm.expired) S.tm.end = Date.now() + (S.tm.paused ? S.tm.rem : S.tm.secs * 1000); show('setup', false); commit(); } };
+  $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   function openEditor() { const q = load(QK, { main: SAMPLE_MAIN, fast: SAMPLE_FAST }); $('qMain').value = q.main; $('qFast').value = q.fast; count(); $('qMsg').textContent = ''; show('qed', true); }
   function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
   $('qMain').oninput = $('qFast').oninput = count;
@@ -621,6 +650,7 @@ Sleep | 6`;
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
   $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto === true; $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
+  $('testDing').onclick = () => sDing(); $('testBuzz').onclick = () => sBuzz();
   $('autoX').onchange = () => { if (S) { S.auto = $('autoX').checked; commit(); } };
   $('scoreSave').onclick = () => act(() => { S.teams[0].score = parseInt($('s0').value, 10) || 0; S.teams[1].score = parseInt($('s1').value, 10) || 0; show('menu', false); });
   // Opens the audience board in its own WINDOW (not a tab) so it can be dragged to the TV.
