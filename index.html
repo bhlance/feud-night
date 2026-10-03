@@ -91,6 +91,7 @@
   #fm td { background: rgba(255,255,255,.1); padding: .9vh 1vw; font-weight: 800; text-transform: uppercase; }
   #fm td.a { width: 32%; text-align: left; border-radius: 1vh 0 0 1vh; } #fm td.c { width: 36%; text-align: center; font-size: .6em; opacity: .85; text-transform: none; }
   #fm td.d { width: 32%; text-align: right; border-radius: 0 1vh 1vh 0; }
+  #fm td .p.h { background: rgba(255,255,255,.25); color: rgba(255,255,255,.7); }
   #fm td .p { display: inline-block; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; margin: 0 .5vw; font-family: var(--big); }
   #fm .tot { font-family: var(--big); font-size: clamp(34px, 9vh, 100px); color: var(--gold); }
   #fm .verdict { font-weight: 900; font-size: clamp(20px, 4.5vh, 52px); }
@@ -600,16 +601,17 @@ Sleep | 6`;
     else if (a === 'fmbegin') act(() => { S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
     else if (a === 'fmpass') act(() => { if (fmPending(S.fm).length > 1) fmAdvance(S.fm, true); });
-    else if (a === 'fmrev' || a === 'fmbuzz') act(() => {
+    else if (a === 'fmrev') act(() => {
       const f = S.fm, who = f.pl - 1, r = f.rev[who]; if (r >= f.n) return;
-      let e = f.p[who][r] || { text: '— no answer —', pts: 0, rank: null };
-      if (a === 'fmbuzz') e = f.p[who][r] = { text: e.typed || e.text || '— no answer —', pts: 0, rank: null, typed: e.typed };   // MC buzzes it: 0 points
-      f.rev[who]++;
+      f.stage = f.stage || [0, 0];
+      if (f.stage[who] === 0) { f.stage[who] = 1; return; }           // 1st tap: show what they said (no points, no sound)
+      const e = f.p[who][r] || { text: '— no answer —', pts: 0, rank: null };
+      f.stage[who] = 0; f.rev[who]++;                                   // 2nd tap: show the points, then the sound
       if (e.pts > 0) sDing(); else { flash(1); sBuzz(); }
       fmCheckWin();
       if (f.pl === 2 && f.rev[1] >= f.n) { f.done = true; S.phase = 'fmResult'; }
     });
-    else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; } });
+    else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; });
     else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); S.phase = 'gameOver'; });
@@ -628,7 +630,7 @@ Sleep | 6`;
   // ---------------- fast money ----------------
   function fmSetup() {
     const qs = parseQs(load(QK, { fast: SAMPLE_FAST }).fast).slice(0, 5);
-    S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
+    S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
     S.phase = 'fm'; S.fm.win = S.champ;
   }
   // Questions still to be answered (not yet moved past with Next). A Pass sends the question to the back of the line.
@@ -740,8 +742,11 @@ Sleep | 6`;
       el.innerHTML = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — Player ' + f.pl + (f.running ? ' · Question ' + (f.idx + 1) + ' of ' + f.n : ' · ' + f.secs + ' seconds') + '</div><div id="timer">' + fmTimeLeft() + '</div>';
     } else {
       let h = '<div class="ttl">FAST MONEY — ' + S.fmTarget + ' TO WIN</div><table><tr><td class="a" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 1</td><td class="c" style="background:none"></td><td class="d" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 2</td></tr>';
-      for (let r = 0; r < f.n; r++) { const on1 = r < f.rev[0], on2 = r < f.rev[1], a = f.p[0][r], b = f.p[1][r];
-        h += '<tr><td class="a">' + (on1 && a ? a.text + '<span class="p">' + a.pts + '</span>' : '&nbsp;') + '</td><td class="c">' + f.qs[r].text.replace(/^name\s+/i, '') + '</td><td class="d">' + (on2 && b ? '<span class="p">' + b.pts + '</span>' + b.text : '&nbsp;') + '</td></tr>'; }
+      const stg = f.stage || [0, 0];
+      for (let r = 0; r < f.n; r++) { const a = f.p[0][r], b = f.p[1][r];
+        const full1 = r < f.rev[0], part1 = r === f.rev[0] && stg[0] === 1, full2 = r < f.rev[1], part2 = r === f.rev[1] && stg[1] === 1;
+        const pt = (e, full) => '<span class="p' + (full ? '' : ' h') + '">' + (full ? e.pts : '?') + '</span>';
+        h += '<tr><td class="a">' + ((full1 || part1) && a ? a.text + pt(a, full1) : '&nbsp;') + '</td><td class="c">' + f.qs[r].text.replace(/^name\s+/i, '') + '</td><td class="d">' + ((full2 || part2) && b ? pt(b, full2) + b.text : '&nbsp;') + '</td></tr>'; }
       h += '</table><div class="tot">TOTAL: ' + fmTotal() + '</div>';
       if (f.done) h += '<div class="verdict">' + (fmTotal() >= S.fmTarget ? '🎉 ' + tn(f.win) + ' wins it all!' : 'So close! They needed ' + (S.fmTarget - fmTotal()) + ' more.') + '</div>';
       el.innerHTML = h;
@@ -769,8 +774,8 @@ Sleep | 6`;
     if (p === 'fmEntry') { const f = S.fm; return say('<b>Player ' + f.pl + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
       const win = f.won ? '🎉 <b>' + fmTotal() + ' points — target reached!</b> ' : '';
-      if (r < f.n) { const e = f.p[who][r] || { text: '— no answer —', pts: 0 };
-        return say(win + '<b>Player ' + f.pl + ' — reveal Q' + (r + 1) + '.</b> ' + (e.pts > 0 ? 'Reveal their answer — it plays the cha-ching.' : 'This one didn\'t match — revealing it plays the strike.') + (priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + e.text + ', ' + e.pts + ')</i>' : '')) + b('fmrev', 'Reveal Q' + (r + 1), 'gold') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
+      if (r < f.n) { const e = f.p[who][r] || { text: '— no answer —', pts: 0 }, st = (f.stage || [0, 0])[who];
+        return say(win + '<b>Player ' + f.pl + ' — Q' + (r + 1) + '.</b> ' + (st === 0 ? 'Tap to show what they said.' : 'Their answer is up. Tap again for the points — ' + (e.pts > 0 ? 'cha-ching!' : 'that one is a strike.')) + (priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + e.text + ', ' + e.pts + ')</i>' : '')) + b('fmrev', st === 0 ? 'Show Q' + (r + 1) + ' answer' : 'Show Q' + (r + 1) + ' points', 'gold') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
       if (f.won) return say(win + 'All of Player ' + f.pl + '\'s answers are up.') + b('finishfm', '🏁 Finish Fast Money', 'go') + (f.pl === 1 ? b('fmnext', 'Play Player 2 anyway', 'ghost') : '') + un;
       return say('<b>Player ' + f.pl + ' scored ' + fmTotal() + '.</b> Now bring in Player 2 — they haven\'t heard any of these answers.') + b('fmnext', '▶ Bring in Player 2', 'go') + un; }
     if (p === 'fmResult') { const f = S.fm; return say('That\'s Fast Money! Final total: <b>' + fmTotal() + '</b>.') + b('again2', '← Back', 'ghost') + b('newgame', 'New game', 'go') + un; }
@@ -814,7 +819,7 @@ Sleep | 6`;
         if (m.r !== null) { const a = f.qs[i].answers[m.r]; return { text: a.text, pts: a.pts, rank: m.r, typed }; }
         return { text: typed, pts: 0, rank: null, typed, dup: !!m.dup };
       });
-      f.rev[w] = 0; S.phase = 'fmReveal';
+      f.rev[w] = 0; f.stage = f.stage || [0, 0]; f.stage[w] = 0; S.phase = 'fmReveal';
     });
   };
 
