@@ -257,7 +257,7 @@
     <div class="note" id="musicNoteFm"></div>
     <h3 style="margin-top:14px">👥 Audience reactions in Fast Money (played when the points are revealed)</h3>
     <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="reactOn" style="width:auto"> Play audience reactions</label>
-    <div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="35" inputmode="numeric"></div></div>
+    <div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>
     <div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. The built-in crowd sounds are computer-made stand-ins; upload real recordings below if you have them and they'll be used instead.</div>
     <div id="reactSecs"></div>
   </details>
@@ -722,7 +722,7 @@ Nevada | 4`;
   // Built-in versions are computer-made crowd sounds (clapping = hundreds of tiny noise claps; "aww" and "yay" = a crowd of
   // vowel-shaped voices). Real recordings can be uploaded in the Menu and take over automatically.
   let reactNodes = [];
-  const reactCfg = () => { try { return Object.assign({ on: true, lo: 10, hi: 35 }, JSON.parse(localStorage.getItem('feud.react') || '{}')); } catch (e) { return { on: true, lo: 10, hi: 35 }; } };
+  const reactCfg = () => { let c; try { c = Object.assign({ on: true, lo: 10, hi: 30 }, JSON.parse(localStorage.getItem('feud.react') || '{}')); } catch (e) { c = { on: true, lo: 10, hi: 30 }; } if (c.hi === 35) c.hi = 30; return c; };
   function stopReact() { reactNodes.forEach(n => { try { n.stop(); } catch (e) {} }); reactNodes = []; }
   function applauseBuf(c, secs, density) {
     const sr = c.sampleRate, n = Math.floor(sr * secs), b = c.createBuffer(1, n, sr), d = b.getChannelData(0);
@@ -763,7 +763,7 @@ Nevada | 4`;
       const nodes = slot === 'aww' ? buildAww(ac, outNode(), t) : slot === 'cheer' ? buildCheer(ac, outNode(), t) : buildApplause(ac, outNode(), t); (nodes || []).forEach(n => reactNodes.push(n)); } catch (e) {}
   }
   // the points just appeared: low scores get an "aww", middle scores applause, big scores a cheer
-  function fmReact(pts) { const c = reactCfg(); if (isBoard || !c.on) return; playReact(pts <= c.lo ? 'aww' : pts >= c.hi ? 'cheer' : 'clap', pts > 0 ? .25 : .8); }
+  function fmReact(pts) { const c = reactCfg(); if (isBoard || !c.on) return; stopReact(); playReact(pts <= c.lo ? 'aww' : pts >= c.hi ? 'cheer' : 'clap', pts > 0 ? .25 : .8); }
   window.__feudAudio = () => ac;   // read-only hook used for testing the master volume
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
@@ -1212,7 +1212,7 @@ Nevada | 4`;
       + '<div class="btns"><button class="mb" id="musicTest' + x + '">▶ Test</button><button class="mb" id="musicStop' + x + '">■ Stop</button><button class="mb" id="musicRemove' + x + '">Remove recording</button></div><div class="note" id="musicNote' + x + '"></div>';
     $('reactSecs').innerHTML = sec('😞 Disappointed “aww”', 'Aww', 3) + sec('👏 Generous applause', 'Clap', 4) + sec('🎉 Loud cheering', 'Cheer', 5);
     const c = reactCfg(); $('reactOn').checked = c.on; $('reactLo').value = c.lo; $('reactHi').value = c.hi;
-    const save = () => { try { localStorage.setItem('feud.react', JSON.stringify({ on: $('reactOn').checked, lo: +$('reactLo').value || 10, hi: +$('reactHi').value || 35 })); } catch (e) {} };
+    const save = () => { try { localStorage.setItem('feud.react', JSON.stringify({ on: $('reactOn').checked, lo: +$('reactLo').value || 10, hi: +$('reactHi').value || 30 })); } catch (e) {} };
     $('reactOn').onchange = $('reactLo').onchange = $('reactHi').onchange = save;
   })();
   function refreshMusicUI() {
