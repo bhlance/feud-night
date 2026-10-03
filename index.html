@@ -240,7 +240,7 @@
   <details>
     <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music</summary>
     <div class="note" style="margin:6px 0">Pick songs from your laptop. They stay on this laptop only, and fade out at the end. Without a song, a built-in fanfare plays.</div>
-    <h3>After every round (whoever wins it)</h3>
+    <h3>Fallback song — any round that doesn't have its own song below</h3>
     <div class="row"><div><label for="musicFile">Song file (mp3, m4a, wav)</label><input id="musicFile" type="file" accept="audio/*"></div>
       <div class="row" style="gap:10px"><div><label for="musicStart">Start at (seconds in)</label><input id="musicStart" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen">Play for (seconds)</label><input id="musicLen" type="number" min="2" max="120" value="10" inputmode="numeric"></div></div></div>
     <div class="btns"><button class="mb" id="musicTest">▶ Test</button><button class="mb" id="musicStop">■ Stop</button><button class="mb" id="musicRemove">Remove song</button></div>
@@ -255,6 +255,9 @@
       <div class="row" style="gap:10px"><div><label for="musicStartFm">Start at (seconds in)</label><input id="musicStartFm" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLenFm">Play for (seconds)</label><input id="musicLenFm" type="number" min="2" max="120" value="30" inputmode="numeric"></div></div></div>
     <div class="btns"><button class="mb" id="musicTestFm">▶ Test</button><button class="mb" id="musicStopFm">■ Stop</button><button class="mb" id="musicRemoveFm">Remove song</button></div>
     <div class="note" id="musicNoteFm"></div>
+    <h3 style="margin-top:14px">🏁 Song after each round (the winning team of that round)</h3>
+    <div class="note">Round 1 gets its own song, round 2 a different one, and so on. If a round's win takes a team to the target score, the <b>game-winner song</b> plays instead. A round with no song here uses the fallback song above.</div>
+    <div id="roundSecs"></div>
     <h3 style="margin-top:14px">👥 Audience reactions in Fast Money (played when the points are revealed)</h3>
     <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="reactOn" style="width:auto"> Play audience reactions</label>
     <div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>
@@ -684,19 +687,19 @@ Nevada | 4`;
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
   // 'fm' (winning Fast Money, default 30 s). Each fades out at the end; falls back to the built-in fanfare.
-  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null } };
+  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null }, r1: { buf: null, name: '', start: 0, len: 10, blob: null }, r2: { buf: null, name: '', start: 0, len: 10, blob: null }, r3: { buf: null, name: '', start: 0, len: 10, blob: null }, r4: { buf: null, name: '', start: 0, len: 10, blob: null }, r5: { buf: null, name: '', start: 0, len: 10, blob: null } };
   let nowPlaying = null;
   const mdb = (mode, fn) => new Promise(res => { try { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => res(null);
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
     if (isBoard) return;
     loadBundled();
-    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer']) { const m = mus[k]; if (!m.blob || m.buf) continue;
+    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5']) { const m = mus[k]; if (!m.blob || m.buf) continue;
       try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
   }
   // Recordings that ship with the game: drop mp3/m4a/wav files in the "sounds" folder and list them in sounds/manifest.json.
   // Priority for every sound: a file uploaded in the Menu > a recording from the sounds folder > the built-in version.
-  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null };
+  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null, r1: null, r2: null, r3: null, r4: null, r5: null };
   let bundledTried = false;
   const effBuf = k => (mus[k] && mus[k].buf) || bundled[k] || null;
   async function loadBundled() {
@@ -717,6 +720,9 @@ Nevada | 4`;
       src.buffer = buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len);
       src.connect(g); g.connect(outNode()); src.start(t, Math.min(m.start, Math.max(0, buf.duration - 1))); src.stop(t + len + .05); nowPlaying = { src, g }; return true; } catch (e) { return false; }
   }
+  // After a round: that round's own song (Round 1 song, Round 2 song, …; round 5 and later share the last slot).
+  // A round with no song of its own uses the fallback song; with none of those, the built-in fanfare.
+  const roundSound = round => { if (playMusic('r' + Math.min(round, 5))) return; if (!playMusic('win')) sWin(); };
   const winSound = () => { if (!playMusic('win')) sWin(); };
   const gameWinSound = () => { if (!playMusic('game')) sWin(); };
   // ---- Audience reactions for Fast Money point reveals ----
@@ -768,7 +774,7 @@ Nevada | 4`;
   window.__feudAudio = () => ac;   // read-only hook used for testing the master volume
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
-  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
+  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
   let tickAlt = false, clickBuf = null;
@@ -801,8 +807,10 @@ Nevada | 4`;
   const allRevealed = () => S.q.answers.every(a => a.revealed);
   function endRound(w) {
     S.teams[w].score += S.pot; S.roundWinner = w; S.awarded = S.pot; S.phase = 'roundEnd'; S.tm = null;
-    S.pi[0] += Math.max(1, S.fp[0]); S.pi[1] += Math.max(1, S.fp[1]); winSound();
-    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) fireworks(Math.min(30, mus.win.blob ? mus.win.len : 10));   // a team just hit the winning total
+    S.pi[0] += Math.max(1, S.fp[0]); S.pi[1] += Math.max(1, S.fp[1]);
+    // This round decided the game (a team reached the target)? Play the game-winner's song and fireworks right now.
+    // Otherwise play this round's own song.
+    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) { gameWinSound(); fireworks(Math.min(30, mus.game.len)); } else roundSound(S.round);
   }
   function fireworks(secs) { S.fire = { k: ((S.fire && S.fire.k) || 0) + 1, secs }; }
   // Clock: 5 seconds per answer in the face-off, 15 seconds per answer once a team is playing.
@@ -846,11 +854,11 @@ Nevada | 4`;
       if (left.length) { left[0].x.shown = true; sDing(); }
     });
     else if (a === 'next') act(() => {
-      stopMusic();
       const [x, y] = [S.teams[0].score, S.teams[1].score];
-      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; gameWinSound(); fireworks(Math.min(30, mus.game.blob ? mus.game.len : 14)); } else nextRound();
+      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; }   // the winner's song + fireworks already played when the target was reached
+      else { stopMusic(); nextRound(); }
     });
-    else if (a === 'fmgo') act(() => fmSetup());
+    else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
     else if (a === 'fmbegin') act(() => { S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
     else if (a === 'fmpass') act(() => { if (fmPending(S.fm).length > 1) fmAdvance(S.fm, true); });
@@ -1206,11 +1214,12 @@ Nevada | 4`;
   function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); show('menu', false); }
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
   $('testFmBtn').onclick = () => { $('startBtn').onclick(); if (S) skipToFM(0); };
-  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5 };
+  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10 };
   (function injectReactUI() {
     const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Recording (mp3, m4a, wav) — optional</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
       + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds)</label><input id="musicLen' + x + '" type="number" min="1" max="30" value="' + len + '" inputmode="numeric"></div></div></div>'
       + '<div class="btns"><button class="mb" id="musicTest' + x + '">▶ Test</button><button class="mb" id="musicStop' + x + '">■ Stop</button><button class="mb" id="musicRemove' + x + '">Remove recording</button></div><div class="note" id="musicNote' + x + '"></div>';
+    $('roundSecs').innerHTML = [1, 2, 3, 4].map(n => sec('🎵 Round ' + n + ' winner song', 'R' + n, 10)).join('') + sec('🎵 Round 5 and later', 'R5', 10);
     $('reactSecs').innerHTML = sec('😞 Disappointed “aww”', 'Aww', 3) + sec('👏 Generous applause', 'Clap', 4) + sec('🎉 Loud cheering', 'Cheer', 5);
     const c = reactCfg(); $('reactOn').checked = c.on; $('reactLo').value = c.lo; $('reactHi').value = c.hi;
     const save = () => { try { localStorage.setItem('feud.react', JSON.stringify({ on: $('reactOn').checked, lo: +$('reactLo').value || 10, hi: +$('reactHi').value || 30 })); } catch (e) {} };

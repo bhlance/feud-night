@@ -9,8 +9,14 @@ Slots (use these names inside manifest.json):
   aww    = disappointed audience reaction  (Fast Money, low scores)
   clap   = generous applause               (Fast Money, middle scores)
   cheer  = loud cheering                   (Fast Money, high scores)
-  win    = song after every round
-  game   = song when a team wins the game
+  r1     = song after Round 1
+  r2     = song after Round 2
+  r3     = song after Round 3
+  r4     = song after Round 4
+  r5     = song after Round 5 and any later round
+  win    = fallback song for any round that has no song of its own
+  game   = song when a team wins the game (plays right when they reach the target score,
+           in place of that round's song)
   fm     = song when a team wins Fast Money
 
 Example manifest.json:
