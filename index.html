@@ -178,7 +178,15 @@
     <div><label for="mults">Round point multipliers (round 1, 2, 3, 4… — the last one repeats)</label><input id="mults" placeholder="1,1,2,3"></div>
     <div class="note" style="align-self:end">Default: rounds 1–2 are ×1, round 3 is ×2 (double), round 4 and later are ×3 (triple). Fast Money is always ×1.</div>
   </div>
-  <div class="btns">
+  <div id="musicHome">
+  <details open id="musicBlock">
+    <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music &amp; sounds — listed in the order they play</summary>
+    <div class="note" style="margin:6px 0">Pick songs from your laptop — set them up once and they stay saved on this laptop. Each can play for up to 3 minutes and fades out at the end. Without a song, a built-in sound plays. The numbers follow the order of a game.</div>
+    <div id="musicOrder"></div>
+  </details>
+  </div>
+  <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
+  <div class="btns" id="setupBtns" style="position:sticky;bottom:-2.4vh;background:#fff;padding:10px 0;border-top:2px solid #eef1ff;z-index:2">
     <button class="mb go" id="startBtn">▶ Start new game</button>
     <button class="mb gold" id="resumeBtn" style="display:none">↩ Resume saved game</button>
     <button class="mb" id="editQBtn">✏️ Edit questions</button>
@@ -186,8 +194,10 @@
     <label style="display:flex;gap:8px;align-items:center;font-weight:700;align-self:center"><input type="checkbox" id="muteChkSetup" style="width:auto"> 🔇 Mute all sounds</label>
     <button class="mb" id="testFmBtn">⚡ Test: jump to Fast Money</button>
   </div>
-  <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
 </div></div>
+
+<!-- Music & sounds, opened from the Menu during a game -->
+<div class="modal" id="musicModal"><div class="card"><h2>🎵 Music &amp; sounds</h2><div id="musicSlot"></div><div class="btns"><button class="mb go" id="musicDone">Done</button></div></div></div>
 
 <!-- Fast Money answer entry -->
 <div class="modal" id="fmForm"><div class="card">
@@ -238,11 +248,7 @@
   <h3>⚡ Skip to Fast Money (for testing)</h3>
   <div class="note">Jumps straight to the Fast Money round, as if this team had just won the game. Undo brings you back.</div>
   <div class="btns"><button class="mb gold" id="skipFm0"></button><button class="mb gold" id="skipFm1"></button></div>
-  <details open>
-    <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music &amp; sounds — listed in the order they play</summary>
-    <div class="note" style="margin:6px 0">Pick songs from your laptop. Each one is saved on this laptop and fades out at the end. Without a song, a built-in sound plays. The numbers follow the order of a game.</div>
-    <div id="musicOrder"></div>
-  </details>
+  <div class="btns"><button class="mb" id="menuMusic">🎵 Music &amp; sounds…</button></div>
   <div class="note" id="menuNote"></div>
 </div></div>
 
@@ -1147,6 +1153,7 @@ Nevada | 4`;
     box.value = String(Math.min(sel, a.length - 1));
   }
   function openSetup() {
+    if (typeof toHome === 'function') toHome();
     const c = load(CK, { n: ['Team 1', 'Team 2'], p: ['', ''], tgt: 300, fmt: 200 });
     $('mults').value = c.m || '1,1,2,3'; fillSetSel(c.nextSet || 0);
     $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
@@ -1187,6 +1194,10 @@ Nevada | 4`;
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
   $('menuBtn').onclick = () => { if (!S) return; $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
+  // The music settings live on the setup page; from the Menu they open in their own window (same block, moved — not copied).
+  const musicBlock = $('musicBlock'), toHome = () => { $('musicHome').appendChild(musicBlock); show('musicModal', false); };
+  $('menuMusic').onclick = () => { $('musicSlot').appendChild(musicBlock); show('menu', false); show('musicModal', true); };
+  $('musicDone').onclick = toHome;
   $('muteBtn').onclick = () => setMuted(!isMuted()); $('muteChk').onchange = () => setMuted($('muteChk').checked); $('muteChkSetup').onchange = () => setMuted($('muteChkSetup').checked);
   document.addEventListener('keydown', e => { if (isBoard || (e.key !== 'm' && e.key !== 'M') || /INPUT|TEXTAREA/.test((e.target.tagName || ''))) return; setMuted(!isMuted()); });
   applyMute();
@@ -1196,7 +1207,7 @@ Nevada | 4`;
   const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10 };
   (function injectMusicUI() {
     const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Song or recording (mp3, m4a, wav)</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
-      + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds)</label><input id="musicLen' + x + '" type="number" min="1" max="120" value="' + len + '" inputmode="numeric"></div></div></div>'
+      + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds, up to 180)</label><input id="musicLen' + x + '" type="number" min="1" max="180" value="' + len + '" inputmode="numeric"></div></div></div>'
       + '<div class="btns"><button class="mb" id="musicTest' + x + '">▶ Test</button><button class="mb" id="musicStop' + x + '">■ Stop</button><button class="mb" id="musicRemove' + x + '">Remove</button></div><div class="note" id="musicNote' + x + '"></div>';
     const reactIntro = '<div style="margin-top:14px;padding:10px 12px;background:#eef1ff;border-radius:12px"><div style="font-weight:800">👥 Fast Money audience reactions (played as each score is revealed)</div>'
       + '<label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="reactOn" style="width:auto"> Play audience reactions</label>'
@@ -1226,7 +1237,7 @@ Nevada | 4`;
     const save = () => mdb('readwrite', st => st.put({ blob: m.blob, name: m.name, start: m.start, len: m.len }, k));
     $('musicFile' + x).onchange = async () => { const f = $('musicFile' + x).files[0]; if (!f) return; m.blob = f; m.name = f.name; m.buf = null; await decodeMusic();
       if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); };
-    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(120, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k])); if (m.blob) save(); refreshMusicUI(); };
+    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(180, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k])); if (m.blob) save(); refreshMusicUI(); };
     $('musicTest' + x).onclick = async () => { await decodeMusic(); if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
     $('musicStop' + x).onclick = () => { stopMusic(); stopReact(); };
     $('musicRemove' + x).onclick = () => { stopMusic(); Object.assign(m, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete(k)); refreshMusicUI(); };
