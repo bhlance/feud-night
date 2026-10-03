@@ -551,7 +551,7 @@ Sleep | 6`;
     else if (a === 'play' || a === 'pass') act(() => { S.ctrl = a === 'play' ? S.fw : other(S.fw); S.strikes = 0; S.phase = 'play'; if (allRevealed()) endRound(S.ctrl); else startClock(15); });
     else if (a === 'revealnext') act(() => {
       const left = S.q.answers.map((x, i) => ({ x, i })).filter(o => !o.x.revealed && !o.x.shown).sort((p, q) => p.x.pts - q.x.pts || q.i - p.i);
-      if (left.length) { left[0].x.shown = true; bell(784, 0, .3); }
+      if (left.length) { left[0].x.shown = true; sDing(); }
     });
     else if (a === 'next') act(() => {
       stopMusic();
