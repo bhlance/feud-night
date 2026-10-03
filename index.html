@@ -391,7 +391,7 @@ Sleep | 6`;
     S.qi++; S.round++;
     S.q = clone(S.qs[(S.qi) % S.qs.length]); S.q.answers.forEach(a => a.revealed = false);
     S.pot = 0; S.ctrl = null; S.fw = null; S.strikes = 0; S.first = null; S.fo = []; S.roundWinner = null; S.awarded = 0; S.showAll = false;
-    S.phase = 'buzz';
+    S.qVisible = false; S.phase = 'buzz';
   }
   function reveal(i) { const a = S.q.answers[i]; if (!a || a.revealed) return false; a.revealed = true; S.pot += a.pts; sDing(); return true; }
   const allRevealed = () => S.q.answers.every(a => a.revealed);
@@ -414,7 +414,8 @@ Sleep | 6`;
   function doAct(a, v) {
     v = v === undefined ? null : v;
     if (a === 'undo') { if (undo.length) { S = JSON.parse(undo.pop()); commit(); } return; }
-    if (a === 'first') act(() => { S.first = +v; S.fo = []; S.phase = 'fo1'; });
+    if (a === 'first') act(() => { S.first = +v; S.fo = []; S.qVisible = true; S.phase = 'fo1'; });
+    else if (a === 'showq') act(() => { S.qVisible = true; });
     else if (a === 'x') act(() => {
       const p = S.phase;
       if (p === 'fo1') { S.fo.push({ team: S.first, rank: null }); S.phase = 'fo2'; flash(1); sBuzz(); }
@@ -483,7 +484,8 @@ Sleep | 6`;
     $('rd').textContent = fm ? 'FAST MONEY' : (S.phase === 'gameOver' ? 'GAME OVER' : 'ROUND ' + S.round);
     $('pot').style.visibility = fm || S.phase === 'gameOver' ? 'hidden' : 'visible';
     $('pot').querySelector('span').textContent = S.phase === 'roundEnd' ? S.awarded : S.pot;
-    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? S.fm.qs[S.fm.idx].text : 'Get ready…') : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : S.q.text);
+    const hideQ = S.phase === 'buzz' && !S.qVisible;
+    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? S.fm.qs[S.fm.idx].text : 'Get ready…') : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : (boardOpen ? '🔒 (hidden on TV until someone buzzes) ' : '') + S.q.text) : S.q.text));
     // board
     if (!fm && S.q) {
       const priv = !isBoard && (boardOpen || peek);
@@ -518,7 +520,7 @@ Sleep | 6`;
     const b = (act, label, cls, v) => '<button class="cb ' + (cls || '') + '" data-act="' + act + '"' + (v !== undefined ? ' data-v="' + v + '"' : '') + '>' + label + '</button>';
     const p = S.phase, say = t => '<div class="say">' + t + '</div>', un = undo.length ? b('undo', '↩ Undo', 'ghost') : '';
     const priv = boardOpen || peek;
-    if (p === 'buzz') return say('<b>FACE-OFF!</b> ' + pname(0) + ' (' + tn(0) + ') vs. ' + pname(1) + ' (' + tn(1) + '). Read the question. Who buzzed in first?') + b('first', tn(0) + ' first', 'gold', 0) + b('first', tn(1) + ' first', 'gold', 1) + un;
+    if (p === 'buzz') return say('<b>FACE-OFF!</b> ' + pname(0) + ' (' + tn(0) + ') vs. ' + pname(1) + ' (' + tn(1) + '). Read the question. Who buzzed in first?') + b('first', tn(0) + ' first', 'gold', 0) + b('first', tn(1) + ' first', 'gold', 1) + (boardOpen ? b('showq', 'Show question on TV', 'ghost') : '') + un;
     if (p === 'fo1') return say('<b>' + tn(S.first) + '</b> answers first. Tap the matching answer on the board — or if it\'s not up there:') + b('x', '✕ Not on the board', 'bad') + un;
     if (p === 'fo2') return say('Now <b>' + tn(other(S.first)) + '</b> answers. Tap the answer, or:') + b('x', '✕ Not on the board', 'bad') + un;
     if (p === 'foTie') return say('Neither answer was on the board.') + b('again', 'Buzz again', 'gold') + un;
