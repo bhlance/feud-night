@@ -29,6 +29,7 @@
   #mid { text-align: center; display: flex; flex-direction: column; justify-content: center; min-width: 14vw; }
   #brand { display: none; }
   body.board #brand { display: block; font-family: var(--big); color: var(--gold); font-size: clamp(20px, 4.6vh, 56px); letter-spacing: 3px; line-height: 1; text-shadow: 0 .3vh 0 rgba(0,0,0,.45); margin-bottom: .4vh; }
+  #multBadge { display: none; margin: .4vh auto 0; background: var(--gold); color: var(--ink); font-weight: 900; font-size: clamp(10px, 1.9vh, 20px); letter-spacing: 1px; padding: .2vh 1vw; border-radius: 99px; white-space: nowrap; }
   #mid .rd { font-size: clamp(11px, 1.8vh, 18px); letter-spacing: 2px; opacity: .8; }
   #mid .pot { font-family: var(--big); font-size: clamp(26px, 5.5vh, 64px); color: #fff; line-height: 1; }
   #mid .pot small { font-size: .4em; color: var(--gold); display: block; letter-spacing: 2px; font-family: var(--font); font-weight: 800; }
@@ -113,7 +114,7 @@
 <div id="app">
   <div id="top">
     <div class="team t0" id="tm0"><span class="nm"></span><span class="sc">0</span></div>
-    <div id="mid"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div>
+    <div id="mid"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div>
     <div class="team t1" id="tm1"><span class="nm"></span><span class="sc">0</span></div>
   </div>
   <div id="q"></div>
@@ -139,6 +140,10 @@
   <div class="row">
     <div><label for="tgt">Points to win (then Fast Money)</label><input id="tgt" type="number" inputmode="numeric"></div>
     <div><label for="fmt">Fast Money target</label><input id="fmt" type="number" inputmode="numeric"></div>
+  </div>
+  <div class="row">
+    <div><label for="mults">Round point multipliers (round 1, 2, 3, 4… — the last one repeats)</label><input id="mults" placeholder="1,1,2,3"></div>
+    <div class="note" style="align-self:end">Default: rounds 1–2 are ×1, round 3 is ×2 (double), round 4 and later are ×3 (triple). Fast Money is always ×1.</div>
   </div>
   <div class="btns">
     <button class="mb go" id="startBtn">▶ Start new game</button>
@@ -186,11 +191,16 @@
   <details>
     <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music</summary>
     <div class="note" style="margin:6px 0">Pick songs from your laptop. They stay on this laptop only, and fade out at the end. Without a song, a built-in fanfare plays.</div>
-    <h3>When a team wins a round</h3>
+    <h3>After every round (whoever wins it)</h3>
     <div class="row"><div><label for="musicFile">Song file (mp3, m4a, wav)</label><input id="musicFile" type="file" accept="audio/*"></div>
       <div class="row" style="gap:10px"><div><label for="musicStart">Start at (seconds in)</label><input id="musicStart" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen">Play for (seconds)</label><input id="musicLen" type="number" min="2" max="120" value="10" inputmode="numeric"></div></div></div>
     <div class="btns"><button class="mb" id="musicTest">▶ Test</button><button class="mb" id="musicStop">■ Stop</button><button class="mb" id="musicRemove">Remove song</button></div>
     <div class="note" id="musicNote"></div>
+    <h3>When a team wins the game (reaches the target score)</h3>
+    <div class="row"><div><label for="musicFileGame">Song file (mp3, m4a, wav)</label><input id="musicFileGame" type="file" accept="audio/*"></div>
+      <div class="row" style="gap:10px"><div><label for="musicStartGame">Start at (seconds in)</label><input id="musicStartGame" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLenGame">Play for (seconds)</label><input id="musicLenGame" type="number" min="2" max="120" value="20" inputmode="numeric"></div></div></div>
+    <div class="btns"><button class="mb" id="musicTestGame">▶ Test</button><button class="mb" id="musicStopGame">■ Stop</button><button class="mb" id="musicRemoveGame">Remove song</button></div>
+    <div class="note" id="musicNoteGame"></div>
     <h3>When a team wins Fast Money</h3>
     <div class="row"><div><label for="musicFileFm">Song file (mp3, m4a, wav)</label><input id="musicFileFm" type="file" accept="audio/*"></div>
       <div class="row" style="gap:10px"><div><label for="musicStartFm">Start at (seconds in)</label><input id="musicStartFm" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLenFm">Play for (seconds)</label><input id="musicLenFm" type="number" min="2" max="120" value="30" inputmode="numeric"></div></div></div>
@@ -469,13 +479,13 @@ Sleep | 6`;
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
   // 'fm' (winning Fast Money, default 30 s). Each fades out at the end; falls back to the built-in fanfare.
-  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null } };
+  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null } };
   let nowPlaying = null;
   const mdb = (mode, fn) => new Promise(res => { try { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => res(null);
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
     if (isBoard) return;
-    for (const k of ['win', 'fm']) { const m = mus[k]; if (!m.blob || m.buf) continue;
+    for (const k of ['win', 'game', 'fm']) { const m = mus[k]; if (!m.blob || m.buf) continue;
       try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
   }
   function stopMusic() {
@@ -489,25 +499,29 @@ Sleep | 6`;
       src.connect(g); g.connect(ac.destination); src.start(t, Math.min(m.start, Math.max(0, m.buf.duration - 1))); src.stop(t + len + .05); nowPlaying = { src, g }; return true; } catch (e) { return false; }
   }
   const winSound = () => { if (!playMusic('win')) sWin(); };
+  const gameWinSound = () => { if (!playMusic('game')) sWin(); };
   const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
-  if (!isBoard) ['win', 'fm'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
+  if (!isBoard) ['win', 'game', 'fm'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   const sTick = () => tone(1200, .06, 'square', .08);
 
   // ---------------- game logic ----------------
+  const parseMults = txt => { const a = String(txt || '').split(/[,\s]+/).map(Number).filter(n => n > 0 && n <= 10); return a.length ? a : [1, 1, 2, 3]; };
+  const multFor = round => { const m = S.mults && S.mults.length ? S.mults : [1, 1, 2, 3]; return m[Math.min(round, m.length) - 1]; };
+  const multWord = m => m === 2 ? 'DOUBLE' : m === 3 ? 'TRIPLE' : m === 4 ? 'QUADRUPLE' : '×' + m;
   function startGame(cfg) {
-    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: false, roundWinner: null, awarded: 0, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(load(QK, { main: SAMPLE_MAIN }).main) };
+    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, mults: cfg.mults, mult: 1, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: false, roundWinner: null, awarded: 0, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(load(QK, { main: SAMPLE_MAIN }).main) };
     undo = [];
     if (!S.qs.length) { alert('No main-round questions found. Open ✏️ Edit questions first.'); S = null; return false; }
     nextRound(); return true;
   }
   function nextRound() {
-    S.qi++; S.round++;
+    S.qi++; S.round++; S.mult = multFor(S.round);
     S.q = clone(S.qs[(S.qi) % S.qs.length]); S.q.answers.forEach(a => a.revealed = false);
     S.pot = 0; S.ctrl = null; S.fw = null; S.strikes = 0; S.first = null; S.turn = null; S.best = null; S.fp = [0, 0]; S.tm = null; S.roundWinner = null; S.awarded = 0;
     S.qVisible = false; S.phase = 'buzz';
   }
-  function reveal(i) { const a = S.q.answers[i]; if (!a || a.revealed) return false; a.revealed = true; S.pot += a.pts; sDing(); return true; }
+  function reveal(i) { const a = S.q.answers[i]; if (!a || a.revealed) return false; a.revealed = true; S.pot += a.pts * (S.mult || 1); sDing(); return true; }
   const allRevealed = () => S.q.answers.every(a => a.revealed);
   function endRound(w) {
     S.teams[w].score += S.pot; S.roundWinner = w; S.awarded = S.pot; S.phase = 'roundEnd'; S.tm = null;
@@ -556,7 +570,7 @@ Sleep | 6`;
     else if (a === 'next') act(() => {
       stopMusic();
       const [x, y] = [S.teams[0].score, S.teams[1].score];
-      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; sWin(); } else nextRound();
+      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; gameWinSound(); } else nextRound();
     });
     else if (a === 'fmgo') act(() => fmSetup());
     else if (a === 'fmbegin') act(() => { S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
@@ -635,6 +649,7 @@ Sleep | 6`;
     [0, 1].forEach(t => { const el = $('tm' + t); el.querySelector('.nm').textContent = S.teams[t].name; el.querySelector('.sc').textContent = S.teams[t].score;
       el.classList.toggle('ctrl', h.team === t); el.dataset.l = '▶ ' + h.label; el.dataset.r = h.label + ' ◀'; });
     paintClock();
+    const mb = $('multBadge'), mm = !fm && S.phase !== 'gameOver' ? (S.mult || 1) : 1; mb.style.display = mm > 1 ? 'block' : 'none'; mb.textContent = mm > 1 ? '×' + mm + ' ' + multWord(mm) + ' POINTS' : '';
     $('rd').textContent = fm ? 'FAST MONEY' : (S.phase === 'gameOver' ? 'GAME OVER' : 'ROUND ' + S.round);
     $('pot').style.visibility = fm || S.phase === 'gameOver' ? 'hidden' : 'visible';
     $('pot').querySelector('span').textContent = S.phase === 'roundEnd' ? S.awarded : S.pot;
@@ -644,7 +659,7 @@ Sleep | 6`;
     if (!fm && S.q) {
       const priv = !isBoard && (boardOpen || peek);
       tiles.forEach((t, i) => { const a = S.q.answers[i]; t.classList.toggle('empty', !a);
-        if (a) { t.querySelector('.tx').textContent = a.text; t.querySelector('.pt').textContent = a.pts;
+        if (a) { t.querySelector('.tx').textContent = a.text; t.querySelector('.pt').textContent = a.pts * (S.mult || 1);
           t.classList.toggle('flip', !!a.revealed || !!a.shown); t.classList.toggle('dim', !a.revealed && !!a.shown);
           t.querySelector('.pk').textContent = priv && !a.revealed ? a.text + ' · ' + a.pts : ''; } else t.classList.remove('flip'); });
       $('xs').innerHTML = [0, 1, 2].map(i => '<div class="xbox' + ((S.phase === 'steal' || S.phase === 'roundEnd' && S.strikes >= 3 ? 3 : S.strikes) > i ? ' on' : '') + '">✕</div>').join('');
@@ -674,7 +689,7 @@ Sleep | 6`;
     const b = (act, label, cls, v) => '<button class="cb ' + (cls || '') + '" data-act="' + act + '"' + (v !== undefined ? ' data-v="' + v + '"' : '') + '>' + label + '</button>';
     const p = S.phase, say = t => '<div class="say">' + t + '</div>', un = undo.length ? b('undo', '↩ Undo', 'ghost') : '';
     const priv = boardOpen || peek;
-    if (p === 'buzz') return say('<b>FACE-OFF!</b> ' + pname(0) + ' (' + tn(0) + ') vs. ' + pname(1) + ' (' + tn(1) + '). Read the question. Who buzzed in first? (They get 5 seconds.)') + b('first', tn(0) + ' first', 'gold', 0) + b('first', tn(1) + ' first', 'gold', 1) + un;
+    if (p === 'buzz') return say((S.mult > 1 ? '<b>' + multWord(S.mult) + ' POINTS</b> this round! ' : '') + '<b>FACE-OFF!</b> ' + pname(0) + ' (' + tn(0) + ') vs. ' + pname(1) + ' (' + tn(1) + '). Read the question. Who buzzed in first? (They get 5 seconds.)') + b('first', tn(0) + ' first', 'gold', 0) + b('first', tn(1) + ' first', 'gold', 1) + un;
     const pz = S.tm ? (!S.tm.running ? b('start', '▶ Start clock', 'go') : (!S.tm.expired ? b('pause', S.tm.paused ? '▶ Resume clock' : '⏸ Pause clock', 'ghost') : '')) : '';
     if (p === 'fo') { const who = S.turn, hint = S.best ? ' <b>' + tn(S.best.team) + '</b> has the #' + (S.best.rank + 1) + ' answer — beat it to take control.' : '';
       return say('<b>' + tn(who) + '</b> — ' + pname(who) + ' answers (5 sec once you start the clock).' + hint + ' Tap the matching answer, or:') + pz + b('x', '✕ Not on the board', 'bad') + un; }
@@ -712,13 +727,14 @@ Sleep | 6`;
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function openSetup() {
     const c = load(CK, { n: ['Team 1', 'Team 2'], p: ['', ''], tgt: 300, fmt: 200 });
+    $('mults').value = c.m || '1,1,2,3';
     $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
     $('resumeBtn').style.display = load(LS, null) ? 'inline-block' : 'none'; show('menu', false); show('setup', true);
   }
   $('startBtn').onclick = () => {
-    const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200 };
+    const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, m: $('mults').value.trim() || '1,1,2,3' };
     store(CK, c);
-    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt })) { show('setup', false); commit(); }
+    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m) })) { show('setup', false); commit(); }
   };
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   function openEditor() { const q = load(QK, { main: SAMPLE_MAIN, fast: SAMPLE_FAST }); $('qMain').value = q.main; $('qFast').value = q.fast; count(); $('qMsg').textContent = ''; show('qed', true); }
@@ -732,22 +748,22 @@ Sleep | 6`;
     const q = load(QK, { main: SAMPLE_MAIN, fast: SAMPLE_FAST });
     const blk = (title, qs) => '<h2>' + title + '</h2>' + qs.map((x, i) => '<div class="q"><b>' + (i + 1) + '. ' + x.text + '</b><ol>' + x.answers.map(a => '<li>' + a.text + ' <i>(' + a.pts + ')</i></li>').join('') + '</ol></div>').join('');
     const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to open the cheat sheet.'); return; }
-    w.document.write('<!doctype html><title>MC Cheat Sheet</title><style>body{font-family:Arial,sans-serif;margin:24px;max-width:780px}h1{margin:0 0 6px}h2{border-bottom:2px solid #000;margin-top:26px}.q{break-inside:avoid;margin:10px 0}ol{margin:4px 0 0 20px;padding:0}li{margin:1px 0}@media print{button{display:none}}</style><h1>MC Cheat Sheet</h1><button onclick="print()">Print</button>' + blk('Main rounds (in play order)', parseQs(q.main)) + blk('Fast Money (first 5 are used)', parseQs(q.fast).slice(0, 5)) + '</body>');
+    w.document.write('<!doctype html><title>MC Cheat Sheet</title><style>body{font-family:Arial,sans-serif;margin:24px;max-width:780px}h1{margin:0 0 6px}h2{border-bottom:2px solid #000;margin-top:26px}.q{break-inside:avoid;margin:10px 0}ol{margin:4px 0 0 20px;padding:0}li{margin:1px 0}@media print{button{display:none}}</style><h1>MC Cheat Sheet</h1><p>Points shown are base values. Round multipliers: ' + (load(CK, {}).m || '1,1,2,3') + ' (applied automatically).</p><button onclick="print()">Print</button>' + blk('Main rounds (in play order)', parseQs(q.main)) + blk('Fast Money (first 5 are used)', parseQs(q.fast).slice(0, 5)) + '</body>');
     w.document.close();
   }
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
   $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
   function refreshMusicUI() {
-    [['win', ''], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
+    [['win', ''], ['game', 'Game'], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
       $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : 'No song added yet — a built-in fanfare plays instead.';
       $('musicStart' + x).value = m.start; $('musicLen' + x).value = m.len; });
   }
-  [['win', ''], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
+  [['win', ''], ['game', 'Game'], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
     const save = () => mdb('readwrite', st => st.put({ blob: m.blob, name: m.name, start: m.start, len: m.len }, k));
     $('musicFile' + x).onchange = async () => { const f = $('musicFile' + x).files[0]; if (!f) return; m.blob = f; m.name = f.name; m.buf = null; await decodeMusic();
       if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); };
-    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(120, Math.max(2, +$('musicLen' + x).value || (k === 'fm' ? 30 : 10))); if (m.blob) save(); refreshMusicUI(); };
+    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(120, Math.max(2, +$('musicLen' + x).value || (k === 'fm' ? 30 : k === 'game' ? 20 : 10))); if (m.blob) save(); refreshMusicUI(); };
     $('musicTest' + x).onclick = async () => { await decodeMusic(); if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
     $('musicStop' + x).onclick = stopMusic;
     $('musicRemove' + x).onclick = () => { stopMusic(); Object.assign(m, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete(k)); refreshMusicUI(); };
