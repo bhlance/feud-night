@@ -256,7 +256,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 26';
+  const GAME_VERSION = '2026-10-03 · build 27';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1020,7 +1020,7 @@ Nevada | 4`;
     $('pot').style.visibility = fm || S.phase === 'gameOver' ? 'hidden' : 'visible';
     $('pot').querySelector('span').textContent = S.phase === 'roundEnd' ? S.awarded : S.pot;
     const hideQ = (S.phase === 'buzz' || S.phase === 'fo') && !S.qVisible;
-    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? ((S.fm.passed || []).includes(S.fm.idx) ? '↩ ' : '') + S.fm.qs[S.fm.idx].text : 'Get ready…') : S.phase === 'fmEntry' ? 'Fast Money — tallying Player ' + S.fm.pl + '’s answers…' : S.phase === 'fmReveal' ? 'Fast Money — Player ' + S.fm.pl + '’s answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : (boardOpen ? '🔒 (hidden on TV until the first answer is judged) ' : '') + S.q.text) : S.q.text));
+    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? ((S.fm.passed || []).includes(S.fm.idx) ? '↩ ' : '') + S.fm.qs[S.fm.idx].text : 'Get ready…') : S.phase === 'fmEntry' ? 'Fast Money — tallying Player ' + S.fm.pl + '’s answers…' : S.phase === 'fmReveal' ? 'Fast Money — Player ' + S.fm.pl + '’s answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : S.q.text) : S.q.text));
     // board
     if (!fm && S.q) {
       const priv = !isBoard && (boardOpen || peek);
