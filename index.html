@@ -394,21 +394,30 @@ Sleep | 6`;
         o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .6); }); } catch (e) {}
   }
   const sDing = () => { bell(1175, 0, .32); bell(1175, .26, .32); bell(1175, .52, .36); };
-  // Strike: the deep, harsh game-show buzzer (low detuned saw/square stack, gritty tremolo, slight drop at the end).
+  // Strike: a loud, harsh, abrasive electronic "BZZZT" — stacked detuned squares/saws, hard distortion,
+  // fast gritty amplitude chop, a noise "snap" at the start and an abrupt cut-off at the end.
+  function buildBuzz(c, dest, t) {
+    const dur = .85, out = c.createGain();
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.68, t + .002); out.gain.setValueAtTime(.68, t + dur - .02); out.gain.linearRampToValueAtTime(0, t + dur);
+    const dist = c.createWaveShaper(), k = 90, n = 1024, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i * 2 / (n - 1) - 1; curve[i] = Math.tanh(k * x) * .8; }
+    dist.curve = curve; dist.oversample = '4x';
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6000;
+    const am = c.createGain(); am.gain.value = .55;                       // gritty chop
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.type = 'square'; lfo.frequency.value = 72; lg.gain.value = .45; lfo.connect(lg); lg.connect(am.gain);
+    const bus = c.createGain(); bus.gain.value = 1; bus.connect(dist); dist.connect(lp); lp.connect(am); am.connect(out); out.connect(dest);
+    [['square', 117, .6], ['square', 121.5, .6], ['sawtooth', 234, .45], ['sawtooth', 351, .35], ['square', 58.5, .5]].forEach(([ty, f, v]) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = ty; o.frequency.value = f; g.gain.value = v; o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + .03); });
+    const nb = c.createBuffer(1, Math.ceil(c.sampleRate * .09), c.sampleRate), d = nb.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const ns = c.createBufferSource(), ng = c.createGain(); ns.buffer = nb; ng.gain.value = .9; ns.connect(ng); ng.connect(out); ns.start(t);
+    lfo.start(t); lfo.stop(t + dur + .03);
+  }
   function sBuzz() {
     if (isBoard) return;
-    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
-      const t = ac.currentTime, dur = 1.0;
-      const master = ac.createGain(); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(.55, t + .012); master.gain.setValueAtTime(.55, t + dur - .2); master.gain.linearRampToValueAtTime(0, t + dur);
-      const am = ac.createGain(); am.gain.value = .7;
-      const lfo = ac.createOscillator(), lg = ac.createGain(); lfo.frequency.value = 38; lg.gain.value = .3; lfo.connect(lg); lg.connect(am.gain);
-      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1500; lp.Q.value = 1.2;
-      lp.connect(am); am.connect(master); master.connect(ac.destination);
-      [['sawtooth', 148, .5], ['sawtooth', 154, .5], ['square', 74, .45], ['sawtooth', 222, .22]].forEach(([ty, f, v]) => {
-        const o = ac.createOscillator(), g = ac.createGain(); o.type = ty; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * .86, t + dur);
-        g.gain.value = v; o.connect(g); g.connect(lp); o.start(t); o.stop(t + dur + .05); });
-      lfo.start(t); lfo.stop(t + dur + .05); } catch (e) {}
+    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); buildBuzz(ac, ac.destination, ac.currentTime); } catch (e) {}
   }
+  window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   const sTick = () => tone(1200, .06, 'square', .08);
 
