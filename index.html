@@ -76,6 +76,7 @@
   .nums { display: flex; flex-wrap: wrap; gap: .8vh .8vw; }
 
   /* ---- flash X ---- */
+  #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 56; pointer-events: none; }
   #confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 55; pointer-events: none; }
   #flash { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,.35); }
   #flash .xs { display: flex; gap: 2vw; }
@@ -150,6 +151,7 @@
 <button id="menuBtn">☰ Menu</button>
 <button id="peekBtn">👁 Hold to peek</button>
 <canvas id="confetti"></canvas>
+<canvas id="fireworks"></canvas>
 <div id="flash"><div class="xs"></div></div>
 <div class="wait" id="wait">FHE FEUD<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host to start the game…</span></div>
 
@@ -718,7 +720,9 @@ Nevada | 4`;
   function endRound(w) {
     S.teams[w].score += S.pot; S.roundWinner = w; S.awarded = S.pot; S.phase = 'roundEnd'; S.tm = null;
     S.pi[0] += Math.max(1, S.fp[0]); S.pi[1] += Math.max(1, S.fp[1]); winSound();
+    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) fireworks(Math.min(30, mus.win.blob ? mus.win.len : 10));   // a team just hit the winning total
   }
+  function fireworks(secs) { S.fire = { k: ((S.fire && S.fire.k) || 0) + 1, secs }; }
   // Clock: 5 seconds per answer in the face-off, 15 seconds per answer once a team is playing.
   function startClock(secs) { S.tm = { secs, end: 0, running: false, paused: false, expired: false }; }  // 'ready' until the MC taps Start
   // Face-off: teams trade answers (the next player each time) until one is on the board.
@@ -762,7 +766,7 @@ Nevada | 4`;
     else if (a === 'next') act(() => {
       stopMusic();
       const [x, y] = [S.teams[0].score, S.teams[1].score];
-      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; gameWinSound(); } else nextRound();
+      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; gameWinSound(); fireworks(Math.min(30, mus.game.blob ? mus.game.len : 14)); } else nextRound();
     });
     else if (a === 'fmgo') act(() => fmSetup());
     else if (a === 'fmbegin') act(() => { S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
@@ -875,6 +879,29 @@ Nevada | 4`;
       if (pieces.length || now < endAt) confRaf = requestAnimationFrame(step); else cctx.clearRect(0, 0, cfx.width, cfx.height);
     })(last);
   }
+  // ---------------- fireworks ----------------
+  const ffx = $('fireworks'), fctx = ffx.getContext('2d'); let fireRaf = 0, lastFire = 0, fireInit = false;
+  function startFireworks(secs) {
+    const dpr = window.devicePixelRatio || 1; ffx.width = innerWidth * dpr; ffx.height = innerHeight * dpr; const W = ffx.width, H = ffx.height;
+    const cols = ['#ffc93c', '#ff5fa2', '#35c97a', '#45c8ff', '#ffffff', '#ff8a3c', '#a46bff', '#ff4d4d'], rockets = [], sparks = [];
+    const endAt = performance.now() + secs * 1000; let last = performance.now(), nextLaunch = last;
+    const R = (a, b) => a + Math.random() * (b - a);
+    cancelAnimationFrame(fireRaf);
+    (function step(now) {
+      const dt = Math.min(.05, (now - last) / 1000); last = now;
+      fctx.globalCompositeOperation = 'destination-out'; fctx.fillStyle = 'rgba(0,0,0,.22)'; fctx.fillRect(0, 0, W, H); fctx.globalCompositeOperation = 'lighter';   // fading trails
+      if (now < endAt && now >= nextLaunch) { for (let k = 0, n = Math.random() < .3 ? 2 : 1; k < n; k++) { const ty = H * R(.1, .42);
+        rockets.push({ x: W * R(.12, .88), y: H, vx: R(-40, 40) * dpr, vy: -(H - ty) / R(.8, 1.2), ty, c: cols[Math.floor(Math.random() * cols.length)] }); } nextLaunch = now + R(220, 620); }
+      for (let i = rockets.length - 1; i >= 0; i--) { const r = rockets[i]; r.x += r.vx * dt; r.y += r.vy * dt;
+        fctx.fillStyle = '#fff'; fctx.beginPath(); fctx.arc(r.x, r.y, 3 * dpr, 0, 6.3); fctx.fill();
+        if (r.y <= r.ty) { rockets.splice(i, 1); const n = Math.floor(R(70, 110)), c2 = cols[Math.floor(Math.random() * cols.length)], big = R(180, 430);
+          for (let j = 0; j < n; j++) { const a = Math.random() * 6.283, sp = big * Math.sqrt(Math.random()) * dpr; sparks.push({ x: r.x, y: r.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, decay: R(.5, 1), c: Math.random() < .7 ? r.c : c2, s: R(2, 4.5) * dpr }); } } }
+      for (let i = sparks.length - 1; i >= 0; i--) { const p = sparks[i]; p.vy += 240 * dpr * dt; p.vx *= .992; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= p.decay * dt;
+        if (p.life <= 0) { sparks.splice(i, 1); continue; }
+        fctx.globalAlpha = Math.max(0, p.life); fctx.fillStyle = p.c; fctx.beginPath(); fctx.arc(p.x, p.y, p.s * (.5 + p.life * .5), 0, 6.3); fctx.fill(); fctx.globalAlpha = 1; }
+      if (rockets.length || sparks.length || now < endAt) fireRaf = requestAnimationFrame(step); else fctx.clearRect(0, 0, W, H);
+    })(last);
+  }
   // ---------------- rendering ----------------
   const tiles = [];
   for (let i = 0; i < 8; i++) {
@@ -911,6 +938,8 @@ Nevada | 4`;
     if (fm) renderFM();
     if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; }
     if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; startConfetti(S.cele.secs || 12); }
+    if (!fireInit) { fireInit = true; lastFire = S.fire ? S.fire.k : 0; }
+    if (S.fire && S.fire.k !== lastFire) { lastFire = S.fire.k; startFireworks(S.fire.secs || 10); }
     // flash
     if (!flashInit) { flashInit = true; lastFlash = S.flash ? S.flash.k : 0; }
     if (S.flash && S.flash.k !== lastFlash) { lastFlash = S.flash.k; if (S.flash.n) {
