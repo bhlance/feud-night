@@ -107,6 +107,7 @@
   .modal .btns { display: flex; gap: 10px; flex-wrap: wrap; }
   .modal .note { font-size: 13px; color: #55608f; line-height: 1.4; }
   .mb { border: 0; border-radius: 99px; padding: 11px 22px; font-family: var(--font); font-weight: 900; font-size: 16px; background: #e6eaff; color: var(--ink); cursor: pointer; }
+  .fmrow .ans { display: none; flex-wrap: wrap; gap: 5px; margin-top: 2px; } .fmrow .ac { border: 0; border-radius: 99px; padding: 4px 10px; font-family: var(--font); font-weight: 700; font-size: 12px; background: #e6eaff; color: var(--ink); cursor: pointer; } .fmrow .ac.used { opacity: .4; text-decoration: line-through; cursor: default; }
   .fmrow { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; } .fmrow label { font-size: 15px; } .fmrow .pv { font-size: 13px; color: #55608f; min-height: 16px; }
   .mb.go { background: #35c97a; color: #fff; } .mb.gold { background: var(--gold); } .mb.bad { background: var(--red); color: #fff; }
 </style>
@@ -159,8 +160,8 @@
 <!-- Fast Money answer entry -->
 <div class="modal" id="fmForm"><div class="card">
   <h2 id="fmFormTitle"></h2>
-  <div class="note">Type what they said for each question (from whoever wrote the answers down). An answer that matches the list scores its points. Anything else scores 0. Leave a line blank for no answer.</div>
-  <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="fmPrev" style="width:auto"> Show match preview (anyone watching this screen would see it)</label>
+  <div class="note">Type what they said for each question (from whoever wrote the answers down). An answer that matches the list scores its points. Anything else scores 0. Leave a line blank for no answer. Use the answer list under each question to tweak what you typed — tap one to use it exactly.</div>
+  <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="fmPrev" style="width:auto"> Show the answer lists and match preview (anyone watching this screen would see them)</label>
   <div id="fmFormRows"></div>
   <div class="btns"><button class="mb go" id="fmFormGo">✔ Score these and start the reveal</button></div>
 </div></div>
@@ -600,7 +601,7 @@ Sleep | 6`;
     });
     else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; });
-    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 25; f.running = false; S.phase = 'fm'; });
+    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); S.phase = 'gameOver'; });
     else if (a === 'newgame') { stopMusic(); openSetup(); }
   }
@@ -617,7 +618,7 @@ Sleep | 6`;
   // ---------------- fast money ----------------
   function fmSetup() {
     const qs = parseQs(load(QK, { fast: SAMPLE_FAST }).fast).slice(0, 5);
-    S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 20, idx: 0, p: [[], []], rev: [0, 0], done: false, won: false, draft: [[], []] };
+    S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], done: false, won: false, draft: [[], []] };
     S.phase = 'fm'; S.fm.win = S.champ;
   }
   function fmFinishPlayer() {
@@ -748,7 +749,7 @@ Sleep | 6`;
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
       const win = f.won ? '🎉 <b>' + fmTotal() + ' points — target reached!</b> ' : '';
       if (r < f.n) { const e = f.p[who][r] || { text: '— no answer —', pts: 0 };
-        return say(win + '<b>Player ' + f.pl + ' — reveal Q' + (r + 1) + '.</b> ' + (e.pts > 0 ? 'Reveal their answer, or buzz it if it turns out not to be on the board.' : 'This one scored 0 — reveal to buzz.') + (priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + e.text + ', ' + e.pts + ')</i>' : '')) + b('fmrev', 'Reveal Q' + (r + 1), 'gold') + b('fmbuzz', '✕ Buzz — not on the board (0)', 'bad') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
+        return say(win + '<b>Player ' + f.pl + ' — reveal Q' + (r + 1) + '.</b> ' + (e.pts > 0 ? 'Reveal their answer — it plays the cha-ching.' : 'This one didn\'t match — revealing it plays the strike.') + (priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + e.text + ', ' + e.pts + ')</i>' : '')) + b('fmrev', 'Reveal Q' + (r + 1), 'gold') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
       if (f.won) return say(win + 'All of Player ' + f.pl + '\'s answers are up.') + b('finishfm', '🏁 Finish Fast Money', 'go') + (f.pl === 1 ? b('fmnext', 'Play Player 2 anyway', 'ghost') : '') + un;
       return say('<b>Player ' + f.pl + ' scored ' + fmTotal() + '.</b> Now bring in Player 2 — they haven\'t heard any of these answers.') + b('fmnext', '▶ Bring in Player 2', 'go') + un; }
     if (p === 'fmResult') { const f = S.fm; return say('That\'s Fast Money! Final total: <b>' + fmTotal() + '</b>.') + b('again2', '← Back', 'ghost') + b('newgame', 'New game', 'go') + un; }
@@ -769,10 +770,13 @@ Sleep | 6`;
     $('fmFormTitle').textContent = 'Fast Money — Player ' + f.pl + '’s answers';
     $('fmPrev').checked = !!boardOpen; rows.innerHTML = '';
     f.qs.forEach((q, i) => {
-      const d = document.createElement('div'); d.className = 'fmrow'; d.innerHTML = '<label></label><input type="text" autocomplete="off" autocapitalize="off"><div class="pv"></div>';
+      const d = document.createElement('div'); d.className = 'fmrow'; d.innerHTML = '<label></label><input type="text" autocomplete="off" autocapitalize="off"><div class="pv"></div><div class="ans"></div>';
       d.querySelector('label').textContent = 'Q' + (i + 1) + ': ' + q.text;
       const inp = d.querySelector('input'), pv = d.querySelector('.pv'); inp.value = f.draft[w][i] || '';
-      d._upd = () => { pv.textContent = $('fmPrev').checked ? previewText(f, w, i, inp.value) : ''; };
+      const ans = d.querySelector('.ans'), usedRank = w === 1 && f.p[0][i] ? f.p[0][i].rank : null;
+      q.answers.forEach((a, k) => { const c = document.createElement('button'); c.type = 'button'; c.className = 'ac' + (usedRank === k ? ' used' : ''); c.textContent = (k + 1) + '. ' + a.text + ' (' + a.pts + ')'; c.disabled = usedRank === k;
+        c.onclick = () => { inp.value = a.text; inp.dispatchEvent(new Event('input')); }; ans.appendChild(c); });
+      d._upd = () => { const on = $('fmPrev').checked; pv.textContent = on ? previewText(f, w, i, inp.value) : ''; ans.style.display = on ? 'flex' : 'none'; };
       inp.addEventListener('input', () => { f.draft[w][i] = inp.value; store(LS, S); d._upd(); });
       rows.appendChild(d); d._upd();
     });
