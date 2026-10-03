@@ -27,6 +27,8 @@
   .team.ctrl::after { content: attr(data-l); position: absolute; top: -1.6vh; left: 1vw; background: var(--gold); color: var(--ink); font-size: clamp(10px, 1.6vh, 16px); font-weight: 900; padding: .2vh .8vw; border-radius: 99px; }
   .team.t1.ctrl::after { content: attr(data-r); left: auto; right: 1vw; }
   #mid { text-align: center; display: flex; flex-direction: column; justify-content: center; min-width: 14vw; }
+  #brand { display: none; }
+  body.board #brand { display: block; font-family: var(--big); color: var(--gold); font-size: clamp(20px, 4.6vh, 56px); letter-spacing: 3px; line-height: 1; text-shadow: 0 .3vh 0 rgba(0,0,0,.45); margin-bottom: .4vh; }
   #mid .rd { font-size: clamp(11px, 1.8vh, 18px); letter-spacing: 2px; opacity: .8; }
   #mid .pot { font-family: var(--big); font-size: clamp(26px, 5.5vh, 64px); color: #fff; line-height: 1; }
   #mid .pot small { font-size: .4em; color: var(--gold); display: block; letter-spacing: 2px; font-family: var(--font); font-weight: 800; }
@@ -111,7 +113,7 @@
 <div id="app">
   <div id="top">
     <div class="team t0" id="tm0"><span class="nm"></span><span class="sc">0</span></div>
-    <div id="mid"><div class="rd" id="rd"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div>
+    <div id="mid"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div>
     <div class="team t1" id="tm1"><span class="nm"></span><span class="sc">0</span></div>
   </div>
   <div id="q"></div>
@@ -125,7 +127,7 @@
 <button id="menuBtn">☰ Menu</button>
 <button id="peekBtn">👁 Hold to peek</button>
 <div id="flash"><div class="xs"></div></div>
-<div class="wait" id="wait">Waiting for the host to start the game…</div>
+<div class="wait" id="wait">FHE FEUD<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host to start the game…</span></div>
 
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
@@ -186,7 +188,7 @@
 (function () {
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
-  if (isBoard) document.body.classList.add('board');
+  if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -394,23 +396,23 @@ Sleep | 6`;
         o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .6); }); } catch (e) {}
   }
   const sDing = () => { bell(1175, 0, .32); bell(1175, .26, .32); bell(1175, .52, .36); };
-  // Strike: a loud, harsh, abrasive electronic "BZZZT" — stacked detuned squares/saws, hard distortion,
-  // fast gritty amplitude chop, a noise "snap" at the start and an abrupt cut-off at the end.
+  // Strike: low, discordant, raspy electronic buzzer — heavy square waves tuned against each other
+  // (a clashing tritone plus a close beating pair), gritty rasp, no bright top end.
   function buildBuzz(c, dest, t) {
-    const dur = .85, out = c.createGain();
-    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.68, t + .002); out.gain.setValueAtTime(.68, t + dur - .02); out.gain.linearRampToValueAtTime(0, t + dur);
-    const dist = c.createWaveShaper(), k = 90, n = 1024, curve = new Float32Array(n);
-    for (let i = 0; i < n; i++) { const x = i * 2 / (n - 1) - 1; curve[i] = Math.tanh(k * x) * .8; }
+    const dur = .95, out = c.createGain();
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.7, t + .004); out.gain.setValueAtTime(.7, t + dur - .06); out.gain.linearRampToValueAtTime(0, t + dur);
+    const dist = c.createWaveShaper(), k = 14, n = 1024, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i * 2 / (n - 1) - 1; curve[i] = Math.tanh(k * x) * .85; }
     dist.curve = curve; dist.oversample = '4x';
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6000;
-    const am = c.createGain(); am.gain.value = .55;                       // gritty chop
-    const lfo = c.createOscillator(), lg = c.createGain(); lfo.type = 'square'; lfo.frequency.value = 72; lg.gain.value = .45; lfo.connect(lg); lg.connect(am.gain);
-    const bus = c.createGain(); bus.gain.value = 1; bus.connect(dist); dist.connect(lp); lp.connect(am); am.connect(out); out.connect(dest);
-    [['square', 117, .6], ['square', 121.5, .6], ['sawtooth', 234, .45], ['sawtooth', 351, .35], ['square', 58.5, .5]].forEach(([ty, f, v]) => {
-      const o = c.createOscillator(), g = c.createGain(); o.type = ty; o.frequency.value = f; g.gain.value = v; o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + .03); });
-    const nb = c.createBuffer(1, Math.ceil(c.sampleRate * .09), c.sampleRate), d = nb.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
-    const ns = c.createBufferSource(), ng = c.createGain(); ns.buffer = nb; ng.gain.value = .9; ns.connect(ng); ng.connect(out); ns.start(t);
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100; lp.Q.value = 2.5;   // keeps it low and growly
+    const am = c.createGain(); am.gain.value = .62;                                                          // raspy flutter
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.type = 'square'; lfo.frequency.value = 34; lg.gain.value = .38; lfo.connect(lg); lg.connect(am.gain);
+    const bus = c.createGain(); bus.connect(dist); dist.connect(lp); lp.connect(am); am.connect(out); out.connect(dest);
+    [['square', 62, .7], ['square', 66, .7], ['square', 88, .6], ['sawtooth', 124, .35], ['square', 41, .55], ['sawtooth', 93, .3]].forEach(([ty, f, v]) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = ty; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * .94, t + dur); g.gain.value = v; o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + .03); });
+    const nb = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate), d = nb.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
+    const ns = c.createBufferSource(), nf = c.createBiquadFilter(), ng = c.createGain(); ns.buffer = nb; nf.type = 'lowpass'; nf.frequency.value = 900; ng.gain.value = .22; ns.connect(nf); nf.connect(ng); ng.connect(out); ns.start(t);
     lfo.start(t); lfo.stop(t + dur + .03);
   }
   function sBuzz() {
