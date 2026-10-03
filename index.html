@@ -81,10 +81,10 @@
   .nums { display: flex; flex-wrap: wrap; gap: .8vh .8vw; }
 
   /* ---- flash X ---- */
-  #winFlash { position: fixed; inset: 0; z-index: 57; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 3vw; pointer-events: none; font-family: var(--big); color: #fff; line-height: 1.05; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 0 2vh #ffc93c, 0 0 5vh #ff8a3c, 0 .8vh 0 rgba(0,0,0,.55); animation: winBlink 1s steps(1) infinite; }
+  #winFlash { position: fixed; inset: 0; z-index: 55; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 3vw; pointer-events: none; font-family: var(--big); color: #fff; line-height: 1.05; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 0 2vh #ffc93c, 0 0 5vh #ff8a3c, 0 .8vh 0 rgba(0,0,0,.55); animation: winBlink 1s steps(1) infinite; }
   #winFlashText { display: inline-block; max-width: 94vw; }
   @keyframes winBlink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
-  #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 56; pointer-events: none; }
+  #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 57; pointer-events: none; }
   #confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 55; pointer-events: none; }
   #flash { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,.35); }
   #flash .xs { display: flex; gap: 2vw; }
@@ -260,7 +260,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 29';
+  const GAME_VERSION = '2026-10-03 · build 31';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -587,7 +587,7 @@ Nevada | 4`;
 
   function commit() { if (!isBoard) { store(LS, S); if (bc) bc.postMessage({ t: 'state', S }); } render(); }
   function act(fn) { if (!S) return; undo.push(JSON.stringify(S)); if (undo.length > 40) undo.shift(); fn(); commit(); }
-  function flash(n) { S.flash = { k: (S.flash ? S.flash.k : 0) + 1, n }; }
+  function flash(n) { S.flash = { k: Math.max(Date.now(), (S.flash ? S.flash.k : 0) + 1), n }; }
 
   // ---------------- audio ----------------
   let ac = null;
@@ -700,8 +700,8 @@ Nevada | 4`;
         try { const rr = await fetch('sounds/' + f, { cache: 'no-cache' }); if (!rr.ok) continue; const ab = await rr.arrayBuffer(); bundled[k] = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) {} }
       refreshMusicUI(); startPrelude(); } catch (e) {}
   }
-  function stopMusic() {
-    const n = nowPlaying; if (!n) return; nowPlaying = null;
+  function stopMusic(soft) {
+    const n = nowPlaying; if (!n || (soft && n.keep)) return; nowPlaying = null;
     try { n.g.gain.cancelScheduledValues(ac.currentTime); n.g.gain.setValueAtTime(n.g.gain.value, ac.currentTime); n.g.gain.linearRampToValueAtTime(0, ac.currentTime + .25); n.src.stop(ac.currentTime + .3); } catch (e) {}
     try { updatePreStatus(); } catch (e) {}
   }
@@ -729,7 +729,7 @@ Nevada | 4`;
       src.buffer = buf; src.connect(g); g.connect(outNode());
       if (loop) { src.loop = true; src.loopStart = a0; src.loopEnd = Math.min(buf.duration, a0 + len); g.gain.setValueAtTime(1, t); src.start(t, a0); }
       else { g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len); src.start(t, a0); src.stop(t + len + .05); }
-      nowPlaying = { src, g }; return true; } catch (e) { return false; }
+      nowPlaying = { src, g, keep: !!loop }; return true; } catch (e) { return false; }
   }
   // After a round: that round's own song (Round 1 song, Round 2 song, …; round 5 and later share the last slot).
   // A round with no song of its own uses the fallback song; with none of those, the built-in fanfare.
@@ -785,7 +785,8 @@ Nevada | 4`;
   function fmReact(pts) { const c = reactCfg(); if (isBoard || !c.on) return; stopReact(); playReact(pts <= c.lo ? 'aww' : pts >= c.hi ? 'cheer' : 'clap', pts > 0 ? .25 : .8); }
   window.__feudAudio = () => ac;   // read-only hook used for testing the master volume
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
-  const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
+  // The Fast Money winner song repeats until the MC starts a new game (or goes back); confetti keeps falling the whole time.
+  const fmWinSound = () => { if (!playMusic('fm', true)) sWin(); };
   if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
@@ -822,9 +823,10 @@ Nevada | 4`;
     S.pi[0] += Math.max(1, S.fp[0]); S.pi[1] += Math.max(1, S.fp[1]);
     // This round decided the game (a team reached the target)? Play the game-winner's song and fireworks right now.
     // Otherwise play this round's own song.
-    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) { gameWinSound(); fireworks(Math.min(30, mus.game.len), S.teams[0].score > S.teams[1].score ? S.teams[0].name : S.teams[1].name); } else roundSound(S.round);
+    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) { gameWinSound(); fireworks(0, S.teams[0].score > S.teams[1].score ? S.teams[0].name : S.teams[1].name, true); } else roundSound(S.round);
   }
-  function fireworks(secs, name) { S.fire = { k: ((S.fire && S.fire.k) || 0) + 1, secs, name: name || '' }; }
+  // endless = keep going until stopped (active is switched off when Fast Money starts)
+  function fireworks(secs, name, endless) { S.fire = { k: Math.max(Date.now(), ((S.fire && S.fire.k) || 0) + 1), secs, name: name || '', endless: !!endless, active: true }; }
   // Clock: 5 seconds per answer in the face-off, 10 seconds per answer once a team is playing.
   function startClock(secs) { S.tm = { secs, end: 0, running: false, paused: false, expired: false }; }  // 'ready' until the MC taps Start
   // Face-off: teams trade answers (the next player each time) until one is on the board.
@@ -888,8 +890,8 @@ Nevada | 4`;
     else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; });
     else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
-    else if (a === 'again2') act(() => { stopMusic(); S.phase = 'gameOver'; });
-    else if (a === 'newgame') { stopMusic(); openSetup(); }
+    else if (a === 'again2') act(() => { stopMusic(); if (S.cele) S.cele.active = false; S.phase = 'gameOver'; });
+    else if (a === 'newgame') { stopMusic(); if (S && S.cele) { S.cele.active = false; commit(); } openSetup(); }
   }
   // Which team box is lit up: whoever is answering / deciding / playing right now; none between rounds.
   function hl() {
@@ -904,6 +906,7 @@ Nevada | 4`;
   // ---------------- fast money ----------------
   function fmSetup() {
     const qs = parseQs(S.fastText != null ? S.fastText : setFor(S.setIdx || 0).fast).slice(0, 5);
+    if (S.fire) S.fire.active = false;   // Fast Money is starting: end the celebration
     S.fm = { qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
     S.phase = 'fm'; S.fm.win = S.champ;
   }
@@ -939,7 +942,7 @@ Nevada | 4`;
     return { r };
   }
   // The moment the revealed total reaches the target, the Fast Money song starts.
-  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); S.cele = { k: ((S.cele && S.cele.k) || 0) + 1, secs: Math.min(30, mus.fm.blob ? mus.fm.len : 12) }; } }
+  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true }; } }
   function fmTotal() { const f = S.fm; let t = 0; for (let w = 0; w < 2; w++) for (let r = 0; r < f.rev[w]; r++) t += f.p[w][r] ? f.p[w][r].pts : 0; return t; }
   function fmTimeLeft() { const f = S.fm; return f.running ? Math.max(0, Math.ceil((f.end - Date.now()) / 1000)) : f.secs; }
   const clockLeft = () => { const t = S.tm; return !t.running ? t.secs : t.paused ? Math.ceil(t.rem / 1000) : Math.max(0, Math.ceil((t.end - Date.now()) / 1000)); };
@@ -969,9 +972,12 @@ Nevada | 4`;
 
   // ---------------- confetti (falls from the top of the screen on both windows) ----------------
   const cfx = $('confetti'), cctx = cfx.getContext('2d'); let confRaf = 0, lastCele = 0, celeInit = false;
-  function startConfetti(secs) {
+  let confEndless = false;
+  function stopConfettiEndless() { confEndless = false; cancelAnimationFrame(confRaf); cctx.clearRect(0, 0, cfx.width, cfx.height); }
+  function startConfetti(secs, endless) {
+    confEndless = !!endless;
     const dpr = window.devicePixelRatio || 1; cfx.width = innerWidth * dpr; cfx.height = innerHeight * dpr;
-    const cols = ['#ffc93c', '#ff5fa2', '#35c97a', '#45c8ff', '#ffffff', '#ff8a3c', '#a46bff'], pieces = [], endAt = performance.now() + secs * 1000; let last = performance.now();
+    const cols = ['#ffc93c', '#ff5fa2', '#35c97a', '#45c8ff', '#ffffff', '#ff8a3c', '#a46bff'], pieces = [], endAt = endless ? Infinity : performance.now() + secs * 1000; let last = performance.now();
     cancelAnimationFrame(confRaf);
     (function step(now) {
       const dt = Math.min(.05, (now - last) / 1000); last = now; cctx.clearRect(0, 0, cfx.width, cfx.height);
@@ -984,19 +990,23 @@ Nevada | 4`;
   }
   // The winning team's name, huge, flashing on and off for as long as the fireworks last (shrinks to fit long names).
   let winFlashTimer = 0;
-  function flashWinner(name, secs) {
+  function flashWinner(name, secs, endless) {
     const el = $('winFlash'), t = $('winFlashText'); t.textContent = name; el.style.display = 'flex';
     let px = innerHeight * .34; el.style.fontSize = px + 'px'; let guard = 0;
     // shrink only until the NAME fits: no word wider than the screen, and the (wrapped) name no taller than ~80% of it
     while ((t.scrollWidth > t.clientWidth + 1 || t.offsetHeight > innerHeight * .8) && px > 18 && guard++ < 70) { px *= .94; el.style.fontSize = px + 'px'; }
-    clearTimeout(winFlashTimer); winFlashTimer = setTimeout(() => { el.style.display = 'none'; }, secs * 1000);
+    clearTimeout(winFlashTimer); if (!endless) winFlashTimer = setTimeout(() => { el.style.display = 'none'; }, secs * 1000);
   }
+  function hideWinner() { clearTimeout(winFlashTimer); $('winFlash').style.display = 'none'; }
   // ---------------- fireworks ----------------
   const ffx = $('fireworks'), fctx = ffx.getContext('2d'); let fireRaf = 0, lastFire = 0, fireInit = false;
-  function startFireworks(secs) {
+  let fireEndless = false;
+  function stopEndless() { fireEndless = false; cancelAnimationFrame(fireRaf); fctx.clearRect(0, 0, ffx.width, ffx.height); hideWinner(); }
+  function startFireworks(secs, endless) {
+    fireEndless = !!endless;
     const dpr = window.devicePixelRatio || 1; ffx.width = innerWidth * dpr; ffx.height = innerHeight * dpr; const W = ffx.width, H = ffx.height;
     const cols = ['#ffc93c', '#ff5fa2', '#35c97a', '#45c8ff', '#ffffff', '#ff8a3c', '#a46bff', '#ff4d4d'], rockets = [], sparks = [];
-    const endAt = performance.now() + secs * 1000; let last = performance.now(), nextLaunch = last;
+    const endAt = endless ? Infinity : performance.now() + secs * 1000; let last = performance.now(), nextLaunch = last;
     const R = (a, b) => a + Math.random() * (b - a);
     cancelAnimationFrame(fireRaf);
     (function step(now) {
@@ -1048,10 +1058,13 @@ Nevada | 4`;
       $('xs').innerHTML = [0, 1, 2].map(i => '<div class="xbox' + ((S.phase === 'steal' || S.phase === 'roundEnd' && S.strikes >= 3 ? 3 : S.strikes) > i ? ' on' : '') + '">✕</div>').join('');
     }
     if (fm) renderFM();
-    if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; }
-    if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; startConfetti(S.cele.secs || 12); }
-    if (!fireInit) { fireInit = true; lastFire = S.fire ? S.fire.k : 0; }
-    if (S.fire && S.fire.k !== lastFire) { lastFire = S.fire.k; startFireworks(S.fire.secs || 10); if (S.fire.name) flashWinner(S.fire.name, S.fire.secs || 10); }
+    if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; if (S.cele && S.cele.endless && S.cele.active) startConfetti(0, true); }
+    else if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; if (S.cele.endless) startConfetti(0, true); else startConfetti(S.cele.secs || 12); }
+    if (confEndless && !(S.cele && S.cele.endless && S.cele.active)) stopConfettiEndless();   // new game, back, or the win was undone
+    if (!fireInit) { fireInit = true; lastFire = S.fire ? S.fire.k : 0;
+      if (S.fire && S.fire.endless && S.fire.active) { startFireworks(0, true); if (S.fire.name) flashWinner(S.fire.name, 0, true); } }   // a window opened mid-celebration joins in
+    else if (S.fire && S.fire.k !== lastFire) { lastFire = S.fire.k; if (S.fire.endless) { startFireworks(0, true); if (S.fire.name) flashWinner(S.fire.name, 0, true); } else { startFireworks(S.fire.secs || 10); if (S.fire.name) flashWinner(S.fire.name, S.fire.secs || 10); } }
+    if (fireEndless && !(S.fire && S.fire.endless && S.fire.active)) stopEndless();   // Fast Money started, or the win was undone / a new game began
     // flash
     if (!flashInit) { flashInit = true; lastFlash = S.flash ? S.flash.k : 0; }
     if (S.flash && S.flash.k !== lastFlash) { lastFlash = S.flash.k; if (S.flash.n) {
@@ -1183,7 +1196,7 @@ Nevada | 4`;
   // setup / questions / menu (host page only)
   let inGame = false;   // true while the setup screen is opened from the ☰ Menu button during a game
   const show = (id, on) => { const el = $(id); if (!el) return; el.style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) { if (!inGame) startPrelude(); } else stopPrelude(); } };
-  const closeSetup = () => { inGame = false; stopMusic(); show('setup', false); };
+  const closeSetup = () => { inGame = false; stopMusic(true); show('setup', false); };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function fillSetSel(sel) {
     const a = loadSets(), box = $('setSel'); box.innerHTML = '';
@@ -1191,7 +1204,7 @@ Nevada | 4`;
     box.value = String(Math.min(sel, a.length - 1));
   }
   function openSetup(fromGame) {
-    stopMusic();
+    stopMusic(!!fromGame);   // opening Menu mid-celebration leaves the winner song going; a real new game stops it
     inGame = !!(fromGame && S);
     const c = load(CK, { n: ['Team 1', 'Team 2'], p: ['', ''], tgt: 300, fmt: 200 });
     if (inGame) {
