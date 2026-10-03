@@ -165,6 +165,7 @@
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
   <h2>🎤 Feud Night — Game Setup</h2>
+  <div id="inGameBanner" style="display:none;background:#fff4d6;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px">🎮 A game is in progress. Change anything below, then tap <b>Save changes &amp; back to the game</b> — scores and progress are kept. (Which game's questions is fixed for this game; use ✏️ Edit questions to change the questions themselves.)</div>
   <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Prelude music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause prelude music</button></div>
   <div class="row">
     <div><label for="n0">Team 1 name</label><input id="n0" maxlength="24"><label for="p0">Team 1 players (one per line or commas)</label><textarea id="p0" placeholder="Optional — used to announce face-off players"></textarea></div>
@@ -182,6 +183,14 @@
     <div><label for="mults">Round point multipliers (round 1, 2, 3, 4… — the last one repeats)</label><input id="mults" placeholder="1,1,2,3"></div>
     <div class="note" style="align-self:end">Default: rounds 1–2 are ×1, round 3 is ×2 (double), round 4 and later are ×3 (triple). Fast Money is always ×1.</div>
   </div>
+  <div id="inGameTools" style="display:none">
+    <h3>🎮 Fix a score</h3>
+    <div class="row"><div><label id="sl0" for="s0"></label><input id="s0" type="number" inputmode="numeric"></div><div><label id="sl1" for="s1"></label><input id="s1" type="number" inputmode="numeric"></div></div>
+    <label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:8px"><input type="checkbox" id="autoX" style="width:auto"> Automatically give a strike when the clock hits zero</label>
+    <h3>⚡ Skip to Fast Money (for testing)</h3>
+    <div class="note">Jumps straight to the Fast Money round, as if this team had just won the game. Undo brings you back.</div>
+    <div class="btns"><button class="mb gold" id="skipFm0"></button><button class="mb gold" id="skipFm1"></button></div>
+  </div>
   <div class="note" id="verSetup" style="opacity:.6">Game version —</div>
   <div id="musicHome">
   <details open id="musicBlock">
@@ -190,8 +199,15 @@
     <div id="musicOrder"></div>
   </details>
   </div>
-  <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
+  <h3>📺 TV window &amp; sound checks</h3>
+  <div class="btns"><button class="mb gold" id="openBoard">📺 Open board window</button><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
+  <label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
+  <div class="note" id="latNote"></div>
+  <div class="note" id="menuNote"></div>
+  <div class="note">Tip for a TV: click <b>📺 Open board window</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
   <div class="btns" id="setupBtns" style="position:sticky;bottom:-2.4vh;background:#fff;padding:10px 0;border-top:2px solid #eef1ff;z-index:2">
+    <button class="mb go" id="saveBackBtn" style="display:none">💾 Save changes &amp; back to the game</button>
+    <button class="mb" id="cancelBackBtn" style="display:none">↩ Back to the game (no changes)</button>
     <button class="mb go" id="startBtn">▶ Start new game</button>
     <button class="mb gold" id="resumeBtn" style="display:none">↩ Resume saved game</button>
     <button class="mb" id="editQBtn">✏️ Edit questions</button>
@@ -201,8 +217,10 @@
   </div>
 </div></div>
 
-<!-- Music & sounds, opened from the Menu during a game -->
-<div class="modal" id="musicModal"><div class="card"><h2>🎵 Music &amp; sounds</h2><div id="musicSlot"></div><div class="btns"><button class="mb go" id="musicDone">Done</button></div></div></div>
+</div>
+
+<!-- Confirm replacing a game in progress -->
+<div class="modal" id="newConf" style="z-index:90"><div class="card" style="text-align:center;max-width:460px"><h2>Start a NEW game?</h2><p style="margin:0">This replaces the game in progress — its scores and progress will be lost.</p><div class="btns" style="justify-content:center"><button class="mb" id="newConfNo">Cancel</button><button class="mb bad" id="newConfYes">Yes, start a new game</button></div></div></div>
 
 <!-- Fast Money answer entry -->
 <div class="modal" id="fmForm"><div class="card">
@@ -231,39 +249,14 @@
   <div class="note" id="qMsg"></div>
 </div></div>
 
-<!-- Menu -->
-<div class="modal" id="menu"><div class="card">
-  <h2>☰ Menu</h2>
-  <h3>Fix a score</h3>
-  <div class="row"><div><label id="sl0" for="s0"></label><input id="s0" type="number" inputmode="numeric"></div><div><label id="sl1" for="s1"></label><input id="s1" type="number" inputmode="numeric"></div></div>
-  <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="autoX" style="width:auto"> Automatically give a strike when the clock hits zero</label>
-  <div class="btns">
-    <button class="mb go" id="scoreSave">Save scores</button>
-    <button class="mb" id="testDing">🔔 Test correct ding</button>
-    <button class="mb" id="testBuzz">🔊 Test strike buzzer</button>
-    <label style="display:flex;gap:10px;align-items:center;font-weight:700;width:100%"><input type="checkbox" id="muteChk" style="width:auto"> 🔇 Mute all sounds</label>
-    <label style="display:flex;gap:10px;align-items:center;font-weight:700;width:100%"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
-    <div class="note" id="latNote" style="width:100%"></div>
-    <button class="mb gold" id="openBoard">📺 Open board window</button>
-    <button class="mb" id="menuSheet">🖨 MC cheat sheet</button>
-    <button class="mb" id="menuQ">✏️ Edit questions</button>
-    <button class="mb bad" id="menuNew">New game…</button>
-    <button class="mb" id="menuClose">Close</button>
-  </div>
-  <h3>⚡ Skip to Fast Money (for testing)</h3>
-  <div class="note">Jumps straight to the Fast Money round, as if this team had just won the game. Undo brings you back.</div>
-  <div class="btns"><button class="mb gold" id="skipFm0"></button><button class="mb gold" id="skipFm1"></button></div>
-  <div class="btns"><button class="mb" id="menuMusic">🎵 Music &amp; sounds…</button></div>
-  <div class="note" id="menuNote"></div>
-  <div class="note" id="verMenu" style="opacity:.6">Game version —</div>
-</div></div>
+
 
 <script>
 (function () {
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 24';
+  const GAME_VERSION = '2026-10-03 · build 25';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1171,26 +1164,56 @@ Nevada | 4`;
   if (isBoard && bc) { bc.postMessage({ t: 'hello' }); setTimeout(() => { if (!S) bc.postMessage({ t: 'hello' }); }, 1500); }
 
   // setup / questions / menu (host page only)
-  const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) startPrelude(); else stopPrelude(); } };
+  let inGame = false;   // true while the setup screen is opened from the ☰ Menu button during a game
+  const show = (id, on) => { const el = $(id); if (!el) return; el.style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) { if (!inGame) startPrelude(); } else stopPrelude(); } };
+  const closeSetup = () => { inGame = false; stopMusic(); show('setup', false); };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function fillSetSel(sel) {
     const a = loadSets(), box = $('setSel'); box.innerHTML = '';
     a.forEach((g, i) => { const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money'; box.appendChild(o); });
     box.value = String(Math.min(sel, a.length - 1));
   }
-  function openSetup() {
-    if (typeof toHome === 'function') toHome();
+  function openSetup(fromGame) {
+    stopMusic();
+    inGame = !!(fromGame && S);
     const c = load(CK, { n: ['Team 1', 'Team 2'], p: ['', ''], tgt: 300, fmt: 200 });
-    $('mults').value = c.m || '1,1,2,3'; fillSetSel(c.nextSet || 0);
-    $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
-    $('resumeBtn').style.display = load(LS, null) ? 'inline-block' : 'none'; show('menu', false); show('setup', true);
+    if (inGame) {
+      // the same screen, filled with the game that is running right now
+      $('n0').value = S.teams[0].name; $('n1').value = S.teams[1].name; $('p0').value = S.teams[0].players.join('\n'); $('p1').value = S.teams[1].players.join('\n');
+      $('tgt').value = S.target; $('fmt').value = S.fmTarget; $('mults').value = (S.mults && S.mults.length ? S.mults : [1, 1, 2, 3]).join(',');
+      fillSetSel(S.setIdx || 0); $('setSel').disabled = true;
+      $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score;
+      $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true;
+    } else {
+      $('mults').value = c.m || '1,1,2,3'; fillSetSel(c.nextSet || 0); $('setSel').disabled = false;
+      $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
+    }
+    $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText();
+    $('inGameBanner').style.display = $('inGameTools').style.display = inGame ? 'block' : 'none';
+    $('saveBackBtn').style.display = $('cancelBackBtn').style.display = inGame ? 'inline-block' : 'none';
+    $('startBtn').textContent = inGame ? '▶ Start a NEW game (replaces this one)' : '▶ Start new game';
+    $('resumeBtn').style.display = !inGame && load(LS, null) ? 'inline-block' : 'none';
+    $('testFmBtn').style.display = inGame ? 'none' : 'inline-block';
+    show('setup', true);
+    const card = $('setup').querySelector('.card'); if (card) card.scrollTop = 0;
   }
-  $('startBtn').onclick = () => {
+  const doStart = () => {
     const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, m: $('mults').value.trim() || '1,1,2,3', set: +$('setSel').value || 0 };
     c.nextSet = Math.min(c.set + 1, Math.max(0, loadSets().length - 1));
     store(CK, c);
     if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { show('setup', false); commit(); }
   };
+  $('startBtn').onclick = () => { if (inGame) show('newConf', true); else doStart(); };
+  $('newConfNo').onclick = () => show('newConf', false);
+  $('newConfYes').onclick = () => { show('newConf', false); inGame = false; doStart(); };
+  // Save changes made on the setup screen to the game that is running (names, players, targets, multipliers, scores) and go back to it
+  $('saveBackBtn').onclick = () => { if (!S) return; act(() => {
+    S.teams[0].name = $('n0').value.trim() || S.teams[0].name; S.teams[1].name = $('n1').value.trim() || S.teams[1].name;
+    S.teams[0].players = list($('p0').value); S.teams[1].players = list($('p1').value);
+    if (+$('tgt').value > 0) S.target = +$('tgt').value; if (+$('fmt').value > 0) S.fmTarget = +$('fmt').value; S.mults = parseMults($('mults').value);
+    const a = parseInt($('s0').value, 10), b = parseInt($('s1').value, 10); if (!isNaN(a)) S.teams[0].score = a; if (!isNaN(b)) S.teams[1].score = b;
+  }); closeSetup(); };
+  $('cancelBackBtn').onclick = closeSetup;
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   // Editor with one tab per game; each game has its own main-round and Fast Money questions.
   let edSets = [], edIdx = 0;
@@ -1208,7 +1231,7 @@ Nevada | 4`;
   $('qDel').onclick = () => { if (edSets.length < 2) return; edSets.splice(edIdx, 1); edSets.forEach((g, i) => { g.name = 'Game ' + (i + 1); }); edIdx = Math.min(edIdx, edSets.length - 1); edLoad(); $('qMsg').textContent = 'Game removed — tap Save to keep the change.'; };
   $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel(+$('setSel').value || 0); if (S && S.qs) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
   $('qCancel').onclick = () => show('qed', false);
-  $('editQBtn').onclick = openEditor; $('menuQ').onclick = () => { show('menu', false); openEditor(); };
+  $('editQBtn').onclick = openEditor;
   function sheet() {
     const sets = loadSets();
     const blk = (title, qs) => '<h2>' + title + '</h2>' + qs.map((x, i) => '<div class="q"><b>' + (i + 1) + '. ' + x.text + '</b><ol>' + x.answers.map(a => '<li>' + a.text + ' <i>(' + a.pts + ')</i></li>').join('') + '</ol></div>').join('');
@@ -1217,20 +1240,15 @@ Nevada | 4`;
       + sets.map((g, i) => '<div class="' + (i ? 'g' : '') + '"><h1 style="margin-top:20px">' + g.name + '</h1>' + blk('Main rounds (in play order)', parseQs(g.main)) + blk('Fast Money (first 5 are used)', parseQs(g.fast).slice(0, 5)) + '</div>').join('') + '</body>');
     w.document.close();
   }
-  $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
-  $('menuBtn').onclick = () => { if (!S) return; $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
-  $('menuClose').onclick = () => show('menu', false);
+  $('sheetBtn').onclick = sheet;
+  $('menuBtn').onclick = () => { if (!S) return; openSetup(true); };
   $('preToggle').onclick = () => { if (preActive()) stopPrelude(); else startPrelude(true); };
-  // The music settings live on the setup page; from the Menu they open in their own window (same block, moved — not copied).
-  const musicBlock = $('musicBlock'), toHome = () => { $('musicHome').appendChild(musicBlock); show('musicModal', false); stopMusic(); };
-  $('menuMusic').onclick = () => { $('musicSlot').appendChild(musicBlock); show('menu', false); show('musicModal', true); };
-  $('musicDone').onclick = toHome;
-  $('muteBtn').onclick = () => setMuted(!isMuted()); $('muteChk').onchange = () => setMuted($('muteChk').checked); $('muteChkSetup').onchange = () => setMuted($('muteChkSetup').checked);
+  $('muteBtn').onclick = () => setMuted(!isMuted()); $('muteChkSetup').onchange = () => setMuted($('muteChkSetup').checked);
   document.addEventListener('keydown', e => { if (isBoard || (e.key !== 'm' && e.key !== 'M') || /INPUT|TEXTAREA/.test((e.target.tagName || ''))) return; setMuted(!isMuted()); });
   applyMute(); ['verMenu', 'verSetup'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = 'Game version ' + GAME_VERSION + ' — if something looks out of date, close this window and reopen the game address.'; });
-  function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); show('menu', false); }
+  function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); closeSetup(); }
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
-  $('testFmBtn').onclick = () => { $('startBtn').onclick(); if (S) skipToFM(0); };
+  $('testFmBtn').onclick = () => { doStart(); if (S) skipToFM(0); };
   const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5'], ['pre', 'Pre']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10, pre: 180 };
   (function injectMusicUI() {
     const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Song or recording (mp3, m4a, wav)</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
@@ -1274,7 +1292,6 @@ Nevada | 4`;
   $('testBuzz').onclick = () => { sBuzz(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
   $('keepAwake').onchange = () => { try { localStorage.setItem('feud.keepawake', $('keepAwake').checked ? '1' : '0'); } catch (e) {} if ($('keepAwake').checked) { getAC(); startKeepAlive(); } else stopKeepAlive(); };
   $('autoX').onchange = () => { if (S) { S.auto = $('autoX').checked; commit(); } };
-  $('scoreSave').onclick = () => act(() => { S.teams[0].score = parseInt($('s0').value, 10) || 0; S.teams[1].score = parseInt($('s1').value, 10) || 0; show('menu', false); });
   // Opens the audience board in its own WINDOW (not a tab) so it can be dragged to the TV.
   // If the browser can see a second screen (Chrome/Edge will ask permission), it opens right on that screen.
   $('openBoard').onclick = async () => {
@@ -1292,7 +1309,6 @@ Nevada | 4`;
     if (!win) { $('menuNote').textContent = 'Your browser blocked the pop-up window. Allow pop-ups for this page (look for an icon in the address bar), then tap this button again.'; return; }
     $('menuNote').textContent = onTv ? 'Board window opened on your second screen. Double-click it (or press F) to make it full screen.' : 'Board window opened. Drag it onto the TV, then double-click it (or press F) for full screen.';
   };
-  $('menuNew').onclick = () => openSetup();
 
   if (isBoard) {
     const fs = () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) {} };
