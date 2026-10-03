@@ -33,6 +33,8 @@
   #mid .rd { font-size: clamp(11px, 1.8vh, 18px); letter-spacing: 2px; opacity: .8; }
   #mid .pot { font-family: var(--big); font-size: clamp(26px, 5.5vh, 64px); color: #fff; line-height: 1; }
   #mid .pot small { font-size: .4em; color: var(--gold); display: block; letter-spacing: 2px; font-family: var(--font); font-weight: 800; }
+  #muteBtn { position: fixed; z-index: 30; left: 1vw; bottom: .6vh; border: 0; border-radius: 99px; background: rgba(255,255,255,.18); color: #fff; font-size: clamp(12px, 1.8vh, 16px); font-weight: 800; padding: .6vh 1.2vw; cursor: pointer; }
+  body.board #muteBtn { display: none !important; }
   #menuBtn, #peekBtn { position: fixed; z-index: 30; top: .8vh; border: 0; border-radius: 99px; background: rgba(255,255,255,.18); color: #fff; font-size: clamp(12px, 1.8vh, 16px); font-weight: 800; padding: .6vh 1.2vw; cursor: pointer; }
   #menuBtn { left: 50%; transform: translateX(-50%); top: auto; bottom: .6vh; }
   #peekBtn { right: 1vw; top: auto; bottom: .6vh; }
@@ -149,6 +151,7 @@
   <div id="ctl"></div>
 </div>
 <button id="menuBtn">☰ Menu</button>
+<button id="muteBtn">🔊 Sound on</button>
 <button id="peekBtn">👁 Hold to peek</button>
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
@@ -179,6 +182,7 @@
     <button class="mb gold" id="resumeBtn" style="display:none">↩ Resume saved game</button>
     <button class="mb" id="editQBtn">✏️ Edit questions</button>
     <button class="mb" id="sheetBtn">🖨 Print MC cheat sheet</button>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:700;align-self:center"><input type="checkbox" id="muteChkSetup" style="width:auto"> 🔇 Mute all sounds</label>
     <button class="mb" id="testFmBtn">⚡ Test: jump to Fast Money</button>
   </div>
   <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
@@ -221,6 +225,7 @@
     <button class="mb go" id="scoreSave">Save scores</button>
     <button class="mb" id="testDing">🔔 Test correct ding</button>
     <button class="mb" id="testBuzz">🔊 Test strike buzzer</button>
+    <label style="display:flex;gap:10px;align-items:center;font-weight:700;width:100%"><input type="checkbox" id="muteChk" style="width:auto"> 🔇 Mute all sounds</label>
     <label style="display:flex;gap:10px;align-items:center;font-weight:700;width:100%"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
     <div class="note" id="latNote" style="width:100%"></div>
     <button class="mb gold" id="openBoard">📺 Open board window</button>
@@ -594,6 +599,16 @@ Nevada | 4`;
 
   // ---------------- audio ----------------
   let ac = null;
+  // ---- master sound switch: every effect, song and crowd reaction passes through this one volume control ----
+  let mutedMem = (function () { try { return localStorage.getItem('feud.muted') === '1'; } catch (e) { return false; } })();
+  const isMuted = () => mutedMem;
+  function outNode() { if (!ac.__m) { const g = ac.createGain(); g.gain.value = mutedMem ? 0 : 1; g.connect(ac['destination']); ac.__m = g; } return ac.__m; }
+  function applyMute() {
+    if (typeof ac !== 'undefined' && ac && ac.__m) ac.__m.gain.setTargetAtTime(mutedMem ? 0 : 1, ac.currentTime, .01);
+    const b = document.getElementById('muteBtn'); if (b) b.textContent = mutedMem ? '🔇 Sound off' : '🔊 Sound on';
+    ['muteChk', 'muteChkSetup'].forEach(id => { const c = document.getElementById(id); if (c) c.checked = mutedMem; });
+  }
+  function setMuted(v) { mutedMem = !!v; try { localStorage.setItem('feud.muted', v ? '1' : '0'); } catch (e) {} if (v) { try { stopMusic(); stopReact(); } catch (e) {} } applyMute(); }
   function getAC() {
     if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); } catch (e) { ac = new (window.AudioContext || window.webkitAudioContext)(); } }
     if (ac.state === 'suspended') ac.resume();
@@ -606,7 +621,7 @@ Nevada | 4`;
   function startKeepAlive() {
     if (keepNode || isBoard || !ac || !keepOn()) return;
     try { const b = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * .0008;
-      const n = ac.createBufferSource(); n.buffer = b; n.loop = true; n.connect(ac.destination); n.start(); keepNode = n; } catch (e) {}
+      const n = ac.createBufferSource(); n.buffer = b; n.loop = true; n.connect(outNode()); n.start(); keepNode = n; } catch (e) {}
   }
   function stopKeepAlive() { try { if (keepNode) keepNode.stop(); } catch (e) {} keepNode = null; }
   function latencyText() { if (!ac) return 'Tap a test button to measure this laptop’s audio delay.'; const ms = Math.round(((ac.baseLatency || 0) + (ac.outputLatency || 0)) * 1000);
@@ -617,7 +632,7 @@ Nevada | 4`;
     try { getAC();
       const t = ac.currentTime + (when || 0), o = ac.createOscillator(), g = ac.createGain();
       o.type = type || 'sine'; o.frequency.value = f; g.gain.setValueAtTime(v || .2, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
-      o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + .02); } catch (e) {}
+      o.connect(g); g.connect(outNode()); o.start(t); o.stop(t + d + .02); } catch (e) {}
   }
   // Correct answer: three bright bell "dings" in a row.
   function bell(f, when, vol) {
@@ -627,7 +642,7 @@ Nevada | 4`;
       [[1, 1], [2.76, .35], [5.4, .15]].forEach(([m, v]) => {
         const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f * m;
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * v, t + .002); g.gain.exponentialRampToValueAtTime(.001, t + .4);
-        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .45); }); } catch (e) {}
+        o.connect(g); g.connect(outNode()); o.start(t); o.stop(t + .45); }); } catch (e) {}
   }
   // Correct answer: a cash-register "CHA-CHING" — a quick mechanical clack ("cha") then a bright metallic ring ("ching").
   function buildCha(c, dest, t) {
@@ -643,7 +658,7 @@ Nevada | 4`;
       g.gain.setValueAtTime(0, t2); g.gain.linearRampToValueAtTime(.3 * v, t2 + .002); g.gain.exponentialRampToValueAtTime(.001, t2 + (v > .5 ? 1.15 : .7));
       o.connect(g); g.connect(dest); o.start(t2); o.stop(t2 + 1.2); });
   }
-  const sDing = () => { if (isBoard) return; try { getAC(); buildCha(ac, ac.destination, ac.currentTime); } catch (e) {} };
+  const sDing = () => { if (isBoard) return; try { getAC(); buildCha(ac, outNode(), ac.currentTime); } catch (e) {} };
   window.__buildCha = buildCha;
   // Strike: a loud, shrill, irritating electronic buzz — high clashing square/saw tones beating against each
   // other, fast tremolo, hard distortion, no bass. Sharp start, abrupt stop.
@@ -664,7 +679,7 @@ Nevada | 4`;
   }
   function sBuzz() {
     if (isBoard) return;
-    try { getAC(); buildBuzz(ac, ac.destination, ac.currentTime); } catch (e) {}
+    try { getAC(); buildBuzz(ac, outNode(), ac.currentTime); } catch (e) {}
   }
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
@@ -675,18 +690,31 @@ Nevada | 4`;
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
     if (isBoard) return;
+    loadBundled();
     for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer']) { const m = mus[k]; if (!m.blob || m.buf) continue;
       try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
+  }
+  // Recordings that ship with the game: drop mp3/m4a/wav files in the "sounds" folder and list them in sounds/manifest.json.
+  // Priority for every sound: a file uploaded in the Menu > a recording from the sounds folder > the built-in version.
+  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null };
+  let bundledTried = false;
+  const effBuf = k => (mus[k] && mus[k].buf) || bundled[k] || null;
+  async function loadBundled() {
+    if (isBoard || bundledTried) return; bundledTried = true;
+    try { const r = await fetch('sounds/manifest.json', { cache: 'no-cache' }); if (!r.ok) return; const man = await r.json();
+      for (const k of Object.keys(bundled)) { const f = man[k]; if (!f) continue;
+        try { const rr = await fetch('sounds/' + f); if (!rr.ok) continue; const ab = await rr.arrayBuffer(); bundled[k] = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) {} }
+      refreshMusicUI(); } catch (e) {}
   }
   function stopMusic() {
     const n = nowPlaying; if (!n) return; nowPlaying = null;
     try { n.g.gain.cancelScheduledValues(ac.currentTime); n.g.gain.setValueAtTime(n.g.gain.value, ac.currentTime); n.g.gain.linearRampToValueAtTime(0, ac.currentTime + .25); n.src.stop(ac.currentTime + .3); } catch (e) {}
   }
   function playMusic(slot) {
-    const m = mus[slot]; if (isBoard || !m || !m.buf) return false;
+    const m = mus[slot], buf = effBuf(slot); if (isBoard || !m || !buf) return false;
     try { getAC(); stopMusic(); const t = ac.currentTime, len = Math.max(2, m.len), src = ac.createBufferSource(), g = ac.createGain();
-      src.buffer = m.buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len);
-      src.connect(g); g.connect(ac.destination); src.start(t, Math.min(m.start, Math.max(0, m.buf.duration - 1))); src.stop(t + len + .05); nowPlaying = { src, g }; return true; } catch (e) { return false; }
+      src.buffer = buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len);
+      src.connect(g); g.connect(outNode()); src.start(t, Math.min(m.start, Math.max(0, buf.duration - 1))); src.stop(t + len + .05); nowPlaying = { src, g }; return true; } catch (e) { return false; }
   }
   const winSound = () => { if (!playMusic('win')) sWin(); };
   const gameWinSound = () => { if (!playMusic('game')) sWin(); };
@@ -729,12 +757,14 @@ Nevada | 4`;
   function playReact(slot, delay) {
     if (isBoard) return;
     try { getAC(); const t = ac.currentTime + (delay || 0), m = mus[slot];
-      if (m && m.buf) { const src = ac.createBufferSource(), g = ac.createGain(), len = Math.max(1, m.len); src.buffer = m.buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + Math.max(0, len - .6)); g.gain.linearRampToValueAtTime(0, t + len);
-        src.connect(g); g.connect(ac.destination); src.start(t, Math.min(m.start, Math.max(0, m.buf.duration - .5))); src.stop(t + len + .05); reactNodes.push(src); return; }
-      const nodes = slot === 'aww' ? buildAww(ac, ac.destination, t) : slot === 'cheer' ? buildCheer(ac, ac.destination, t) : buildApplause(ac, ac.destination, t); (nodes || []).forEach(n => reactNodes.push(n)); } catch (e) {}
+      const rbuf = effBuf(slot);
+      if (m && rbuf) { const src = ac.createBufferSource(), g = ac.createGain(), len = m.buf ? Math.max(1, m.len) : Math.min(15, rbuf.duration); src.buffer = rbuf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + Math.max(0, len - .6)); g.gain.linearRampToValueAtTime(0, t + len);
+        src.connect(g); g.connect(outNode()); src.start(t, m.buf ? Math.min(m.start, Math.max(0, rbuf.duration - .5)) : 0); src.stop(t + len + .05); reactNodes.push(src); return; }
+      const nodes = slot === 'aww' ? buildAww(ac, outNode(), t) : slot === 'cheer' ? buildCheer(ac, outNode(), t) : buildApplause(ac, outNode(), t); (nodes || []).forEach(n => reactNodes.push(n)); } catch (e) {}
   }
   // the points just appeared: low scores get an "aww", middle scores applause, big scores a cheer
   function fmReact(pts) { const c = reactCfg(); if (isBoard || !c.on) return; playReact(pts <= c.lo ? 'aww' : pts >= c.hi ? 'cheer' : 'clap', pts > 0 ? .25 : .8); }
+  window.__feudAudio = () => ac;   // read-only hook used for testing the master volume
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
   if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
@@ -745,8 +775,8 @@ Nevada | 4`;
     if (isBoard) return;
     try { getAC(); tickAlt = !tickAlt; const t = ac.currentTime;
       if (!clickBuf) { clickBuf = ac.createBuffer(1, Math.ceil(ac.sampleRate * .03), ac.sampleRate); const d = clickBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); }
-      const ns = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain(); ns.buffer = clickBuf; bp.type = 'bandpass'; bp.frequency.value = tickAlt ? 3200 : 2300; bp.Q.value = 1.2; ng.gain.value = .9; ns.connect(bp); bp.connect(ng); ng.connect(ac.destination); ns.start(t);
-      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = tickAlt ? 1500 : 1050; g.gain.setValueAtTime(.22, t); g.gain.exponentialRampToValueAtTime(.001, t + .06); o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .07); } catch (e) {}
+      const ns = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain(); ns.buffer = clickBuf; bp.type = 'bandpass'; bp.frequency.value = tickAlt ? 3200 : 2300; bp.Q.value = 1.2; ng.gain.value = .9; ns.connect(bp); bp.connect(ng); ng.connect(outNode()); ns.start(t);
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = tickAlt ? 1500 : 1050; g.gain.setValueAtTime(.22, t); g.gain.exponentialRampToValueAtTime(.001, t + .06); o.connect(g); g.connect(outNode()); o.start(t); o.stop(t + .07); } catch (e) {}
   }
   const sTick = () => tone(1200, .06, 'square', .08);
 
@@ -1169,6 +1199,9 @@ Nevada | 4`;
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
   $('menuBtn').onclick = () => { if (!S) return; $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
+  $('muteBtn').onclick = () => setMuted(!isMuted()); $('muteChk').onchange = () => setMuted($('muteChk').checked); $('muteChkSetup').onchange = () => setMuted($('muteChkSetup').checked);
+  document.addEventListener('keydown', e => { if (isBoard || (e.key !== 'm' && e.key !== 'M') || /INPUT|TEXTAREA/.test((e.target.tagName || ''))) return; setMuted(!isMuted()); });
+  applyMute();
   function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); show('menu', false); }
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
   $('testFmBtn').onclick = () => { $('startBtn').onclick(); if (S) skipToFM(0); };
@@ -1184,7 +1217,7 @@ Nevada | 4`;
   })();
   function refreshMusicUI() {
     SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
-      $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : (['aww', 'clap', 'cheer'].includes(k) ? 'No recording added — the built-in crowd sound plays instead.' : 'No song added yet — a built-in fanfare plays instead.');
+      $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : (bundled[k] ? '🎵 Using the recording that comes with the game.' : ['aww', 'clap', 'cheer'].includes(k) ? 'No recording added — the built-in crowd sound plays instead.' : 'No song added yet — a built-in fanfare plays instead.');
       $('musicStart' + x).value = m.start; $('musicLen' + x).value = m.len; });
   }
   SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
