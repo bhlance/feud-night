@@ -250,6 +250,11 @@
       <div class="row" style="gap:10px"><div><label for="musicStartFm">Start at (seconds in)</label><input id="musicStartFm" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLenFm">Play for (seconds)</label><input id="musicLenFm" type="number" min="2" max="120" value="30" inputmode="numeric"></div></div></div>
     <div class="btns"><button class="mb" id="musicTestFm">▶ Test</button><button class="mb" id="musicStopFm">■ Stop</button><button class="mb" id="musicRemoveFm">Remove song</button></div>
     <div class="note" id="musicNoteFm"></div>
+    <h3 style="margin-top:14px">👥 Audience reactions in Fast Money (played when the points are revealed)</h3>
+    <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="reactOn" style="width:auto"> Play audience reactions</label>
+    <div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="35" inputmode="numeric"></div></div>
+    <div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. The built-in crowd sounds are computer-made stand-ins; upload real recordings below if you have them and they'll be used instead.</div>
+    <div id="reactSecs"></div>
   </details>
   <div class="note" id="menuNote"></div>
 </div></div>
@@ -664,13 +669,13 @@ Nevada | 4`;
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
   // 'fm' (winning Fast Money, default 30 s). Each fades out at the end; falls back to the built-in fanfare.
-  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null } };
+  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null } };
   let nowPlaying = null;
   const mdb = (mode, fn) => new Promise(res => { try { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => res(null);
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
     if (isBoard) return;
-    for (const k of ['win', 'game', 'fm']) { const m = mus[k]; if (!m.blob || m.buf) continue;
+    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer']) { const m = mus[k]; if (!m.blob || m.buf) continue;
       try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
   }
   function stopMusic() {
@@ -685,8 +690,54 @@ Nevada | 4`;
   }
   const winSound = () => { if (!playMusic('win')) sWin(); };
   const gameWinSound = () => { if (!playMusic('game')) sWin(); };
+  // ---- Audience reactions for Fast Money point reveals ----
+  // Built-in versions are computer-made crowd sounds (clapping = hundreds of tiny noise claps; "aww" and "yay" = a crowd of
+  // vowel-shaped voices). Real recordings can be uploaded in the Menu and take over automatically.
+  let reactNodes = [];
+  const reactCfg = () => { try { return Object.assign({ on: true, lo: 10, hi: 35 }, JSON.parse(localStorage.getItem('feud.react') || '{}')); } catch (e) { return { on: true, lo: 10, hi: 35 }; } };
+  function stopReact() { reactNodes.forEach(n => { try { n.stop(); } catch (e) {} }); reactNodes = []; }
+  function applauseBuf(c, secs, density) {
+    const sr = c.sampleRate, n = Math.floor(sr * secs), b = c.createBuffer(1, n, sr), d = b.getChannelData(0);
+    const env = t => { const a = Math.min(1, t / .35), r = t > secs * .55 ? Math.max(0, 1 - (t - secs * .55) / (secs * .45)) : 1; return a * r; };
+    for (let t = 0; t < secs; t += .004) { if (Math.random() < env(t) * density * .004) { const st = Math.floor(t * sr), len = Math.floor(sr * (.01 + Math.random() * .022)), amp = .25 + Math.random() * .6; let lp = 0;
+      for (let i = 0; i < len && st + i < n; i++) { const nz = Math.random() * 2 - 1; lp += (nz - lp) * .5; d[st + i] += (nz - lp * .55) * amp * Math.pow(1 - i / len, 2); } } }
+    let mx = 0; for (let i = 0; i < n; i++) mx = Math.max(mx, Math.abs(d[i])); if (mx) for (let i = 0; i < n; i++) d[i] *= .8 / mx;
+    return b;
+  }
+  function buildClap(c, dest, t, secs, density, gain) {
+    const src = c.createBufferSource(), hp = c.createBiquadFilter(), lp = c.createBiquadFilter(), g = c.createGain();
+    src.buffer = applauseBuf(c, secs || 4.2, density || 230); hp.type = 'highpass'; hp.frequency.value = 450; lp.type = 'lowpass'; lp.frequency.value = 6500; g.gain.value = gain || .7;
+    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(dest); src.start(t); return src;
+  }
+  // a crowd of voices singing a vowel: each has its own pitch + vibrato, all pushed through shared vowel formants
+  function buildVoices(c, dest, t, o) {
+    const out = c.createGain(); out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(o.peak, t + o.attack); out.gain.setValueAtTime(o.peak, t + o.hold); out.gain.linearRampToValueAtTime(0, t + o.total); out.connect(dest);
+    const mk = (f0, f1, q, gv, f2) => { const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.setValueAtTime(f0, t); bp.frequency.linearRampToValueAtTime(f1, t + o.total); bp.Q.value = q; const g = c.createGain(); g.gain.value = gv; bp.connect(g); g.connect(out); return bp; };
+    const bus = c.createGain(); bus.gain.value = 1; bus.connect(mk(o.f1[0], o.f1[1], 5, 1.0)); bus.connect(mk(o.f2[0], o.f2[1], 6, .7)); bus.connect(mk(2700, 2500, 7, .25));
+    const oscs = [];
+    for (let i = 0; i < o.voices; i++) {
+      const f = 150 + Math.random() * 210, st = t + Math.random() * .12, osc = c.createOscillator(), g = c.createGain(), lfo = c.createOscillator(), lg = c.createGain();
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(f * o.glide[0], st); osc.frequency.linearRampToValueAtTime(f * o.glide[1], st + o.glideTime);
+      lfo.frequency.value = 4.5 + Math.random() * 2.5; lg.gain.value = f * .018; lfo.connect(lg); lg.connect(osc.frequency); g.gain.value = .05 + Math.random() * .04;
+      osc.connect(g); g.connect(bus); osc.start(st); lfo.start(st); osc.stop(t + o.total + .1); lfo.stop(t + o.total + .1); oscs.push(osc);
+    }
+    return oscs;
+  }
+  const buildAww = (c, dest, t) => buildVoices(c, dest, t, { voices: 14, peak: 2.1, attack: .1, hold: 1.3, total: 2.3, glide: [1.22, .78], glideTime: 1.5, f1: [760, 520], f2: [1150, 880] });
+  const buildCheer = (c, dest, t) => { buildClap(c, dest, t, 4.8, 320, .5); return buildVoices(c, dest, t, { voices: 20, peak: 1.8, attack: .22, hold: 2.9, total: 4.7, glide: [.95, 1.18], glideTime: .5, f1: [820, 800], f2: [1500, 1550] }); };
+  const buildApplause = (c, dest, t) => [buildClap(c, dest, t, 4.2, 230, .75)];
+  function playReact(slot, delay) {
+    if (isBoard) return;
+    try { getAC(); const t = ac.currentTime + (delay || 0), m = mus[slot];
+      if (m && m.buf) { const src = ac.createBufferSource(), g = ac.createGain(), len = Math.max(1, m.len); src.buffer = m.buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + Math.max(0, len - .6)); g.gain.linearRampToValueAtTime(0, t + len);
+        src.connect(g); g.connect(ac.destination); src.start(t, Math.min(m.start, Math.max(0, m.buf.duration - .5))); src.stop(t + len + .05); reactNodes.push(src); return; }
+      const nodes = slot === 'aww' ? buildAww(ac, ac.destination, t) : slot === 'cheer' ? buildCheer(ac, ac.destination, t) : buildApplause(ac, ac.destination, t); (nodes || []).forEach(n => reactNodes.push(n)); } catch (e) {}
+  }
+  // the points just appeared: low scores get an "aww", middle scores applause, big scores a cheer
+  function fmReact(pts) { const c = reactCfg(); if (isBoard || !c.on) return; playReact(pts <= c.lo ? 'aww' : pts >= c.hi ? 'cheer' : 'clap', pts > 0 ? .25 : .8); }
+  window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
-  if (!isBoard) ['win', 'game', 'fm'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
+  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
   let tickAlt = false, clickBuf = null;
@@ -779,6 +830,7 @@ Nevada | 4`;
       const e = f.p[who][r] || { text: '— no answer —', pts: 0, rank: null };
       f.stage[who] = 0; f.rev[who]++;                                   // 3rd press: the points, then the sound; the next press starts the next question
       if (e.pts > 0) sDing(); else { flash(1); sBuzz(); }
+      fmReact(e.pts);
       fmCheckWin();
       if (f.pl === 2 && f.rev[1] >= f.n) { f.done = true; S.phase = 'fmResult'; }
     });
@@ -1120,18 +1172,28 @@ Nevada | 4`;
   function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); show('menu', false); }
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
   $('testFmBtn').onclick = () => { $('startBtn').onclick(); if (S) skipToFM(0); };
+  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5 };
+  (function injectReactUI() {
+    const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Recording (mp3, m4a, wav) — optional</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
+      + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds)</label><input id="musicLen' + x + '" type="number" min="1" max="30" value="' + len + '" inputmode="numeric"></div></div></div>'
+      + '<div class="btns"><button class="mb" id="musicTest' + x + '">▶ Test</button><button class="mb" id="musicStop' + x + '">■ Stop</button><button class="mb" id="musicRemove' + x + '">Remove recording</button></div><div class="note" id="musicNote' + x + '"></div>';
+    $('reactSecs').innerHTML = sec('😞 Disappointed “aww”', 'Aww', 3) + sec('👏 Generous applause', 'Clap', 4) + sec('🎉 Loud cheering', 'Cheer', 5);
+    const c = reactCfg(); $('reactOn').checked = c.on; $('reactLo').value = c.lo; $('reactHi').value = c.hi;
+    const save = () => { try { localStorage.setItem('feud.react', JSON.stringify({ on: $('reactOn').checked, lo: +$('reactLo').value || 10, hi: +$('reactHi').value || 35 })); } catch (e) {} };
+    $('reactOn').onchange = $('reactLo').onchange = $('reactHi').onchange = save;
+  })();
   function refreshMusicUI() {
-    [['win', ''], ['game', 'Game'], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
-      $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : 'No song added yet — a built-in fanfare plays instead.';
+    SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
+      $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : (['aww', 'clap', 'cheer'].includes(k) ? 'No recording added — the built-in crowd sound plays instead.' : 'No song added yet — a built-in fanfare plays instead.');
       $('musicStart' + x).value = m.start; $('musicLen' + x).value = m.len; });
   }
-  [['win', ''], ['game', 'Game'], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
+  SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
     const save = () => mdb('readwrite', st => st.put({ blob: m.blob, name: m.name, start: m.start, len: m.len }, k));
     $('musicFile' + x).onchange = async () => { const f = $('musicFile' + x).files[0]; if (!f) return; m.blob = f; m.name = f.name; m.buf = null; await decodeMusic();
       if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); };
-    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(120, Math.max(2, +$('musicLen' + x).value || (k === 'fm' ? 30 : k === 'game' ? 20 : 10))); if (m.blob) save(); refreshMusicUI(); };
-    $('musicTest' + x).onclick = async () => { await decodeMusic(); if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
-    $('musicStop' + x).onclick = stopMusic;
+    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(120, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k])); if (m.blob) save(); refreshMusicUI(); };
+    $('musicTest' + x).onclick = async () => { await decodeMusic(); if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
+    $('musicStop' + x).onclick = () => { stopMusic(); stopReact(); };
     $('musicRemove' + x).onclick = () => { stopMusic(); Object.assign(m, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete(k)); refreshMusicUI(); };
   });
   $('testDing').onclick = () => { sDing(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
