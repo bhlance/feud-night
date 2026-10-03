@@ -260,7 +260,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 28';
+  const GAME_VERSION = '2026-10-03 · build 29';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -722,17 +722,21 @@ Nevada | 4`;
   function updatePreStatus() {
     const msg = document.getElementById('preMsg'); if (msg) msg.textContent = (ac && ac.state !== 'running') ? '🔈 Click or tap anywhere on this page to start the prelude music' : '🎬 Prelude music repeats until you start the game';
      const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('pre'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause prelude music' : '▶ Play prelude music'; }
-  function playMusic(slot) {
+  // loop = true repeats the chosen stretch of the song (start .. start + "Play for") until stopMusic() is called.
+  function playMusic(slot, loop) {
     const m = mus[slot], buf = effBuf(slot); if (isBoard || !m || !buf) return false;
-    try { getAC(); stopMusic(); const t = ac.currentTime, len = Math.max(2, m.len), src = ac.createBufferSource(), g = ac.createGain();
-      src.buffer = buf; g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len);
-      src.connect(g); g.connect(outNode()); src.start(t, Math.min(m.start, Math.max(0, buf.duration - 1))); src.stop(t + len + .05); nowPlaying = { src, g }; return true; } catch (e) { return false; }
+    try { getAC(); stopMusic(); const t = ac.currentTime, len = Math.max(2, m.len), src = ac.createBufferSource(), g = ac.createGain(), a0 = Math.min(m.start, Math.max(0, buf.duration - 1));
+      src.buffer = buf; src.connect(g); g.connect(outNode());
+      if (loop) { src.loop = true; src.loopStart = a0; src.loopEnd = Math.min(buf.duration, a0 + len); g.gain.setValueAtTime(1, t); src.start(t, a0); }
+      else { g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len); src.start(t, a0); src.stop(t + len + .05); }
+      nowPlaying = { src, g }; return true; } catch (e) { return false; }
   }
   // After a round: that round's own song (Round 1 song, Round 2 song, …; round 5 and later share the last slot).
   // A round with no song of its own uses the fallback song; with none of those, the built-in fanfare.
   const roundSound = round => { if (playMusic('r' + Math.min(round, 5))) return; if (!playMusic('win')) sWin(); };
   const winSound = () => { if (!playMusic('win')) sWin(); };
-  const gameWinSound = () => { if (!playMusic('game')) sWin(); };
+  // The game-winner song repeats until the MC starts Fast Money (or starts over); stopMusic() ends it.
+  const gameWinSound = () => { if (!playMusic('game', true)) sWin(); };
   // ---- Audience reactions for Fast Money point reveals ----
   // Built-in versions are computer-made crowd sounds (clapping = hundreds of tiny noise claps; "aww" and "yay" = a crowd of
   // vowel-shaped voices). Real recordings can be uploaded in the Menu and take over automatically.
@@ -851,7 +855,7 @@ Nevada | 4`;
   }
   function doAct(a, v) {
     v = v === undefined ? null : v;
-    if (a === 'undo') { if (undo.length) { S = JSON.parse(undo.pop()); if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } commit(); } return; }
+    if (a === 'undo') { if (undo.length) { stopMusic(); S = JSON.parse(undo.pop()); if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } commit(); } return; }
     if (a === 'first') act(() => { S.first = +v; S.turn = S.first; S.best = null; S.fp = [0, 0]; S.phase = 'fo'; startClock(5); });
     else if (a === 'x') act(() => miss());
     else if (a === 'start') { const t = S.tm; if (!t || t.running) return; t.running = true; t.paused = false; t.expired = false; t.end = Date.now() + t.secs * 1000; commit(); }
