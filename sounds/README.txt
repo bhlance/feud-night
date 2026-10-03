@@ -6,6 +6,8 @@ Anything listed here is used automatically — no uploading in the Menu needed.
 
 Slots (use these names inside manifest.json):
 
+  pre    = prelude music: plays on the setup page and repeats until you click Start new game
+           (up to 3 minutes of the file is looped)
   aww    = disappointed audience reaction  (Fast Money, low scores)
   clap   = generous applause               (Fast Money, middle scores)
   cheer  = loud cheering                   (Fast Money, high scores)

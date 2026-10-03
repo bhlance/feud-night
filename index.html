@@ -162,6 +162,7 @@
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
   <h2>🎤 Feud Night — Game Setup</h2>
+  <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span>🎬 Prelude music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause prelude music</button></div>
   <div class="row">
     <div><label for="n0">Team 1 name</label><input id="n0" maxlength="24"><label for="p0">Team 1 players (one per line or commas)</label><textarea id="p0" placeholder="Optional — used to announce face-off players"></textarea></div>
     <div><label for="n1">Team 2 name</label><input id="n1" maxlength="24"><label for="p1">Team 2 players (one per line or commas)</label><textarea id="p1" placeholder="Optional — used to announce face-off players"></textarea></div>
@@ -614,7 +615,7 @@ Nevada | 4`;
   function stopKeepAlive() { try { if (keepNode) keepNode.stop(); } catch (e) {} keepNode = null; }
   function latencyText() { if (!ac) return 'Tap a test button to measure this laptop’s audio delay.'; const ms = Math.round(((ac.baseLatency || 0) + (ac.outputLatency || 0)) * 1000);
     return 'This browser reports about ' + ms + ' ms of audio delay' + (ac.outputLatency === undefined ? ' (before the TV/speakers add theirs).' : ' including the output device.') + (ms > 120 ? ' That is high — try the laptop speakers or a wired speaker.' : ''); }
-  if (!isBoard) ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { try { getAC(); decodeMusic(); } catch (e) {} }, { capture: true, passive: true }));
+  if (!isBoard) ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { try { getAC(); decodeMusic().then(() => startPrelude()); } catch (e) {} }, { capture: true, passive: true }));
   function tone(f, d, type, v, when) {
     if (isBoard) return;
     try { getAC();
@@ -672,19 +673,19 @@ Nevada | 4`;
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
   // 'fm' (winning Fast Money, default 30 s). Each fades out at the end; falls back to the built-in fanfare.
-  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null }, r1: { buf: null, name: '', start: 0, len: 10, blob: null }, r2: { buf: null, name: '', start: 0, len: 10, blob: null }, r3: { buf: null, name: '', start: 0, len: 10, blob: null }, r4: { buf: null, name: '', start: 0, len: 10, blob: null }, r5: { buf: null, name: '', start: 0, len: 10, blob: null } };
+  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null }, r1: { buf: null, name: '', start: 0, len: 10, blob: null }, r2: { buf: null, name: '', start: 0, len: 10, blob: null }, r3: { buf: null, name: '', start: 0, len: 10, blob: null }, r4: { buf: null, name: '', start: 0, len: 10, blob: null }, r5: { buf: null, name: '', start: 0, len: 10, blob: null }, pre: { buf: null, name: '', start: 0, len: 180, blob: null } };
   let nowPlaying = null;
   const mdb = (mode, fn) => new Promise(res => { try { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => res(null);
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
     if (isBoard) return;
     loadBundled();
-    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5']) { const m = mus[k]; if (!m.blob || m.buf) continue;
+    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre']) { const m = mus[k]; if (!m.blob || m.buf) continue;
       try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
   }
   // Recordings that ship with the game: drop mp3/m4a/wav files in the "sounds" folder and list them in sounds/manifest.json.
   // Priority for every sound: a file uploaded in the Menu > a recording from the sounds folder > the built-in version.
-  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null, r1: null, r2: null, r3: null, r4: null, r5: null };
+  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null, r1: null, r2: null, r3: null, r4: null, r5: null, pre: null };
   let bundledTried = false;
   const effBuf = k => (mus[k] && mus[k].buf) || bundled[k] || null;
   async function loadBundled() {
@@ -693,12 +694,28 @@ Nevada | 4`;
       for (const k of Object.keys(bundled)) { const f = man[k]; if (!f) continue;
         // always check for the newest copy of each recording
         try { const rr = await fetch('sounds/' + f, { cache: 'no-cache' }); if (!rr.ok) continue; const ab = await rr.arrayBuffer(); bundled[k] = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) {} }
-      refreshMusicUI(); } catch (e) {}
+      refreshMusicUI(); startPrelude(); } catch (e) {}
   }
   function stopMusic() {
     const n = nowPlaying; if (!n) return; nowPlaying = null;
     try { n.g.gain.cancelScheduledValues(ac.currentTime); n.g.gain.setValueAtTime(n.g.gain.value, ac.currentTime); n.g.gain.linearRampToValueAtTime(0, ac.currentTime + .25); n.src.stop(ac.currentTime + .3); } catch (e) {}
+    try { updatePreStatus(); } catch (e) {}
   }
+  // Prelude: plays on the setup page and repeats (the chosen stretch of the file, up to 3 minutes) until Start is clicked.
+  // Browsers only allow sound after the first click/tap on the page, so it begins on that first touch.
+  function startPrelude(force) {
+    if (isBoard) return;
+    const m = mus.pre, buf = effBuf('pre'); if (!buf) return;
+    if (!force && (!$('setup') || $('setup').style.display !== 'flex')) return;
+    if (nowPlaying && nowPlaying.prelude && !force) return;
+    try { getAC(); stopMusic(); const t = ac.currentTime, a = Math.min(m.start || 0, Math.max(0, buf.duration - 1)), b = Math.min(buf.duration, a + Math.max(1, Math.min(180, m.len || 180))), src = ac.createBufferSource(), g = ac.createGain();
+      src.buffer = buf; src.loop = true; src.loopStart = a; src.loopEnd = b; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 1);
+      src.connect(g); g.connect(outNode()); src.start(t, a); nowPlaying = { src, g, prelude: true }; } catch (e) {}
+    updatePreStatus();
+  }
+  const preActive = () => !!(nowPlaying && nowPlaying.prelude);
+  function stopPrelude() { if (preActive()) { stopMusic(); updatePreStatus(); } }
+  function updatePreStatus() { const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('pre'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause prelude music' : '▶ Play prelude music'; }
   function playMusic(slot) {
     const m = mus[slot], buf = effBuf(slot); if (isBoard || !m || !buf) return false;
     try { getAC(); stopMusic(); const t = ac.currentTime, len = Math.max(2, m.len), src = ac.createBufferSource(), g = ac.createGain();
@@ -759,7 +776,7 @@ Nevada | 4`;
   window.__feudAudio = () => ac;   // read-only hook used for testing the master volume
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
-  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
+  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
   let tickAlt = false, clickBuf = null;
@@ -1145,7 +1162,7 @@ Nevada | 4`;
   if (isBoard && bc) { bc.postMessage({ t: 'hello' }); setTimeout(() => { if (!S) bc.postMessage({ t: 'hello' }); }, 1500); }
 
   // setup / questions / menu (host page only)
-  const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; };
+  const show = (id, on) => { $(id).style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) startPrelude(); else stopPrelude(); } };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function fillSetSel(sel) {
     const a = loadSets(), box = $('setSel'); box.innerHTML = '';
@@ -1194,8 +1211,9 @@ Nevada | 4`;
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
   $('menuBtn').onclick = () => { if (!S) return; $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
+  $('preToggle').onclick = () => { if (preActive()) stopPrelude(); else startPrelude(true); };
   // The music settings live on the setup page; from the Menu they open in their own window (same block, moved — not copied).
-  const musicBlock = $('musicBlock'), toHome = () => { $('musicHome').appendChild(musicBlock); show('musicModal', false); };
+  const musicBlock = $('musicBlock'), toHome = () => { $('musicHome').appendChild(musicBlock); show('musicModal', false); stopMusic(); };
   $('menuMusic').onclick = () => { $('musicSlot').appendChild(musicBlock); show('menu', false); show('musicModal', true); };
   $('musicDone').onclick = toHome;
   $('muteBtn').onclick = () => setMuted(!isMuted()); $('muteChk').onchange = () => setMuted($('muteChk').checked); $('muteChkSetup').onchange = () => setMuted($('muteChkSetup').checked);
@@ -1204,7 +1222,7 @@ Nevada | 4`;
   function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); show('menu', false); }
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
   $('testFmBtn').onclick = () => { $('startBtn').onclick(); if (S) skipToFM(0); };
-  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10 };
+  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5'], ['pre', 'Pre']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10, pre: 180 };
   (function injectMusicUI() {
     const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Song or recording (mp3, m4a, wav)</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
       + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds, up to 180)</label><input id="musicLen' + x + '" type="number" min="1" max="180" value="' + len + '" inputmode="numeric"></div></div></div>'
@@ -1214,7 +1232,7 @@ Nevada | 4`;
       + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
       + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
     $('musicOrder').innerHTML =
-        sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 and later winner song', 'R5', 10)
+        sec('🎬 Prelude music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 and later winner song', 'R5', 10)
       + sec('6 · Fallback song — used for any round above that has no song of its own', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + reactIntro + sec('8 · Fast Money: disappointed “aww” (low scores)', 'Aww', 3) + sec('9 · Fast Money: generous applause (middle scores)', 'Clap', 4) + sec('10 · Fast Money: loud cheering (high scores)', 'Cheer', 5)
@@ -1224,6 +1242,7 @@ Nevada | 4`;
     $('reactOn').onchange = $('reactLo').onchange = $('reactHi').onchange = save;
   })();
   function refreshMusicUI() {
+    updatePreStatus();
     SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
       if (m.nameEl) m.nameEl.textContent = m.blob ? '🎵 ' + m.name : bundled[k] ? '🎵 Comes with the game' : 'No file chosen';
       $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : (bundled[k] ? '🎵 Using the recording that comes with the game.' : ['aww', 'clap', 'cheer'].includes(k) ? 'No recording added — the built-in crowd sound plays instead.' : 'No song added yet — a built-in fanfare plays instead.');
@@ -1236,9 +1255,9 @@ Nevada | 4`;
     nat.parentNode.insertBefore(pick, nat.nextSibling); pick.querySelector('button').onclick = () => nat.click(); m.nameEl = pick.querySelector('.fname');
     const save = () => mdb('readwrite', st => st.put({ blob: m.blob, name: m.name, start: m.start, len: m.len }, k));
     $('musicFile' + x).onchange = async () => { const f = $('musicFile' + x).files[0]; if (!f) return; m.blob = f; m.name = f.name; m.buf = null; await decodeMusic();
-      if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); };
+      if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); if (k === 'pre') startPrelude(); };
     $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(180, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k])); if (m.blob) save(); refreshMusicUI(); };
-    $('musicTest' + x).onclick = async () => { await decodeMusic(); if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
+    $('musicTest' + x).onclick = async () => { await decodeMusic(); if (k === 'pre') { startPrelude(true); return; } if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
     $('musicStop' + x).onclick = () => { stopMusic(); stopReact(); };
     $('musicRemove' + x).onclick = () => { stopMusic(); Object.assign(m, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete(k)); refreshMusicUI(); };
   });
