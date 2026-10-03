@@ -131,6 +131,7 @@
   .modal .note { font-size: 13px; color: #55608f; line-height: 1.4; }
   .mb { border: 0; border-radius: 99px; padding: 11px 22px; font-family: var(--font); font-weight: 900; font-size: 16px; background: #e6eaff; color: var(--ink); cursor: pointer; }
   .fmrow .ans { display: none; flex-wrap: wrap; gap: 5px; margin-top: 2px; } .fmrow .ac { border: 0; border-radius: 99px; padding: 4px 10px; font-family: var(--font); font-weight: 700; font-size: 12px; background: #e6eaff; color: var(--ink); cursor: pointer; } .fmrow .ac.used { opacity: .4; text-decoration: line-through; cursor: default; }
+  .fpick { display: flex; align-items: center; gap: 10px; border: 2px solid #c9d2f5; border-radius: 12px; padding: 5px 8px; background: #fff; min-width: 0; } .fpick .mb { padding: 6px 14px; font-size: 14px; white-space: nowrap; } .fpick .fname { font-size: 15px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fmrow { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; } .fmrow label { font-size: 15px; } .fmrow .pv { font-size: 13px; color: #55608f; min-height: 16px; }
   .mb.go { background: #35c97a; color: #fff; } .mb.gold { background: var(--gold); } .mb.bad { background: var(--red); color: #fff; }
 </style>
@@ -1227,10 +1228,15 @@ Nevada | 4`;
   })();
   function refreshMusicUI() {
     SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
+      if (m.nameEl) m.nameEl.textContent = m.blob ? '🎵 ' + m.name : bundled[k] ? '🎵 Comes with the game' : 'No file chosen';
       $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : (bundled[k] ? '🎵 Using the recording that comes with the game.' : ['aww', 'clap', 'cheer'].includes(k) ? 'No recording added — the built-in crowd sound plays instead.' : 'No song added yet — a built-in fanfare plays instead.');
       $('musicStart' + x).value = m.start; $('musicLen' + x).value = m.len; });
   }
   SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
+    // Browsers never refill a file box, so hide it and show our own field with the saved song's name instead.
+    const nat = $('musicFile' + x); nat.style.display = 'none';
+    const pick = document.createElement('div'); pick.className = 'fpick'; pick.innerHTML = '<button type="button" class="mb">Choose file…</button><span class="fname"></span>';
+    nat.parentNode.insertBefore(pick, nat.nextSibling); pick.querySelector('button').onclick = () => nat.click(); m.nameEl = pick.querySelector('.fname');
     const save = () => mdb('readwrite', st => st.put({ blob: m.blob, name: m.name, start: m.start, len: m.len }, k));
     $('musicFile' + x).onchange = async () => { const f = $('musicFile' + x).files[0]; if (!f) return; m.blob = f; m.name = f.name; m.buf = null; await decodeMusic();
       if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); };
