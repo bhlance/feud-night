@@ -81,6 +81,9 @@
   .nums { display: flex; flex-wrap: wrap; gap: .8vh .8vw; }
 
   /* ---- flash X ---- */
+  #winFlash { position: fixed; inset: 0; z-index: 57; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 3vw; pointer-events: none; font-family: var(--big); color: #fff; line-height: 1.05; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 0 2vh #ffc93c, 0 0 5vh #ff8a3c, 0 .8vh 0 rgba(0,0,0,.55); animation: winBlink 1s steps(1) infinite; }
+  #winFlashText { display: inline-block; max-width: 94vw; }
+  @keyframes winBlink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
   #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 56; pointer-events: none; }
   #confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 55; pointer-events: none; }
   #flash { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center; pointer-events: none; background: rgba(0,0,0,.35); }
@@ -159,6 +162,7 @@
 <button id="peekBtn">👁 Hold to peek</button>
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
+<div id="winFlash"><span id="winFlashText"></span></div>
 <div id="flash"><div class="xs"></div></div>
 <div class="wait" id="wait"><div><img src="logo-white.png?v=4" alt="" style="height:24vh;display:block;margin:0 auto 2vh">FHE FEUD<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host to start the game…</span></div></div>
 
@@ -256,7 +260,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 27';
+  const GAME_VERSION = '2026-10-03 · build 28';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -814,10 +818,10 @@ Nevada | 4`;
     S.pi[0] += Math.max(1, S.fp[0]); S.pi[1] += Math.max(1, S.fp[1]);
     // This round decided the game (a team reached the target)? Play the game-winner's song and fireworks right now.
     // Otherwise play this round's own song.
-    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) { gameWinSound(); fireworks(Math.min(30, mus.game.len)); } else roundSound(S.round);
+    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) { gameWinSound(); fireworks(Math.min(30, mus.game.len), S.teams[0].score > S.teams[1].score ? S.teams[0].name : S.teams[1].name); } else roundSound(S.round);
   }
-  function fireworks(secs) { S.fire = { k: ((S.fire && S.fire.k) || 0) + 1, secs }; }
-  // Clock: 5 seconds per answer in the face-off, 15 seconds per answer once a team is playing.
+  function fireworks(secs, name) { S.fire = { k: ((S.fire && S.fire.k) || 0) + 1, secs, name: name || '' }; }
+  // Clock: 5 seconds per answer in the face-off, 10 seconds per answer once a team is playing.
   function startClock(secs) { S.tm = { secs, end: 0, running: false, paused: false, expired: false }; }  // 'ready' until the MC taps Start
   // Face-off: teams trade answers (the next player each time) until one is on the board.
   // A #1 answer wins control at once; otherwise the other team gets one chance to beat it.
@@ -832,7 +836,7 @@ Nevada | 4`;
   function miss() {
     const p = S.phase;
     if (p === 'fo') { flash(1); sBuzz(); foAnswer(null); }
-    else if (p === 'play') { S.strikes++; flash(S.strikes); sBuzz(); if (S.strikes >= 3) S.phase = 'steal'; startClock(15); }
+    else if (p === 'play') { S.strikes++; flash(S.strikes); sBuzz(); if (S.strikes >= 3) S.phase = 'steal'; startClock(10); }
     else if (p === 'steal') { flash(1); sBuzz(); endRound(S.ctrl); }
   }
   function onTile(i) {
@@ -841,7 +845,7 @@ Nevada | 4`;
     act(() => {
       reveal(i);
       if (p === 'fo') foAnswer(i);
-      else if (p === 'play') { if (allRevealed()) endRound(S.ctrl); else startClock(15); }
+      else if (p === 'play') { if (allRevealed()) endRound(S.ctrl); else startClock(10); }
       else endRound(other(S.ctrl));
     });
   }
@@ -852,7 +856,7 @@ Nevada | 4`;
     else if (a === 'x') act(() => miss());
     else if (a === 'start') { const t = S.tm; if (!t || t.running) return; t.running = true; t.paused = false; t.expired = false; t.end = Date.now() + t.secs * 1000; commit(); }
     else if (a === 'pause') { const t = S.tm; if (!t || !t.running || t.expired) return; if (t.paused) { t.end = Date.now() + t.rem; t.paused = false; } else { t.rem = Math.max(0, t.end - Date.now()); t.paused = true; } commit(); }
-    else if (a === 'play' || a === 'pass') act(() => { S.ctrl = a === 'play' ? S.fw : other(S.fw); S.strikes = 0; S.phase = 'play'; if (allRevealed()) endRound(S.ctrl); else startClock(15); });
+    else if (a === 'play' || a === 'pass') act(() => { S.ctrl = a === 'play' ? S.fw : other(S.fw); S.strikes = 0; S.phase = 'play'; if (allRevealed()) endRound(S.ctrl); else startClock(10); });
     else if (a === 'revealnext') act(() => {
       const left = S.q.answers.map((x, i) => ({ x, i })).filter(o => !o.x.revealed && !o.x.shown).sort((p, q) => p.x.pts - q.x.pts || q.i - p.i);
       if (left.length) { left[0].x.shown = true; sDing(); }
@@ -974,6 +978,15 @@ Nevada | 4`;
       if (pieces.length || now < endAt) confRaf = requestAnimationFrame(step); else cctx.clearRect(0, 0, cfx.width, cfx.height);
     })(last);
   }
+  // The winning team's name, huge, flashing on and off for as long as the fireworks last (shrinks to fit long names).
+  let winFlashTimer = 0;
+  function flashWinner(name, secs) {
+    const el = $('winFlash'), t = $('winFlashText'); t.textContent = name; el.style.display = 'flex';
+    let px = innerHeight * .34; el.style.fontSize = px + 'px'; let guard = 0;
+    // shrink only until the NAME fits: no word wider than the screen, and the (wrapped) name no taller than ~80% of it
+    while ((t.scrollWidth > t.clientWidth + 1 || t.offsetHeight > innerHeight * .8) && px > 18 && guard++ < 70) { px *= .94; el.style.fontSize = px + 'px'; }
+    clearTimeout(winFlashTimer); winFlashTimer = setTimeout(() => { el.style.display = 'none'; }, secs * 1000);
+  }
   // ---------------- fireworks ----------------
   const ffx = $('fireworks'), fctx = ffx.getContext('2d'); let fireRaf = 0, lastFire = 0, fireInit = false;
   function startFireworks(secs) {
@@ -1034,7 +1047,7 @@ Nevada | 4`;
     if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; }
     if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; startConfetti(S.cele.secs || 12); }
     if (!fireInit) { fireInit = true; lastFire = S.fire ? S.fire.k : 0; }
-    if (S.fire && S.fire.k !== lastFire) { lastFire = S.fire.k; startFireworks(S.fire.secs || 10); }
+    if (S.fire && S.fire.k !== lastFire) { lastFire = S.fire.k; startFireworks(S.fire.secs || 10); if (S.fire.name) flashWinner(S.fire.name, S.fire.secs || 10); }
     // flash
     if (!flashInit) { flashInit = true; lastFlash = S.flash ? S.flash.k : 0; }
     if (S.flash && S.flash.k !== lastFlash) { lastFlash = S.flash.k; if (S.flash.n) {
@@ -1084,8 +1097,8 @@ Nevada | 4`;
     if (p === 'fo') { const who = S.turn, hint = S.best ? ' <b>' + tn(S.best.team) + '</b> has the #' + (S.best.rank + 1) + ' answer — beat it to take control.' : '';
       return say('<b>' + tn(who) + '</b> — ' + pname(who) + ' answers (5 sec once you start the clock).' + hint + ' Tap the matching answer, or:') + pz + b('x', '✕ Not on the board', 'bad') + un; }
     if (p === 'playpass') return say('<b>' + tn(S.fw) + '</b> wins the face-off! Do they play or pass?') + b('play', '▶ PLAY', 'go') + b('pass', 'PASS to ' + tn(other(S.fw)), 'gold') + un;
-    if (p === 'play') return say('<b>' + tn(S.ctrl) + '</b> is playing — ' + S.strikes + ' strike' + (S.strikes === 1 ? '' : 's') + '. 15 seconds per answer — start the clock when they begin. Tap each answer they get.') + pz + b('x', '✕ STRIKE', 'bad') + un;
-    if (p === 'steal') return say('<b>STEAL!</b> ' + tn(other(S.ctrl)) + ' gets one guess at any remaining answer (15 sec). Tap it if they get one:') + pz + b('x', '✕ Missed', 'bad') + un;
+    if (p === 'play') return say('<b>' + tn(S.ctrl) + '</b> is playing — ' + S.strikes + ' strike' + (S.strikes === 1 ? '' : 's') + '. 10 seconds per answer — start the clock when they begin. Tap each answer they get.') + pz + b('x', '✕ STRIKE', 'bad') + un;
+    if (p === 'steal') return say('<b>STEAL!</b> ' + tn(other(S.ctrl)) + ' gets one guess at any remaining answer (10 sec). Tap it if they get one:') + pz + b('x', '✕ Missed', 'bad') + un;
     if (p === 'roundEnd') return say('<b>' + tn(S.roundWinner) + '</b> wins the round and <b>' + S.awarded + '</b> points!') + (function () { const n = S.q.answers.filter(x => !x.revealed && !x.shown).length; return n ? b('revealnext', 'Reveal next answer (' + n + ' left)', 'gold') : ''; })() + b('next', 'Next ▶', 'go') + un;
     if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money — Player 2 must be out of earshot.') + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
     if (p === 'fm') {
