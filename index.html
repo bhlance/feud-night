@@ -378,9 +378,15 @@ Sleep | 6`;
 
   // ---------------- audio ----------------
   let ac = null;
+  function getAC() {
+    if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); } catch (e) { ac = new (window.AudioContext || window.webkitAudioContext)(); } }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  if (!isBoard) ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { try { getAC(); } catch (e) {} }, { capture: true, passive: true }));
   function tone(f, d, type, v, when) {
     if (isBoard) return;
-    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
+    try { getAC();
       const t = ac.currentTime + (when || 0), o = ac.createOscillator(), g = ac.createGain();
       o.type = type || 'sine'; o.frequency.value = f; g.gain.setValueAtTime(v || .2, t); g.gain.exponentialRampToValueAtTime(.001, t + d);
       o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + d + .02); } catch (e) {}
@@ -388,36 +394,34 @@ Sleep | 6`;
   // Correct answer: three bright bell "dings" in a row.
   function bell(f, when, vol) {
     if (isBoard) return;
-    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume();
+    try { getAC();
       const t = ac.currentTime + when;
       [[1, 1], [2.76, .35], [5.4, .15]].forEach(([m, v]) => {
         const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = f * m;
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * v, t + .005); g.gain.exponentialRampToValueAtTime(.001, t + .55);
-        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .6); }); } catch (e) {}
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol * v, t + .002); g.gain.exponentialRampToValueAtTime(.001, t + .4);
+        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .45); }); } catch (e) {}
   }
-  const sDing = () => { bell(1175, 0, .32); bell(1175, .26, .32); bell(1175, .52, .36); };
-  // Strike: low, discordant, raspy electronic buzzer — heavy square waves tuned against each other
-  // (a clashing tritone plus a close beating pair), gritty rasp, no bright top end.
+  const sDing = () => { bell(1319, 0, .34); bell(1319, .17, .34); bell(1319, .34, .38); };
+  // Strike: a loud, shrill, irritating electronic buzz — high clashing square/saw tones beating against each
+  // other, fast tremolo, hard distortion, no bass. Sharp start, abrupt stop.
   function buildBuzz(c, dest, t) {
-    const dur = .95, out = c.createGain();
-    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.7, t + .004); out.gain.setValueAtTime(.7, t + dur - .06); out.gain.linearRampToValueAtTime(0, t + dur);
-    const dist = c.createWaveShaper(), k = 14, n = 1024, curve = new Float32Array(n);
-    for (let i = 0; i < n; i++) { const x = i * 2 / (n - 1) - 1; curve[i] = Math.tanh(k * x) * .85; }
+    const dur = .9, out = c.createGain();
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(.46, t + .003); out.gain.setValueAtTime(.46, t + dur - .02); out.gain.linearRampToValueAtTime(0, t + dur);
+    const dist = c.createWaveShaper(), k = 30, n = 1024, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) { const x = i * 2 / (n - 1) - 1; curve[i] = Math.tanh(k * x) * .8; }
     dist.curve = curve; dist.oversample = '4x';
-    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 1100; lp.Q.value = 2.5;   // keeps it low and growly
-    const am = c.createGain(); am.gain.value = .62;                                                          // raspy flutter
-    const lfo = c.createOscillator(), lg = c.createGain(); lfo.type = 'square'; lfo.frequency.value = 34; lg.gain.value = .38; lfo.connect(lg); lg.connect(am.gain);
-    const bus = c.createGain(); bus.connect(dist); dist.connect(lp); lp.connect(am); am.connect(out); out.connect(dest);
-    [['square', 62, .7], ['square', 66, .7], ['square', 88, .6], ['sawtooth', 124, .35], ['square', 41, .55], ['sawtooth', 93, .3]].forEach(([ty, f, v]) => {
-      const o = c.createOscillator(), g = c.createGain(); o.type = ty; o.frequency.setValueAtTime(f, t); o.frequency.linearRampToValueAtTime(f * .94, t + dur); g.gain.value = v; o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + .03); });
-    const nb = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate), d = nb.getChannelData(0);
-    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
-    const ns = c.createBufferSource(), nf = c.createBiquadFilter(), ng = c.createGain(); ns.buffer = nb; nf.type = 'lowpass'; nf.frequency.value = 900; ng.gain.value = .22; ns.connect(nf); nf.connect(ng); ng.connect(out); ns.start(t);
+    const hp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 380; hp.Q.value = .7;         // no bass at all
+    const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 7500;
+    const am = c.createGain(); am.gain.value = .6;                                                              // shrill flutter
+    const lfo = c.createOscillator(), lg = c.createGain(); lfo.type = 'square'; lfo.frequency.value = 47; lg.gain.value = .4; lfo.connect(lg); lg.connect(am.gain);
+    const bus = c.createGain(); bus.connect(dist); dist.connect(hp); hp.connect(lp); lp.connect(am); am.connect(out); out.connect(dest);
+    [['square', 520, .55], ['square', 553, .55], ['sawtooth', 780, .45], ['sawtooth', 1046, .4], ['square', 1111, .35], ['sawtooth', 1560, .22]].forEach(([ty, f, v]) => {
+      const o = c.createOscillator(), g = c.createGain(); o.type = ty; o.frequency.value = f; g.gain.value = v; o.connect(g); g.connect(bus); o.start(t); o.stop(t + dur + .03); });
     lfo.start(t); lfo.stop(t + dur + .03);
   }
   function sBuzz() {
     if (isBoard) return;
-    try { ac = ac || new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); buildBuzz(ac, ac.destination, ac.currentTime); } catch (e) {}
+    try { getAC(); buildBuzz(ac, ac.destination, ac.currentTime); } catch (e) {}
   }
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
@@ -548,7 +552,7 @@ Sleep | 6`;
   for (let i = 0; i < 8; i++) {
     const t = document.createElement('div'); t.className = 'tile empty';
     t.innerHTML = '<div class="in"><div class="f"><span class="no">' + (i + 1) + '</span><span class="pk"></span></div><div class="b"><span class="tx"></span><span class="pt"></span></div></div>';
-    t.onclick = () => onTile(i); $('board').appendChild(t); tiles.push(t);
+    t.addEventListener('pointerdown', e => { e.preventDefault(); onTile(i); }); $('board').appendChild(t); tiles.push(t);
   }
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
@@ -619,7 +623,9 @@ Sleep | 6`;
   }
 
   // ---------------- wiring ----------------
-  $('ctl').onclick = e => { const el = e.target.closest('[data-act]'); if (el && !el.disabled) doAct(el.dataset.act, el.dataset.v); };
+  let lastPD = 0;   // act on the press itself (no waiting for the finger/mouse to lift); keep click for keyboard use
+  $('ctl').addEventListener('pointerdown', e => { const el = e.target.closest('[data-act]'); if (el && !el.disabled) { lastPD = Date.now(); doAct(el.dataset.act, el.dataset.v); } });
+  $('ctl').onclick = e => { if (Date.now() - lastPD < 700) return; const el = e.target.closest('[data-act]'); if (el && !el.disabled) doAct(el.dataset.act, el.dataset.v); };
   const pk = (on) => () => { if (!S) return; peek = on; render(); };
   document.addEventListener('keydown', e => { if (isBoard || !S || e.code !== 'Space' || /INPUT|TEXTAREA|BUTTON/.test((e.target.tagName || ''))) return; if (['fo', 'play', 'steal'].includes(S.phase) && S.tm) { e.preventDefault(); doAct(S.tm.running ? 'pause' : 'start'); } });
   $('peekBtn').addEventListener('pointerdown', pk(true)); ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => $('peekBtn').addEventListener(ev, pk(false)));
