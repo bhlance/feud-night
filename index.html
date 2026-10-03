@@ -518,6 +518,15 @@ Sleep | 6`;
   const fmWinSound = () => { if (!playMusic('fm')) sWin(); };
   if (!isBoard) ['win', 'game', 'fm'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
+  // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
+  let tickAlt = false, clickBuf = null;
+  function sClockTick() {
+    if (isBoard) return;
+    try { getAC(); tickAlt = !tickAlt; const t = ac.currentTime;
+      if (!clickBuf) { clickBuf = ac.createBuffer(1, Math.ceil(ac.sampleRate * .03), ac.sampleRate); const d = clickBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 3); }
+      const ns = ac.createBufferSource(), bp = ac.createBiquadFilter(), ng = ac.createGain(); ns.buffer = clickBuf; bp.type = 'bandpass'; bp.frequency.value = tickAlt ? 3200 : 2300; bp.Q.value = 1.2; ng.gain.value = .9; ns.connect(bp); bp.connect(ng); ng.connect(ac.destination); ns.start(t);
+      const o = ac.createOscillator(), g = ac.createGain(); o.type = 'sine'; o.frequency.value = tickAlt ? 1500 : 1050; g.gain.setValueAtTime(.22, t); g.gain.exponentialRampToValueAtTime(.001, t + .06); o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + .07); } catch (e) {}
+  }
   const sTick = () => tone(1200, .06, 'square', .08);
 
   // ---------------- game logic ----------------
@@ -588,7 +597,7 @@ Sleep | 6`;
       if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; gameWinSound(); } else nextRound();
     });
     else if (a === 'fmgo') act(() => fmSetup());
-    else if (a === 'fmbegin') act(() => { S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
+    else if (a === 'fmbegin') act(() => { S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
     else if (a === 'fmpass') act(() => { if (fmPending(S.fm).length > 1) fmAdvance(S.fm, true); });
     else if (a === 'fmrev' || a === 'fmbuzz') act(() => {
@@ -670,7 +679,7 @@ Sleep | 6`;
       const f = S.fm, tl = fmTimeLeft(), el = $('timer');
       if (el) { el.textContent = tl; el.classList.toggle('low', f.running && tl <= 5); }
       if (f.running && !isBoard) {
-        if (tl <= 5 && tl > 0 && tl !== f._lt) sTick(); f._lt = tl;
+        if (tl > 0 && tl !== f._lt) sClockTick(); f._lt = tl;
         if (Date.now() >= f.end) act(() => { sBuzz(); flash(1); fmFinishPlayer(); });
       }
     } else if (S.tm) {
