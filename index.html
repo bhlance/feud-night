@@ -44,7 +44,7 @@
   #stage { flex: 1; min-height: 0; display: flex; gap: 2vw; align-items: stretch; }
   #board { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(4, 1fr); grid-auto-flow: column; gap: 1.2vh 1.4vw; min-height: 0; padding: 1.2vh 1.4vw; background: #020a33; border-radius: 2vh; border: .5vh solid #3a56c9; }
   .tile { perspective: 1000px; position: relative; min-height: 0; }
-  .tile .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s; }
+  .tile .in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .3s; }
   .tile.flip .in { transform: rotateX(180deg); }
   .tile .f, .tile .b { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 1.2vh; display: flex; align-items: center; justify-content: center; }
   .tile .f { background: linear-gradient(var(--tile1), var(--tile2)); border: .3vh solid #9fb8ff; flex-direction: column; }
@@ -175,6 +175,8 @@
     <button class="mb go" id="scoreSave">Save scores</button>
     <button class="mb" id="testDing">🔔 Test correct ding</button>
     <button class="mb" id="testBuzz">🔊 Test strike buzzer</button>
+    <label style="display:flex;gap:10px;align-items:center;font-weight:700;width:100%"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
+    <div class="note" id="latNote" style="width:100%"></div>
     <button class="mb gold" id="openBoard">📺 Open board window</button>
     <button class="mb" id="menuSheet">🖨 MC cheat sheet</button>
     <button class="mb" id="menuQ">✏️ Edit questions</button>
@@ -395,8 +397,20 @@ Sleep | 6`;
   function getAC() {
     if (!ac) { try { ac = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); } catch (e) { ac = new (window.AudioContext || window.webkitAudioContext)(); } }
     if (ac.state === 'suspended') ac.resume();
+    startKeepAlive();
     return ac;
   }
+  // Inaudible (about -62 dB) looping hiss that keeps the laptop's audio output / TV link from going to sleep.
+  let keepNode = null;
+  const keepOn = () => { try { return localStorage.getItem('feud.keepawake') !== '0'; } catch (e) { return true; } };
+  function startKeepAlive() {
+    if (keepNode || isBoard || !ac || !keepOn()) return;
+    try { const b = ac.createBuffer(1, ac.sampleRate, ac.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * .0008;
+      const n = ac.createBufferSource(); n.buffer = b; n.loop = true; n.connect(ac.destination); n.start(); keepNode = n; } catch (e) {}
+  }
+  function stopKeepAlive() { try { if (keepNode) keepNode.stop(); } catch (e) {} keepNode = null; }
+  function latencyText() { if (!ac) return 'Tap a test button to measure this laptop’s audio delay.'; const ms = Math.round(((ac.baseLatency || 0) + (ac.outputLatency || 0)) * 1000);
+    return 'This browser reports about ' + ms + ' ms of audio delay' + (ac.outputLatency === undefined ? ' (before the TV/speakers add theirs).' : ' including the output device.') + (ms > 120 ? ' That is high — try the laptop speakers or a wired speaker.' : ''); }
   if (!isBoard) ['pointerdown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, () => { try { getAC(); decodeMusic(); } catch (e) {} }, { capture: true, passive: true }));
   function tone(f, d, type, v, when) {
     if (isBoard) return;
@@ -722,7 +736,7 @@ Sleep | 6`;
     w.document.close();
   }
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
-  $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto === true; $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
+  $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
   function refreshMusicUI() {
     [['win', ''], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
@@ -738,7 +752,9 @@ Sleep | 6`;
     $('musicStop' + x).onclick = stopMusic;
     $('musicRemove' + x).onclick = () => { stopMusic(); Object.assign(m, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete(k)); refreshMusicUI(); };
   });
-  $('testDing').onclick = () => sDing(); $('testBuzz').onclick = () => sBuzz();
+  $('testDing').onclick = () => { sDing(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
+  $('testBuzz').onclick = () => { sBuzz(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
+  $('keepAwake').onchange = () => { try { localStorage.setItem('feud.keepawake', $('keepAwake').checked ? '1' : '0'); } catch (e) {} if ($('keepAwake').checked) { getAC(); startKeepAlive(); } else stopKeepAlive(); };
   $('autoX').onchange = () => { if (S) { S.auto = $('autoX').checked; commit(); } };
   $('scoreSave').onclick = () => act(() => { S.teams[0].score = parseInt($('s0').value, 10) || 0; S.teams[1].score = parseInt($('s1').value, 10) || 0; show('menu', false); });
   // Opens the audience board in its own WINDOW (not a tab) so it can be dragged to the TV.
