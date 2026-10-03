@@ -91,6 +91,7 @@
   #fm td { background: rgba(255,255,255,.1); padding: .9vh 1vw; font-weight: 800; text-transform: uppercase; }
   #fm td.a { width: 32%; text-align: left; border-radius: 1vh 0 0 1vh; } #fm td.c { width: 36%; text-align: center; font-size: .6em; opacity: .85; text-transform: none; }
   #fm td.d { width: 32%; text-align: right; border-radius: 0 1vh 1vh 0; }
+  #fm tr.cur td { background: rgba(255,201,60,.28); }
   #fm td .p.h { background: rgba(255,255,255,.25); color: rgba(255,255,255,.7); }
   #fm td .p { display: inline-block; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; margin: 0 .5vw; font-family: var(--big); }
   #fm .tot { font-family: var(--big); font-size: clamp(34px, 9vh, 100px); color: var(--gold); }
@@ -620,9 +621,9 @@ Sleep | 6`;
     else if (a === 'fmrev') act(() => {
       const f = S.fm, who = f.pl - 1, r = f.rev[who]; if (r >= f.n) return;
       f.stage = f.stage || [0, 0];
-      if (f.stage[who] === 0) { f.stage[who] = 1; return; }           // 1st tap: show what they said (no points, no sound)
+      if (f.stage[who] < 2) { f.stage[who]++; return; }                // 1st press: the question appears; 2nd: what they said (no points, no sound)
       const e = f.p[who][r] || { text: '— no answer —', pts: 0, rank: null };
-      f.stage[who] = 0; f.rev[who]++;                                   // 2nd tap: show the points, then the sound
+      f.stage[who] = 0; f.rev[who]++;                                   // 3rd press: the points, then the sound; the next press starts the next question
       if (e.pts > 0) sDing(); else { flash(1); sBuzz(); }
       fmCheckWin();
       if (f.pl === 2 && f.rev[1] >= f.n) { f.done = true; S.phase = 'fmResult'; }
@@ -767,10 +768,13 @@ Sleep | 6`;
     } else {
       let h = '<div class="ttl">FAST MONEY — ' + S.fmTarget + ' TO WIN</div><table><tr><td class="a" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 1</td><td class="c" style="background:none"></td><td class="d" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 2</td></tr>';
       const stg = f.stage || [0, 0];
+      const pt = (e, full) => '<span class="p' + (full ? '' : ' h') + '">' + (full ? e.pts : '?') + '</span>';
       for (let r = 0; r < f.n; r++) { const a = f.p[0][r], b = f.p[1][r];
-        const full1 = r < f.rev[0], part1 = r === f.rev[0] && stg[0] === 1, full2 = r < f.rev[1], part2 = r === f.rev[1] && stg[1] === 1;
-        const pt = (e, full) => '<span class="p' + (full ? '' : ' h') + '">' + (full ? e.pts : '?') + '</span>';
-        h += '<tr><td class="a">' + ((full1 || part1) && a ? a.text + pt(a, full1) : '&nbsp;') + '</td><td class="c">' + f.qs[r].text.replace(/^name\s+/i, '') + '</td><td class="d">' + ((full2 || part2) && b ? pt(b, full2) + b.text : '&nbsp;') + '</td></tr>'; }
+        const p1Now = S.phase === 'fmReveal' && f.pl === 1 && r === f.rev[0], p2Now = S.phase === 'fmReveal' && f.pl === 2 && r === f.rev[1];
+        const full1 = r < f.rev[0], part1 = p1Now && stg[0] >= 2, full2 = r < f.rev[1], part2 = p2Now && stg[1] >= 2;
+        const qShown = full1 || (p1Now && stg[0] >= 1) || f.rev[0] >= f.n;   // a question is on screen once it has been asked (all five stay up once Player 1 is done)
+        const cur = (p1Now && stg[0] >= 1) || p2Now;
+        h += '<tr' + (cur ? ' class="cur"' : '') + '><td class="a">' + ((full1 || part1) && a ? (a.text || '') + pt(a, full1) : '&nbsp;') + '</td><td class="c">' + (qShown ? f.qs[r].text.replace(/^name\s+/i, '') : '&nbsp;') + '</td><td class="d">' + ((full2 || part2) && b ? pt(b, full2) + (b.text || '') : '&nbsp;') + '</td></tr>'; }
       h += '</table><div class="tot">TOTAL: ' + fmTotal() + '</div>';
       if (f.done) h += '<div class="verdict">' + (fmTotal() >= S.fmTarget ? '🎉 ' + tn(f.win) + ' wins it all!' : 'So close! They needed ' + (S.fmTarget - fmTotal()) + ' more.') + '</div>';
       el.innerHTML = h; fitFM();
@@ -798,8 +802,11 @@ Sleep | 6`;
     if (p === 'fmEntry') { const f = S.fm; return say('<b>Player ' + f.pl + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
       const win = f.won ? '🎉 <b>' + fmTotal() + ' points — target reached!</b> ' : '';
-      if (r < f.n) { const e = f.p[who][r] || { text: '— no answer —', pts: 0 }, st = (f.stage || [0, 0])[who];
-        return say(win + '<b>Player ' + f.pl + ' — Q' + (r + 1) + '.</b> ' + (st === 0 ? (e.text ? 'Tap to show what they said.' : 'No answer was given — tap to show the empty slot.') : (e.text ? 'Their answer is up. ' : 'Nothing to show. ') + 'Tap again for the points — ' + (e.pts > 0 ? 'cha-ching!' : 'that one is a strike.')) + (priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + e.text + ', ' + e.pts + ')</i>' : '')) + b('fmrev', st === 0 ? 'Show Q' + (r + 1) + ' answer' : 'Show Q' + (r + 1) + ' points', 'gold') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
+      if (r < f.n) { const e = f.p[who][r] || { text: '', pts: 0 }, st = (f.stage || [0, 0])[who];
+        const hint = priv ? ' <i>(Typed: ' + (e.typed || '—') + ' → ' + (e.text || '—') + ', ' + e.pts + ')</i>' : '';
+        const msg = st === 0 ? 'Tap to put <b>Q' + (r + 1) + '</b> on the screen, then read the question again.' : st === 1 ? 'Question is up. Tap to show what they said' + (e.text ? '.' : ' (nothing — an empty slot).') : (e.text ? 'Their answer is up. ' : 'Empty slot is up. ') + 'Tap for the points — ' + (e.pts > 0 ? 'cha-ching!' : 'that one is a strike.');
+        const label = st === 0 ? 'Show Q' + (r + 1) + ' question' : st === 1 ? 'Show Q' + (r + 1) + ' answer' : 'Show Q' + (r + 1) + ' points';
+        return say(win + '<b>Player ' + f.pl + '.</b> ' + msg + hint) + b('fmrev', label, 'gold') + (f.won ? b('fmrest', 'Reveal remaining answers', 'go') : '') + un; }
       if (f.won) return say(win + 'All of Player ' + f.pl + '\'s answers are up.') + b('finishfm', '🏁 Finish Fast Money', 'go') + (f.pl === 1 ? b('fmnext', 'Play Player 2 anyway', 'ghost') : '') + un;
       return say('<b>Player ' + f.pl + ' scored ' + fmTotal() + '.</b> Now bring in Player 2 — they haven\'t heard any of these answers.') + b('fmnext', '▶ Bring in Player 2', 'go') + un; }
     if (p === 'fmResult') { const f = S.fm; return say('That\'s Fast Money! Final total: <b>' + fmTotal() + '</b>.') + b('again2', '← Back', 'ghost') + b('newgame', 'New game', 'go') + un; }
