@@ -150,6 +150,7 @@
     <button class="mb gold" id="resumeBtn" style="display:none">↩ Resume saved game</button>
     <button class="mb" id="editQBtn">✏️ Edit questions</button>
     <button class="mb" id="sheetBtn">🖨 Print MC cheat sheet</button>
+    <button class="mb" id="testFmBtn">⚡ Test: jump to Fast Money</button>
   </div>
   <div class="note">Tip for a TV: click <b>☰ Menu → Open board window</b> — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
 </div></div>
@@ -188,6 +189,9 @@
     <button class="mb bad" id="menuNew">New game…</button>
     <button class="mb" id="menuClose">Close</button>
   </div>
+  <h3>⚡ Skip to Fast Money (for testing)</h3>
+  <div class="note">Jumps straight to the Fast Money round, as if this team had just won the game. Undo brings you back.</div>
+  <div class="btns"><button class="mb gold" id="skipFm0"></button><button class="mb gold" id="skipFm1"></button></div>
   <details>
     <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music</summary>
     <div class="note" style="margin:6px 0">Pick songs from your laptop. They stay on this laptop only, and fade out at the end. Without a song, a built-in fanfare plays.</div>
@@ -764,8 +768,11 @@ Sleep | 6`;
     w.document.close();
   }
   $('sheetBtn').onclick = sheet; $('menuSheet').onclick = sheet;
-  $('menuBtn').onclick = () => { if (!S) return; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
+  $('menuBtn').onclick = () => { if (!S) return; $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true; $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText(); $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score; $('menuNote').textContent = boardOpen ? 'Board window is connected — answers show privately on this screen.' : ''; show('menu', true); };
   $('menuClose').onclick = () => show('menu', false);
+  function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); show('menu', false); }
+  $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
+  $('testFmBtn').onclick = () => { $('startBtn').onclick(); if (S) skipToFM(0); };
   function refreshMusicUI() {
     [['win', ''], ['game', 'Game'], ['fm', 'Fm']].forEach(([k, x]) => { const m = mus[k];
       $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : 'No song added yet — a built-in fanfare plays instead.';
