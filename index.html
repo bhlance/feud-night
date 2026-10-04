@@ -147,7 +147,7 @@
   body.board .team .sc { font-size: clamp(44px, 9.6vh, 124px); }
   body.board .team.ctrl::after { font-size: clamp(12px, 2.2vh, 26px); top: -2vh; }
   body.board #mid { gap: 1.6vw; min-width: 22vw; }
-  body.board #brand { font-size: clamp(20px, 4.8vh, 62px); white-space: nowrap; }
+  body.board #brand { font-size: clamp(26px, 6.6vh, 84px); white-space: nowrap; }
   body.board #mid .rd { font-size: clamp(14px, 2.7vh, 32px); }
   body.board #mid .pot { font-size: clamp(34px, 8.2vh, 100px); }
   body.board #multBadge { font-size: clamp(12px, 2.6vh, 30px); padding: .3vh 1.4vw; }
@@ -173,7 +173,7 @@
 <div id="app">
   <div id="top">
     <div class="team t0" id="tm0"><span class="nm"></span><span class="sc">0</span></div>
-    <div id="mid"><img id="logo" src="logo-white.png?v=4" alt=""><div id="midText"><div id="brand">Family Home Evening</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div></div>
+    <div id="mid"><img id="logo" src="logo-white.png?v=4" alt=""><div id="midText"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div></div>
     <div class="team t1" id="tm1"><span class="nm"></span><span class="sc">0</span></div>
   </div>
   <div id="q"></div>
@@ -286,8 +286,8 @@
 (function () {
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
-  if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }
-  const GAME_VERSION = '2026-10-03 · build 37';
+  if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
+  const GAME_VERSION = '2026-10-03 · build 38';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1063,7 +1063,7 @@ Nevada | 4`;
   }
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
-    $('wait').style.display = 'none';
+    $('wait').style.display = 'none'; if (isBoard) document.title = 'FHE FEUD';
     const fm = ['fm', 'fmEntry', 'fmReveal', 'fmResult'].includes(S.phase);
     document.body.classList.toggle('fmmode', fm); document.body.classList.toggle('fmtable', fm && S.phase !== 'fm');
     $('board').style.display = fm ? 'none' : 'grid'; $('strikes').style.display = fm ? 'none' : 'flex'; $('fm').style.display = fm ? 'flex' : 'none';
