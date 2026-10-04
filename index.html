@@ -157,8 +157,8 @@
   body.board .tile .b .tx { font-size: clamp(18px, 4.6vh, 58px); }
   body.board .tile .b .pt { font-size: clamp(26px, 6.4vh, 80px); }
   body.board #strikes { width: 14vw; }
-  body.board #clock { max-height: 20vh; font-size: clamp(44px, 12.5vh, 156px); }
-  body.board .xbox { font-size: clamp(50px, 15vh, 190px); }
+  body.board #clock { max-height: 14vh; aspect-ratio: 2; font-size: clamp(40px, 9.6vh, 120px); }
+  body.board .xbox { font-size: clamp(40px, 10vh, 130px); min-height: 0; overflow: hidden; line-height: 1; }
   body.board.fmmode #q { font-size: clamp(26px, 7.6vh, 98px); min-height: 12vh; }
   body.board.fmmode #logo { max-height: 18vh; }
   .wait { font-size: 6.6vh; }
@@ -283,7 +283,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 33';
+  const GAME_VERSION = '2026-10-03 · build 34';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
