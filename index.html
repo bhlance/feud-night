@@ -82,6 +82,9 @@
 
   /* ---- flash X ---- */
   #winFlash { position: fixed; inset: 0; z-index: 54; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 3vw; pointer-events: none; font-family: var(--big); color: #fff; line-height: 1.05; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 0 2vh #ffc93c, 0 0 5vh #ff8a3c, 0 .8vh 0 rgba(0,0,0,.55); animation: winBlink 1s steps(1) infinite; }
+  #soClose { position: fixed; inset: 0; z-index: 60; display: none; background: #000; align-items: center; justify-content: center; pointer-events: none; animation: scIn .6s ease-out; }
+  #soClose img { width: 100vw; height: 100vh; object-fit: contain; }
+  @keyframes scIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
   #winFlashText { display: inline-block; max-width: 94vw; }
   @keyframes winBlink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
   #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 57; pointer-events: none; }
@@ -189,6 +192,7 @@
 <button id="peekBtn">👁 Hold to peek</button>
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
+<div id="soClose"><img src="soclose.jpg?v=1" alt=""></div>
 <div id="winFlash"><span id="winFlashText"></span></div>
 <div id="flash"><div class="xs"></div></div>
 <div class="wait" id="wait"><div><img src="logo-white.png?v=4" alt="" style="height:24vh;display:block;margin:0 auto 2vh">Family Home Evening<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host…</span></div></div>
@@ -287,7 +291,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 38';
+  const GAME_VERSION = '2026-10-03 · build 39';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -921,7 +925,7 @@ Nevada | 4`;
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; });
     else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); if (S.cele) S.cele.active = false; S.phase = 'gameOver'; });
-    else if (a === 'newgame') { stopMusic(); if (S && S.cele) { S.cele.active = false; commit(); } openSetup(); }
+    else if (a === 'newgame') { stopMusic(); if (S && S.fm) S.fm.over = true; if (S && S.cele) S.cele.active = false; if (S) commit(); openSetup(); }
   }
   // Which team box is lit up: whoever is answering / deciding / playing right now; none between rounds.
   function hl() {
@@ -1064,6 +1068,7 @@ Nevada | 4`;
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
     $('wait').style.display = 'none'; if (isBoard) document.title = 'FHE FEUD';
+    $('soClose').style.display = isBoard && S.phase === 'fmResult' && S.fm && !S.fm.won && !S.fm.over ? 'flex' : 'none';   // "So close…" picture stays up until New game
     const fm = ['fm', 'fmEntry', 'fmReveal', 'fmResult'].includes(S.phase);
     document.body.classList.toggle('fmmode', fm); document.body.classList.toggle('fmtable', fm && S.phase !== 'fm');
     $('board').style.display = fm ? 'none' : 'grid'; $('strikes').style.display = fm ? 'none' : 'flex'; $('fm').style.display = fm ? 'flex' : 'none';
