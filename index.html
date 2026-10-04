@@ -297,7 +297,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 41';
+  const GAME_VERSION = '2026-10-03 · build 42';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -868,12 +868,15 @@ Nevada | 4`;
   }
   function reveal(i) { const a = S.q.answers[i]; if (!a || a.revealed) return false; a.revealed = true; S.pot += a.pts * (S.mult || 1); sDing(); return true; }
   const allRevealed = () => S.q.answers.every(a => a.revealed);
+  const lastQuestion = () => S.qi + 1 >= S.qs.length;   // that was the final question of this game's set
+  // Game decided: the target was reached, or all the questions were played and one team is ahead.
+  const gameDecided = () => { const x = S.teams[0].score, y = S.teams[1].score; return x !== y && (Math.max(x, y) >= S.target || lastQuestion()); };
   function endRound(w) {
     S.teams[w].score += S.pot; S.roundWinner = w; S.awarded = S.pot; S.phase = 'roundEnd'; S.tm = null;
     S.pi[0] += Math.max(1, S.fp[0]); S.pi[1] += Math.max(1, S.fp[1]);
     // This round decided the game (a team reached the target)? Play the game-winner's song and fireworks right now.
     // Otherwise play this round's own song.
-    if (Math.max(S.teams[0].score, S.teams[1].score) >= S.target && S.teams[0].score !== S.teams[1].score) { gameWinSound(); fireworks(0, S.teams[0].score > S.teams[1].score ? S.teams[0].name : S.teams[1].name, true); } else roundSound(S.round);
+    if (gameDecided()) { gameWinSound(); fireworks(0, S.teams[0].score > S.teams[1].score ? S.teams[0].name : S.teams[1].name, true); } else roundSound(S.round);
   }
   // endless = keep going until stopped (active is switched off when Fast Money starts)
   function fireworks(secs, name, endless) { S.fire = { k: Math.max(Date.now(), ((S.fire && S.fire.k) || 0) + 1), secs, name: name || '', endless: !!endless, active: true }; }
@@ -919,9 +922,10 @@ Nevada | 4`;
     });
     else if (a === 'next') act(() => {
       const [x, y] = [S.teams[0].score, S.teams[1].score];
-      if (Math.max(x, y) >= S.target && x !== y) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; }   // the winner's song + fireworks already played when the target was reached
+      if (gameDecided()) { S.champ = x > y ? 0 : 1; S.phase = 'gameOver'; }   // the winner's song + fireworks already played when the game was decided (target reached, or ahead after the last question)
       else { stopMusic(); nextRound(); }
     });
+    else if (a === 'champ') act(() => { const w = +v; S.champ = w; S.phase = 'gameOver'; gameWinSound(); fireworks(0, S.teams[w].name, true); });   // tied after the last question: the MC picks who goes to Fast Money
     else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
     else if (a === 'fmbegin') act(() => { S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
@@ -1167,7 +1171,7 @@ Nevada | 4`;
     if (p === 'playpass') return say('<b>' + tn(S.fw) + '</b> wins the face-off! Do they play or pass?') + b('play', '▶ PLAY', 'go') + b('pass', 'PASS to ' + tn(other(S.fw)), 'gold') + un;
     if (p === 'play') return say('<b>' + tn(S.ctrl) + '</b> is playing — ' + S.strikes + ' strike' + (S.strikes === 1 ? '' : 's') + '. 10 seconds per answer — start the clock when they begin. Tap each answer they get.') + pz + b('x', '✕ STRIKE', 'bad') + un;
     if (p === 'steal') return say('<b>STEAL!</b> ' + tn(other(S.ctrl)) + ' gets one guess at any remaining answer (10 sec). Tap it if they get one:') + pz + b('x', '✕ Missed', 'bad') + un;
-    if (p === 'roundEnd') return say('<b>' + tn(S.roundWinner) + '</b> wins the round and <b>' + S.awarded + '</b> points!') + (function () { const n = S.q.answers.filter(x => !x.revealed && !x.shown).length; return n ? b('revealnext', 'Reveal next answer (' + n + ' left)', 'gold') : ''; })() + b('next', 'Next ▶', 'go') + un;
+    if (p === 'roundEnd') return say('<b>' + tn(S.roundWinner) + '</b> wins the round and <b>' + S.awarded + '</b> points!' + (function () { const x = S.teams[0].score, y = S.teams[1].score; if (!lastQuestion() || Math.max(x, y) >= S.target) return ''; return x === y ? ' That was the last question and the game is <b>tied</b> — pick who goes to Fast Money.' : ' That was the last question, so <b>' + tn(x > y ? 0 : 1) + '</b> is ahead and goes to Fast Money.'; })()) + (function () { const n = S.q.answers.filter(x => !x.revealed && !x.shown).length; return n ? b('revealnext', 'Reveal next answer (' + n + ' left)', 'gold') : ''; })() + (lastQuestion() && S.teams[0].score === S.teams[1].score ? b('champ', tn(0) + ' goes to Fast Money', 'go', 0) + b('champ', tn(1) + ' goes to Fast Money', 'go', 1) : b('next', 'Next ▶', 'go')) + un;
     if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money — Player 2 must be out of earshot.') + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
     if (p === 'fm') {
       const f = S.fm;
