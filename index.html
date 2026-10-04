@@ -140,6 +140,29 @@
   .fpick { display: flex; align-items: center; gap: 10px; border: 2px solid #c9d2f5; border-radius: 12px; padding: 5px 8px; background: #fff; min-width: 0; } .fpick .mb { padding: 6px 14px; font-size: 14px; white-space: nowrap; } .fpick .fname { font-size: 15px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fmrow { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; } .fmrow label { font-size: 15px; } .fmrow .pv { font-size: 13px; color: #55608f; min-height: 16px; }
   .mb.go { background: #35c97a; color: #fff; } .mb.gold { background: var(--gold); } .mb.bad { background: var(--red); color: #fff; }
+  /* ---- TV window: everything larger ---- */
+  body.board #top { gap: 2.2vw; }
+  body.board .team { padding: 1.3vh 1.6vw; border-width: .45vh; }
+  body.board .team .nm { font-size: clamp(22px, 3.9vh, 54px); }
+  body.board .team .sc { font-size: clamp(44px, 9.6vh, 124px); }
+  body.board .team.ctrl::after { font-size: clamp(12px, 2.2vh, 26px); top: -2vh; }
+  body.board #mid { gap: 1.6vw; min-width: 22vw; }
+  body.board #brand { font-size: clamp(26px, 6.6vh, 84px); }
+  body.board #mid .rd { font-size: clamp(14px, 2.7vh, 32px); }
+  body.board #mid .pot { font-size: clamp(34px, 8.2vh, 100px); }
+  body.board #multBadge { font-size: clamp(12px, 2.6vh, 30px); padding: .3vh 1.4vw; }
+  body.board #logo { max-height: 20vh; }
+  body.board #q { font-size: clamp(22px, 5.6vh, 70px); min-height: 10.5vh; }
+  body.board .tile .f .no { font-size: clamp(32px, 8.4vh, 100px); }
+  body.board .tile .b .tx { font-size: clamp(18px, 4.6vh, 58px); }
+  body.board .tile .b .pt { font-size: clamp(26px, 6.4vh, 80px); }
+  body.board #strikes { width: 14vw; }
+  body.board #clock { max-height: 20vh; font-size: clamp(44px, 12.5vh, 156px); }
+  body.board .xbox { font-size: clamp(50px, 15vh, 190px); }
+  body.board.fmmode #q { font-size: clamp(26px, 7.6vh, 98px); min-height: 12vh; }
+  body.board.fmmode #logo { max-height: 18vh; }
+  .wait { font-size: 6.6vh; }
+  #wait img { height: 34vh !important; }
 </style>
 </head>
 <body>
@@ -168,6 +191,7 @@
 
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="mb gold" id="openBoard" style="font-size:19px;padding:13px 26px">📺 Open board window</button><div class="note" id="menuNote" style="flex:1;min-width:200px">Opens the TV view in its own window — drag it onto the TV, then double-click it (or press F) for full screen.</div></div>
   <h2>🎤 Feud Night — Game Setup</h2>
   <div id="inGameBanner" style="display:none;background:#fff4d6;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px">🎮 A game is in progress. Change anything below, then tap <b>Save changes &amp; back to the game</b> — scores and progress are kept. (Which game's questions is fixed for this game; use ✏️ Edit questions to change the questions themselves.)</div>
   <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Prelude music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause prelude music</button></div>
@@ -204,10 +228,9 @@
   </details>
   </div>
   <h3>📺 TV window &amp; sound checks</h3>
-  <div class="btns"><button class="mb gold" id="openBoard">📺 Open board window</button><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
+  <div class="btns"><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
   <label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
   <div class="note" id="latNote"></div>
-  <div class="note" id="menuNote"></div>
   <div class="note">Tip for a TV: click <b>📺 Open board window</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
   <div class="btns" id="setupBtns" style="position:sticky;bottom:-2.4vh;background:#fff;padding:10px 0;border-top:2px solid #eef1ff;z-index:2">
     <button class="mb go" id="saveBackBtn" style="display:none">💾 Save changes &amp; back to the game</button>
@@ -260,7 +283,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 32';
+  const GAME_VERSION = '2026-10-03 · build 33';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -881,7 +904,7 @@ Nevada | 4`;
       f.stage = f.stage || [0, 0];
       if (f.stage[who] < 2) { f.stage[who]++; return; }                // 1st press: the question appears; 2nd: what they said (no points, no sound)
       const e = f.p[who][r] || { text: '— no answer —', pts: 0, rank: null };
-      f.stage[who] = 0; f.rev[who]++;                                   // 3rd press: the points, then the sound; the next press starts the next question
+      f.stage[who] = who === 1 ? 1 : 0; f.rev[who]++;                   // 3rd press: the points, then the sound. Player 1: the next press brings up the next question. Player 2: the questions are already up, so the next press goes straight to their answer
       if (e.pts > 0) sDing(); else { flash(1); sBuzz(); }
       fmReact(e.pts);
       fmCheckWin();
@@ -1175,7 +1198,7 @@ Nevada | 4`;
         if (m.r !== null) { const a = f.qs[i].answers[m.r]; return { text: a.text, pts: a.pts, rank: m.r, typed }; }
         return { text: typed, pts: 0, rank: null, typed, dup: !!m.dup };
       });
-      f.rev[w] = 0; f.stage = f.stage || [0, 0]; f.stage[w] = 0; S.phase = 'fmReveal';
+      f.rev[w] = 0; f.stage = f.stage || [0, 0]; f.stage[w] = w === 1 ? 1 : 0; S.phase = 'fmReveal';
     });
   };
 
