@@ -291,7 +291,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 39';
+  const GAME_VERSION = '2026-10-03 · build 40';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -820,8 +820,18 @@ Nevada | 4`;
   const fmWinSound = () => { if (!playMusic('fm', true)) sWin(); };
   // Fast Money ended below the target: the loser song repeats until the MC starts a new game / goes back. It begins just after the last
   // reveal's strike sound; nothing plays if no loser song has been added.
-  const fmLoseSound = () => setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won) playMusic('fmlose', true); }, 1300);
+  const fmLoseSound = () => setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won && !playMusic('fmlose', true)) sSadTrombone(); }, 1300);   // no song loaded → built-in sad trombone
   if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'fmlose'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
+  // "Wah wah wah waaah": four falling brassy notes, the last one sliding down.
+  function sSadTrombone() {
+    try { getAC(); const t0 = ac.currentTime + .05; [[311, .55, 0], [294, .55, .6], [277, .55, 1.2], [247, 1.5, 1.8]].forEach(([f, d, w], i) => {
+      const o = ac.createOscillator(), g = ac.createGain(), lp = ac.createBiquadFilter(), vib = ac.createOscillator(), vg = ac.createGain(), t = t0 + w;
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t); if (i === 3) o.frequency.exponentialRampToValueAtTime(f * .72, t + d);
+      lp.type = 'lowpass'; lp.frequency.setValueAtTime(700, t); lp.frequency.linearRampToValueAtTime(1400, t + .12); lp.frequency.linearRampToValueAtTime(600, t + d);
+      vib.frequency.value = 5.5; vg.gain.value = i === 3 ? 9 : 0; vib.connect(vg); vg.connect(o.frequency);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.45, t + .05); g.gain.setValueAtTime(.45, t + d - .1); g.gain.linearRampToValueAtTime(0, t + d);
+      o.connect(lp); lp.connect(g); g.connect(outNode()); o.start(t); vib.start(t); o.stop(t + d + .05); vib.stop(t + d + .05); }); } catch (e) {}
+  }
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
   let tickAlt = false, clickBuf = null;
@@ -921,8 +931,8 @@ Nevada | 4`;
       fmCheckWin();
       if (f.pl === 2 && f.rev[1] >= f.n) { f.done = true; S.phase = 'fmResult'; if (!f.won) fmLoseSound(); }
     });
-    else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; } });
-    else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; });
+    else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; if (!f.won) fmLoseSound(); } });
+    else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; if (!S.fm.won) fmLoseSound(); });
     else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); if (S.cele) S.cele.active = false; S.phase = 'gameOver'; });
     else if (a === 'newgame') { stopMusic(); if (S && S.fm) S.fm.over = true; if (S && S.cele) S.cele.active = false; if (S) commit(); openSetup(); }
