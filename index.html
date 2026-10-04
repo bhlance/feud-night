@@ -160,7 +160,11 @@
   body.board #clock { max-height: 14vh; aspect-ratio: 2; font-size: clamp(40px, 9.6vh, 120px); }
   body.board .xbox { font-size: clamp(40px, 10vh, 130px); min-height: 0; overflow: hidden; line-height: 1; }
   body.board.fmmode #q { font-size: clamp(26px, 7.6vh, 98px); min-height: 12vh; }
-  body.board.fmmode #logo { max-height: 18vh; }
+  body.board.fmmode #logo { align-self: auto; height: 16vh; max-height: none; }
+  body.board.fmmode #brand { font-size: clamp(30px, 8vh, 100px); }
+  body.board.fmmode #fm .ttl { font-size: clamp(30px, 8vh, 100px); }
+  body.board.fmmode #fm .who { font-size: clamp(22px, 5.8vh, 76px); }
+  body.board #timer { font-size: clamp(90px, 30vh, 340px); }
   .wait { font-size: 6.6vh; }
   #wait img { height: 34vh !important; }
 </style>
@@ -283,7 +287,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 34';
+  const GAME_VERSION = '2026-10-03 · build 35';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
