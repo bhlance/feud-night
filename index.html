@@ -147,7 +147,7 @@
   body.board .team .sc { font-size: clamp(44px, 9.6vh, 124px); }
   body.board .team.ctrl::after { font-size: clamp(12px, 2.2vh, 26px); top: -2vh; }
   body.board #mid { gap: 1.6vw; min-width: 22vw; }
-  body.board #brand { font-size: clamp(26px, 6.6vh, 84px); }
+  body.board #brand { font-size: clamp(20px, 4.8vh, 62px); white-space: nowrap; }
   body.board #mid .rd { font-size: clamp(14px, 2.7vh, 32px); }
   body.board #mid .pot { font-size: clamp(34px, 8.2vh, 100px); }
   body.board #multBadge { font-size: clamp(12px, 2.6vh, 30px); padding: .3vh 1.4vw; }
@@ -161,7 +161,7 @@
   body.board .xbox { font-size: clamp(40px, 10vh, 130px); min-height: 0; overflow: hidden; line-height: 1; }
   body.board.fmmode #q { font-size: clamp(26px, 7.6vh, 98px); min-height: 12vh; }
   body.board.fmmode #logo { align-self: auto; height: 16vh; max-height: none; }
-  body.board.fmmode #brand { font-size: clamp(30px, 8vh, 100px); }
+  body.board.fmmode #brand { font-size: clamp(30px, 8vh, 100px); white-space: nowrap; }
   body.board.fmmode #fm .ttl { font-size: clamp(30px, 8vh, 100px); }
   body.board.fmmode #fm .who { font-size: clamp(22px, 5.8vh, 76px); }
   body.board #timer { font-size: clamp(90px, 30vh, 340px); }
@@ -173,7 +173,7 @@
 <div id="app">
   <div id="top">
     <div class="team t0" id="tm0"><span class="nm"></span><span class="sc">0</span></div>
-    <div id="mid"><img id="logo" src="logo-white.png?v=4" alt=""><div id="midText"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div></div>
+    <div id="mid"><img id="logo" src="logo-white.png?v=4" alt=""><div id="midText"><div id="brand">Family Home Evening</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div></div>
     <div class="team t1" id="tm1"><span class="nm"></span><span class="sc">0</span></div>
   </div>
   <div id="q"></div>
@@ -191,7 +191,7 @@
 <canvas id="fireworks"></canvas>
 <div id="winFlash"><span id="winFlashText"></span></div>
 <div id="flash"><div class="xs"></div></div>
-<div class="wait" id="wait"><div><img src="logo-white.png?v=4" alt="" style="height:24vh;display:block;margin:0 auto 2vh">FHE FEUD<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host to start the game…</span></div></div>
+<div class="wait" id="wait"><div><img src="logo-white.png?v=4" alt="" style="height:24vh;display:block;margin:0 auto 2vh">Family Home Evening<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host…</span></div></div>
 
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
@@ -286,8 +286,8 @@
 (function () {
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
-  if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 36';
+  if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }
+  const GAME_VERSION = '2026-10-03 · build 37';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
