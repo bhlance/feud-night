@@ -19,7 +19,8 @@ Slots (use these names inside manifest.json):
   win    = fallback song for any round that has no song of its own
   game   = song when a team wins the game (plays right when they reach the target score,
            in place of that round's song)
-  fm     = song when a team wins Fast Money
+  fm     = song when a team wins Fast Money (repeats until a new game)
+  fmlose = song when Fast Money ends below the target (repeats until a new game)
 
 Example manifest.json:
 

@@ -287,7 +287,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 35';
+  const GAME_VERSION = '2026-10-03 · build 36';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -704,19 +704,19 @@ Nevada | 4`;
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
   // 'fm' (winning Fast Money, default 30 s). Each fades out at the end; falls back to the built-in fanfare.
-  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null }, r1: { buf: null, name: '', start: 0, len: 10, blob: null }, r2: { buf: null, name: '', start: 0, len: 10, blob: null }, r3: { buf: null, name: '', start: 0, len: 10, blob: null }, r4: { buf: null, name: '', start: 0, len: 10, blob: null }, r5: { buf: null, name: '', start: 0, len: 10, blob: null }, pre: { buf: null, name: '', start: 0, len: 180, blob: null } };
+  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null }, r1: { buf: null, name: '', start: 0, len: 10, blob: null }, r2: { buf: null, name: '', start: 0, len: 10, blob: null }, r3: { buf: null, name: '', start: 0, len: 10, blob: null }, r4: { buf: null, name: '', start: 0, len: 10, blob: null }, r5: { buf: null, name: '', start: 0, len: 10, blob: null }, pre: { buf: null, name: '', start: 0, len: 180, blob: null }, fmlose: { buf: null, name: '', start: 0, len: 30, blob: null } };
   let nowPlaying = null;
   const mdb = (mode, fn) => new Promise(res => { try { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => res(null);
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
     if (isBoard) return;
     loadBundled();
-    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre']) { const m = mus[k]; if (!m.blob || m.buf) continue;
+    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'fmlose']) { const m = mus[k]; if (!m.blob || m.buf) continue;
       try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
   }
   // Recordings that ship with the game: drop mp3/m4a/wav files in the "sounds" folder and list them in sounds/manifest.json.
   // Priority for every sound: a file uploaded in the Menu > a recording from the sounds folder > the built-in version.
-  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null, r1: null, r2: null, r3: null, r4: null, r5: null, pre: null };
+  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null, r1: null, r2: null, r3: null, r4: null, r5: null, pre: null, fmlose: null };
   let bundledTried = false;
   const effBuf = k => (mus[k] && mus[k].buf) || bundled[k] || null;
   async function loadBundled() {
@@ -814,7 +814,10 @@ Nevada | 4`;
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   // The Fast Money winner song repeats until the MC starts a new game (or goes back); confetti keeps falling the whole time.
   const fmWinSound = () => { if (!playMusic('fm', true)) sWin(); };
-  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
+  // Fast Money ended below the target: the loser song repeats until the MC starts a new game / goes back. It begins just after the last
+  // reveal's strike sound; nothing plays if no loser song has been added.
+  const fmLoseSound = () => setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won) playMusic('fmlose', true); }, 1300);
+  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'fmlose'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
   let tickAlt = false, clickBuf = null;
@@ -912,7 +915,7 @@ Nevada | 4`;
       if (e.pts > 0) sDing(); else { flash(1); sBuzz(); }
       fmReact(e.pts);
       fmCheckWin();
-      if (f.pl === 2 && f.rev[1] >= f.n) { f.done = true; S.phase = 'fmResult'; }
+      if (f.pl === 2 && f.rev[1] >= f.n) { f.done = true; S.phase = 'fmResult'; if (!f.won) fmLoseSound(); }
     });
     else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; });
@@ -1306,7 +1309,7 @@ Nevada | 4`;
   function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); closeSetup(); }
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
   $('testFmBtn').onclick = () => { doStart(); if (S) skipToFM(0); };
-  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5'], ['pre', 'Pre']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10, pre: 180 };
+  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5'], ['pre', 'Pre'], ['fmlose', 'FmLose']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10, pre: 180, fmlose: 30 };
   (function injectMusicUI() {
     const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Song or recording (mp3, m4a, wav)</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
       + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds, up to 180)</label><input id="musicLen' + x + '" type="number" min="1" max="180" value="' + len + '" inputmode="numeric"></div></div></div>'
@@ -1320,7 +1323,8 @@ Nevada | 4`;
       + sec('6 · Fallback song — used for any round above that has no song of its own', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + reactIntro + sec('8 · Fast Money: disappointed “aww” (low scores)', 'Aww', 3) + sec('9 · Fast Money: generous applause (middle scores)', 'Clap', 4) + sec('10 · Fast Money: loud cheering (high scores)', 'Cheer', 5)
-      + sec('11 · Fast Money winner song — plays the moment the total reaches the Fast Money target', 'Fm', 30);
+      + sec('11 · Fast Money winner song — plays and repeats the moment the total reaches the Fast Money target', 'Fm', 30)
+      + sec('12 · Fast Money loser song — plays and repeats when Fast Money ends below the target (until you start a new game)', 'FmLose', 30);
     const c = reactCfg(); $('reactOn').checked = c.on; $('reactLo').value = c.lo; $('reactHi').value = c.hi;
     const save = () => { try { localStorage.setItem('feud.react', JSON.stringify({ on: $('reactOn').checked, lo: +$('reactLo').value || 10, hi: +$('reactHi').value || 30 })); } catch (e) {} };
     $('reactOn').onchange = $('reactLo').onchange = $('reactHi').onchange = save;
