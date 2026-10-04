@@ -85,6 +85,10 @@
   #soClose { position: fixed; inset: 0; z-index: 60; display: none; background: #000; align-items: center; justify-content: center; pointer-events: none; animation: scIn .6s ease-out; }
   #soClose img { width: 100vw; height: 100vh; object-fit: contain; }
   @keyframes scIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+  #titleScr { position: fixed; inset: 0; z-index: 58; display: none; background: #000; align-items: center; justify-content: center; text-align: center; color: #fff; font-family: var(--big); animation: scIn .6s ease-out; }
+  #titleScr img { width: 100vw; height: 100vh; object-fit: contain; }
+  #titleFb { display: none; font-size: 14vh; line-height: 1.05; text-transform: uppercase; text-shadow: 0 0 3vh #ffc93c, 0 .8vh 0 rgba(0,0,0,.6); }
+  #titleFb img { height: 28vh; width: auto; display: block; margin: 0 auto 3vh; }
   #winFlashText { display: inline-block; max-width: 94vw; }
   @keyframes winBlink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
   #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 57; pointer-events: none; }
@@ -192,6 +196,7 @@
 <button id="peekBtn">👁 Hold to peek</button>
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
+<div id="titleScr"><img id="titleImg" src="title.jpg?v=1" alt="" onerror="this.style.display='none';document.getElementById('titleFb').style.display='block'"><div id="titleFb"><img src="logo-white.png?v=4" alt="">FHE FEUD</div></div>
 <div id="soClose"><img src="soclose.jpg?v=1" alt=""></div>
 <div id="winFlash"><span id="winFlashText"></span></div>
 <div id="flash"><div class="xs"></div></div>
@@ -200,6 +205,7 @@
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="mb gold" id="openBoard" style="font-size:19px;padding:13px 26px">📺 Open board window</button><div class="note" id="menuNote" style="flex:1;min-width:200px">Opens the TV view in its own window — drag it onto the TV, then double-click it (or press F) for full screen.</div></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show title screen on TV</button><div class="note" style="flex:1;min-width:200px">Puts the FHE FEUD picture on the TV and plays the title music on repeat. It stays up until you click Start new game, which goes straight to the first face-off.</div></div>
   <h2>🎤 Feud Night — Game Setup</h2>
   <div id="inGameBanner" style="display:none;background:#fff4d6;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px">🎮 A game is in progress. Change anything below, then tap <b>Save changes &amp; back to the game</b> — scores and progress are kept. (Which game's questions is fixed for this game; use ✏️ Edit questions to change the questions themselves.)</div>
   <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Prelude music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause prelude music</button></div>
@@ -291,7 +297,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 40';
+  const GAME_VERSION = '2026-10-03 · build 41';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -708,19 +714,19 @@ Nevada | 4`;
   window.__buildBuzz = buildBuzz;   // lets me render it offline to check loudness
   // Custom music: two uploaded songs, each with its own length — 'win' (a round win, default 10 s) and
   // 'fm' (winning Fast Money, default 30 s). Each fades out at the end; falls back to the built-in fanfare.
-  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null }, r1: { buf: null, name: '', start: 0, len: 10, blob: null }, r2: { buf: null, name: '', start: 0, len: 10, blob: null }, r3: { buf: null, name: '', start: 0, len: 10, blob: null }, r4: { buf: null, name: '', start: 0, len: 10, blob: null }, r5: { buf: null, name: '', start: 0, len: 10, blob: null }, pre: { buf: null, name: '', start: 0, len: 180, blob: null }, fmlose: { buf: null, name: '', start: 0, len: 30, blob: null } };
-  let nowPlaying = null;
+  const mus = { win: { buf: null, name: '', start: 0, len: 10, blob: null }, game: { buf: null, name: '', start: 0, len: 20, blob: null }, fm: { buf: null, name: '', start: 0, len: 30, blob: null }, aww: { buf: null, name: '', start: 0, len: 3, blob: null }, clap: { buf: null, name: '', start: 0, len: 4, blob: null }, cheer: { buf: null, name: '', start: 0, len: 5, blob: null }, r1: { buf: null, name: '', start: 0, len: 10, blob: null }, r2: { buf: null, name: '', start: 0, len: 10, blob: null }, r3: { buf: null, name: '', start: 0, len: 10, blob: null }, r4: { buf: null, name: '', start: 0, len: 10, blob: null }, r5: { buf: null, name: '', start: 0, len: 10, blob: null }, pre: { buf: null, name: '', start: 0, len: 180, blob: null }, title: { buf: null, name: '', start: 0, len: 180, blob: null }, fmlose: { buf: null, name: '', start: 0, len: 30, blob: null } };
+  let nowPlaying = null, titleOn = false;
   const mdb = (mode, fn) => new Promise(res => { try { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => res(null);
     rq.onsuccess = () => { try { const tx = rq.result.transaction('kv', mode), out = fn(tx.objectStore('kv')); tx.oncomplete = () => res(out && out.result !== undefined ? out.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }; } catch (e) { res(null); } });
   async function decodeMusic() {
     if (isBoard) return;
     loadBundled();
-    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'fmlose']) { const m = mus[k]; if (!m.blob || m.buf) continue;
+    for (const k of ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'title', 'fmlose']) { const m = mus[k]; if (!m.blob || m.buf) continue;
       try { const ab = await m.blob.arrayBuffer(); m.buf = await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { m.buf = null; } }
   }
   // Recordings that ship with the game: drop mp3/m4a/wav files in the "sounds" folder and list them in sounds/manifest.json.
   // Priority for every sound: a file uploaded in the Menu > a recording from the sounds folder > the built-in version.
-  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null, r1: null, r2: null, r3: null, r4: null, r5: null, pre: null, fmlose: null };
+  const bundled = { win: null, game: null, fm: null, aww: null, clap: null, cheer: null, r1: null, r2: null, r3: null, r4: null, r5: null, pre: null, title: null, fmlose: null };
   let bundledTried = false;
   const effBuf = k => (mus[k] && mus[k].buf) || bundled[k] || null;
   async function loadBundled() {
@@ -742,7 +748,7 @@ Nevada | 4`;
     if (isBoard) return;
     const m = mus.pre, buf = effBuf('pre'); if (!buf) return;
     if (!force && (!$('setup') || $('setup').style.display !== 'flex')) return;
-    if (nowPlaying && nowPlaying.prelude && !force) return;
+    if (nowPlaying && (nowPlaying.prelude || nowPlaying.title) && !force) return;
     try { getAC(); stopMusic(); const t = ac.currentTime, a = Math.min(m.start || 0, Math.max(0, buf.duration - 1)), b = Math.min(buf.duration, a + Math.max(1, Math.min(180, m.len || 180))), src = ac.createBufferSource(), g = ac.createGain();
       src.buffer = buf; src.loop = true; src.loopStart = a; src.loopEnd = b; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + 1);
       src.connect(g); g.connect(outNode()); src.start(t, a); nowPlaying = { src, g, prelude: true }; } catch (e) {}
@@ -821,7 +827,7 @@ Nevada | 4`;
   // Fast Money ended below the target: the loser song repeats until the MC starts a new game / goes back. It begins just after the last
   // reveal's strike sound; nothing plays if no loser song has been added.
   const fmLoseSound = () => setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won && !playMusic('fmlose', true)) sSadTrombone(); }, 1300);   // no song loaded → built-in sad trombone
-  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'fmlose'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
+  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'title', 'fmlose'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
   // "Wah wah wah waaah": four falling brassy notes, the last one sliding down.
   function sSadTrombone() {
     try { getAC(); const t0 = ac.currentTime + .05; [[311, .55, 0], [294, .55, .6], [277, .55, 1.2], [247, 1.5, 1.8]].forEach(([f, d, w], i) => {
@@ -1234,13 +1240,14 @@ Nevada | 4`;
   if (bc) bc.onmessage = e => {
     const m = e.data || {};
     if (isBoard && m.t === 'state') { S = m.S; render(); }
-    if (!isBoard && m.t === 'hello') { boardOpen = true; if (S) bc.postMessage({ t: 'state', S }); render(); }
+    if (!isBoard && m.t === 'hello') { boardOpen = true; if (S) bc.postMessage({ t: 'state', S }); if (titleOn) bc.postMessage({ t: 'title', on: true }); render(); }
+    if (isBoard && m.t === 'title') { titleOn = !!m.on; paintTitle(); }
   };
   if (isBoard && bc) { bc.postMessage({ t: 'hello' }); setTimeout(() => { if (!S) bc.postMessage({ t: 'hello' }); }, 1500); }
 
   // setup / questions / menu (host page only)
   let inGame = false;   // true while the setup screen is opened from the ☰ Menu button during a game
-  const show = (id, on) => { const el = $(id); if (!el) return; el.style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) { if (!inGame) startPrelude(); } else stopPrelude(); } };
+  const show = (id, on) => { const el = $(id); if (!el) return; el.style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) { if (!inGame) startPrelude(); } else { setTitle(false); stopPrelude(); } } };
   const closeSetup = () => { inGame = false; stopMusic(true); show('setup', false); };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function fillSetSel(sel) {
@@ -1272,6 +1279,15 @@ Nevada | 4`;
     show('setup', true);
     const card = $('setup').querySelector('.card'); if (card) card.scrollTop = 0;
   }
+  // Title screen: the MC clicks a button, the TV shows the FHE FEUD picture, the title music repeats until the game starts.
+  function paintTitle() { $('titleScr').style.display = titleOn ? 'flex' : 'none'; }
+  function setTitle(on) {
+    if (isBoard) return; on = !!on; if (on === titleOn) return; titleOn = on;
+    if (bc) bc.postMessage({ t: 'title', on });
+    if (on) { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (titleOn && effBuf('title') && playMusic('title', true) && nowPlaying) nowPlaying.title = true; }); }
+    else if (nowPlaying && nowPlaying.title) stopMusic();
+    $('titleBtn').textContent = on ? '🎬 Hide title screen' : '🎬 Show title screen on TV';
+  }
   const doStart = () => {
     const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, m: $('mults').value.trim() || '1,1,2,3', set: +$('setSel').value || 0 };
     c.nextSet = Math.min(c.set + 1, Math.max(0, loadSets().length - 1));
@@ -1279,6 +1295,7 @@ Nevada | 4`;
     if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { show('setup', false); commit(); }
   };
   $('startBtn').onclick = () => { if (inGame) show('newConf', true); else doStart(); };
+  $('titleBtn').onclick = () => setTitle(!titleOn);
   $('newConfNo').onclick = () => show('newConf', false);
   $('newConfYes').onclick = () => { show('newConf', false); inGame = false; doStart(); };
   // Save changes made on the setup screen to the game that is running (names, players, targets, multipliers, scores) and go back to it
@@ -1324,7 +1341,7 @@ Nevada | 4`;
   function skipToFM(t) { act(() => { stopMusic(); S.tm = null; S.champ = t; fmSetup(); }); closeSetup(); }
   $('skipFm0').onclick = () => skipToFM(0); $('skipFm1').onclick = () => skipToFM(1);
   $('testFmBtn').onclick = () => { doStart(); if (S) skipToFM(0); };
-  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5'], ['pre', 'Pre'], ['fmlose', 'FmLose']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10, pre: 180, fmlose: 30 };
+  const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5'], ['pre', 'Pre'], ['title', 'Title'], ['fmlose', 'FmLose']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10, pre: 180, title: 180, fmlose: 30 };
   (function injectMusicUI() {
     const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Song or recording (mp3, m4a, wav)</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
       + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds, up to 180)</label><input id="musicLen' + x + '" type="number" min="1" max="180" value="' + len + '" inputmode="numeric"></div></div></div>'
@@ -1334,7 +1351,7 @@ Nevada | 4`;
       + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
       + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
     $('musicOrder').innerHTML =
-        sec('🎬 Prelude music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 and later winner song', 'R5', 10)
+        sec('🎬 Prelude music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + sec('🎬 Title screen music — plays on repeat while the FHE FEUD picture is on the TV, until you click Start new game', 'Title', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 and later winner song', 'R5', 10)
       + sec('6 · Fallback song — used for any round above that has no song of its own', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + reactIntro + sec('8 · Fast Money: disappointed “aww” (low scores)', 'Aww', 3) + sec('9 · Fast Money: generous applause (middle scores)', 'Clap', 4) + sec('10 · Fast Money: loud cheering (high scores)', 'Cheer', 5)
