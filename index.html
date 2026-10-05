@@ -303,7 +303,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 53';
+  const GAME_VERSION = '2026-10-03 · build 54';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -827,7 +827,7 @@ Nevada | 4`;
       const nodes = slot === 'aww' ? buildAww(ac, outNode(), t) : slot === 'cheer' ? buildCheer(ac, outNode(), t) : buildApplause(ac, outNode(), t); (nodes || []).forEach(n => reactNodes.push(n)); } catch (e) {}
   }
   // the points just appeared: low scores get an "aww", middle scores applause, big scores a cheer
-  function fmReact(pts) { const c = reactCfg(); if (isBoard || !c.on) return; stopReact(); playReact(pts <= c.lo ? 'aww' : pts >= c.hi ? 'cheer' : 'clap', pts > 0 ? .25 : .8); }
+  function fmReact(pts, forceAww) { const c = reactCfg(); if (isBoard || !c.on) return; stopReact(); playReact(forceAww || pts <= c.lo ? 'aww' : pts >= c.hi ? 'cheer' : 'clap', pts > 0 ? .25 : .8); }   // forceAww: the final answer that leaves Player 2 short of the target always gets the disappointed "aww"
   window.__feudAudio = () => ac;   // read-only hook used for testing the master volume
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   // The Fast Money winner song repeats until the MC starts a new game (or goes back); confetti keeps falling the whole time.
@@ -950,7 +950,8 @@ Nevada | 4`;
       const e = f.p[who][r] || { text: '— no answer —', pts: 0, rank: null };
       f.stage[who] = who === 1 ? 1 : 0; f.rev[who]++;                   // 3rd press: the points, then the sound. Player 1: the next press brings up the next question. Player 2: the questions are already up, so the next press goes straight to their answer
       if (e.pts > 0) sDing(); else { flash(1); sBuzz(); }
-      fmReact(e.pts);
+      const wins = !f.won && fmTotal() >= S.fmTarget, lastLoss = f.pl === 2 && f.rev[1] >= f.n && !f.won && !wins;
+      fmReact(e.pts, lastLoss);
       fmCheckWin();
       if (f.pl === 2 && f.rev[1] >= f.n) { f.done = true; S.phase = 'fmResult'; if (!f.won) fmLoseSound(); }
     });
@@ -1014,7 +1015,11 @@ Nevada | 4`;
     return { r };
   }
   // The moment the revealed total reaches the target, the Fast Money song starts.
-  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true, name: (S.teams[f.win] ? S.teams[f.win].name : '') }; } }
+  // Reaching the target: the winner music, confetti and flashing name start FM_WIN_DELAY after the answer that got them there.
+  const FM_WIN_DELAY = 2000;
+  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; const stamp = f.winAt = Date.now(), nm = S.teams[f.win] ? S.teams[f.win].name : '';
+    setTimeout(() => { if (!S || !S.fm || !S.fm.won || S.fm.winAt !== stamp) return;   // undone or restarted in the meantime
+      fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true, name: nm }; commit(); }, FM_WIN_DELAY); } }
   function fmTotal() { const f = S.fm; let t = 0; for (let w = 0; w < 2; w++) for (let r = 0; r < f.rev[w]; r++) t += f.p[w][r] ? f.p[w][r].pts : 0; return t; }
   function fmTimeLeft() { const f = S.fm; return f.running ? Math.max(0, Math.ceil((f.end - Date.now()) / 1000)) : f.secs; }
   const clockLeft = () => { const t = S.tm; return !t.running ? t.secs : t.paused ? Math.ceil(t.rem / 1000) : Math.max(0, Math.ceil((t.end - Date.now()) / 1000)); };
