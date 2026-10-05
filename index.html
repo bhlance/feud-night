@@ -120,6 +120,7 @@
   #fm.recap .rl td.a { width: auto; } #fm.recap .rl td.d { width: 1%; white-space: nowrap; }
   #fm.recap .rttl { font-family: var(--big); color: var(--gold); font-size: clamp(22px, 4.6vh, 58px); text-align: center; margin-bottom: 1vh; }
   #fm.recap .rr { flex: 1 1 38%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1.6vh; text-align: center; }
+  #fm.recap .p1strip, body.board #fm.recap .p1strip { font-size: clamp(16px, 3.2vh, 42px); white-space: normal; max-width: 100%; box-sizing: border-box; line-height: 1.15; }
   #fm.recap #timer, body.board.fmmode #fm.recap #timer { font-size: clamp(60px, 22vh, 260px); }
   #fm .p1strip { font-weight: 900; font-size: clamp(18px, 3.6vh, 44px); color: var(--gold); background: rgba(255,255,255,.1); border-radius: 1.4vh; padding: .8vh 2vw; text-align: center; }
   body.board #fm .p1strip { font-size: clamp(24px, 5.4vh, 66px); }
@@ -317,7 +318,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 63';
+  const GAME_VERSION = '2026-10-03 · build 64';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1201,6 +1202,12 @@ Nevada | 4`;
     let px = innerHeight * 0.085, g = 0; t.style.fontSize = px + 'px';
     while ((rl.offsetHeight > el.clientHeight * 0.95 || t.scrollWidth > rl.clientWidth + 1) && px > 14 && g++ < 60) { px *= .95; t.style.fontSize = px + 'px'; }
   }
+  // The "SCORED … MORE TO WIN" line under the clock: shrink the lettering until every word fits.
+  function fitStrip() {
+    const el = $('fm'), st = el && el.querySelector('.p1strip'), rr = el && el.querySelector('.rr'); if (!st || !rr) return;
+    let px = parseFloat(getComputedStyle(st).fontSize), g = 0;
+    while ((st.scrollWidth > st.clientWidth + 1 || rr.scrollWidth > rr.clientWidth + 1) && px > 12 && g++ < 40) { px *= .94; st.style.fontSize = px + 'px'; }
+  }
   function fitFM() {
     const el = $('fm'); if (el && el.classList.contains('recap')) { fitRecap(); return; }
     const t = el && el.querySelector('table'); if (!t || el.style.display === 'none') return;
@@ -1226,10 +1233,10 @@ Nevada | 4`;
     const f = S.fm, el = $('fm');
     if (S.phase === 'fm') {
       const recapOn = !!(f.pl === 2 && f.recap);   // stays up the whole time Player 2 is answering
-      const head = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + fmWho(f.pl) + (f.running ? ' · Question ' + (f.idx + 1) + ' of ' + f.n : ' · ' + f.secs + ' seconds') + '</div><div id="timer">' + fmTimeLeft() + '</div>' + p1Strip();
+      const head = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</div><div id="timer">' + fmTimeLeft() + '</div>' + p1Strip();
       // Player 2's recap: two columns — Player 1's answers on the left; the get-ready info, clock, score and points needed on the right.
       el.innerHTML = recapOn ? '<div class="rcols"><div class="rl"><div class="rttl">' + (fmNm(1) ? fmNm(1).toUpperCase() + '’S' : 'PLAYER 1’S') + ' ANSWERS</div>' + recapTable() + '</div><div class="rr">' + head + '</div></div>' : head;
-      el.classList.toggle('recap', recapOn); if (recapOn) fitFM();
+      el.classList.toggle('recap', recapOn); if (recapOn) { fitFM(); fitStrip(); }
     } else {
       el.classList.remove('recap');
       const mcTop = !isBoard && S.phase === 'fmReveal';   // MC window only, during both players' reveals: mark each question's #1 answer (never on the TV)
