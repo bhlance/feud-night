@@ -299,7 +299,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 47';
+  const GAME_VERSION = '2026-10-03 · build 48';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -621,7 +621,8 @@ Nevada | 4`;
   const bc = ('BroadcastChannel' in window) ? new BroadcastChannel('feud-game') : null;
   const other = t => 1 - t;
   const tn = t => S.teams[t].name;
-  const pname = t => { const p = S.teams[t].players, k = S.pi[t] + (S.fp ? S.fp[t] : 0); return p.length ? p[k % p.length] : 'the next player'; };
+  // Face-off player: Round 1 = the 1st name on each team's list, Round 2 = the 2nd, Round 3 = the 3rd … (back to the 1st after the last name).
+  const pname = t => { const p = S.teams[t].players, k = Math.max(0, (S.round || 1) - 1); return p.length ? p[k % p.length] : 'the next player'; };
   const clone = o => JSON.parse(JSON.stringify(o));
 
   function commit() { if (!isBoard) { store(LS, S); if (bc) bc.postMessage({ t: 'state', S }); } render(); }
@@ -949,8 +950,8 @@ Nevada | 4`;
     else if (a === 'newgame') { stopMusic(); if (S && S.fm) S.fm.over = true; if (S && S.cele) S.cele.active = false; if (S) commit(); openSetup(); }
   }
   // Which team box is lit up: whoever is answering / deciding / playing right now; none between rounds.
-  // Who answers next for the team that is playing: the order the names were entered, picking up after the face-off player(s).
-  const playUp = () => { const t = S.ctrl, pl = (S.teams[t] && S.teams[t].players) || []; return pl.length ? pl[(S.pi[t] + S.fp[t] + (S.pp || 0)) % pl.length] : ''; };
+  // Who answers next for the team that is playing: list order, starting with the player after this round's face-off player.
+  const playUp = () => { const t = S.ctrl, pl = (S.teams[t] && S.teams[t].players) || []; return pl.length ? pl[((S.round || 1) + (S.pp || 0)) % pl.length] : ''; };   // the player after this round's face-off player, then the next, in list order
   const fmNm = n => ((S.fm && S.fm.names && S.fm.names[n - 1]) || '').trim();
   const fmWho = n => fmNm(n) ? fmNm(n) + ' (Player ' + n + ')' : 'Player ' + n;
   const fmPos = n => fmNm(n) ? fmNm(n) + '’s' : 'Player ' + n + '’s';
