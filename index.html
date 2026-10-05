@@ -116,9 +116,10 @@
   #fm td .p { display: inline-block; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; margin: 0 .5vw; font-family: var(--big); }
   #fm .tot { font-family: var(--big); font-size: clamp(34px, 9vh, 100px); color: var(--gold); }
   #fm.recap .rcols { display: flex; width: 100%; gap: 3vw; align-items: center; justify-content: center; }
-  #fm.recap .rl { flex: 1 1 46%; min-width: 0; } #fm.recap .rl table { width: 100%; }
-  #fm.recap .rttl { font-family: var(--big); color: var(--gold); font-size: clamp(18px, 3.4vh, 44px); text-align: center; margin-bottom: 1vh; }
-  #fm.recap .rr { flex: 1 1 46%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1.6vh; text-align: center; }
+  #fm.recap .rl { flex: 1 1 56%; min-width: 0; } #fm.recap .rl table { width: 100%; }
+  #fm.recap .rl td.a { width: auto; } #fm.recap .rl td.d { width: 1%; white-space: nowrap; }
+  #fm.recap .rttl { font-family: var(--big); color: var(--gold); font-size: clamp(22px, 4.6vh, 58px); text-align: center; margin-bottom: 1vh; }
+  #fm.recap .rr { flex: 1 1 38%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1.6vh; text-align: center; }
   #fm.recap #timer, body.board.fmmode #fm.recap #timer { font-size: clamp(60px, 22vh, 260px); }
   #fm .p1strip { font-weight: 900; font-size: clamp(18px, 3.6vh, 44px); color: var(--gold); background: rgba(255,255,255,.1); border-radius: 1.4vh; padding: .8vh 2vw; text-align: center; }
   body.board #fm .p1strip { font-size: clamp(24px, 5.4vh, 66px); }
@@ -316,7 +317,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 61';
+  const GAME_VERSION = '2026-10-03 · build 62';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1194,8 +1195,15 @@ Nevada | 4`;
     }
   }
   // Shrinks the results table only as much as needed so every row, the total and the verdict stay on screen.
+  // Player 1 recap (left column): as big as will fit in the height/width of that column.
+  function fitRecap() {
+    const el = $('fm'), rl = el && el.querySelector('.rl'), t = rl && rl.querySelector('table'); if (!t || el.style.display === 'none') return;
+    let px = innerHeight * 0.085, g = 0; t.style.fontSize = px + 'px';
+    while ((rl.offsetHeight > el.clientHeight * 0.95 || t.scrollWidth > rl.clientWidth + 1) && px > 14 && g++ < 60) { px *= .95; t.style.fontSize = px + 'px'; }
+  }
   function fitFM() {
-    const el = $('fm'), t = el && el.querySelector('table'); if (!t || el.style.display === 'none') return;
+    const el = $('fm'); if (el && el.classList.contains('recap')) { fitRecap(); return; }
+    const t = el && el.querySelector('table'); if (!t || el.style.display === 'none') return;
     let px = innerHeight * 0.047; t.style.fontSize = px + 'px'; let guard = 0;
     while (el.scrollHeight > el.clientHeight + 1 && px > 14 && guard++ < 40) { px *= 0.94; t.style.fontSize = px + 'px'; }
   }
