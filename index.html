@@ -312,7 +312,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 58';
+  const GAME_VERSION = '2026-10-03 · build 59';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -951,9 +951,9 @@ Nevada | 4`;
     else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
     else if (a === 'fmshowq') act(() => { S.fm.q1 = true; S.fm.recap = false; })   // show the first question on the TV; the clock waits until it's been read
     else if (a === 'fmrecap') act(() => { S.fm.recap = !S.fm.recap; })   // Player 2's turn: remind the audience of Player 1's answers on the TV
-    else if (a === 'fmbegin') act(() => { S.fm.q1 = true; S.fm.recap = false; S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });
+    else if (a === 'fmbegin') act(() => { S.fm.q1 = true; S.fm.recap = false; S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; if (S.fm.n > 1) fmAdvance(S.fm, false); });   // the first question has been read: the panel moves on to Q2
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
-    else if (a === 'fmpass') act(() => { if (fmPending(S.fm).length > 1) fmAdvance(S.fm, true); });
+    else if (a === 'fmpass') act(() => { const f = S.fm, q = f.lastRead; if (q == null) return; f.doneQ = (f.doneQ || []).filter(i => i !== q); f.passed = f.passed || []; if (!f.passed.includes(q)) f.passed.push(q); f.lastRead = null; });   // they passed on the question just read: it goes to the back of the line
     else if (a === 'fmrev') act(() => {
       const f = S.fm, who = f.pl - 1, r = f.rev[who]; if (r >= f.n) return;
       f.stage = f.stage || [0, 0];
@@ -968,7 +968,7 @@ Nevada | 4`;
     });
     else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; if (!f.won) fmLoseSound(); } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; if (!S.fm.won) fmLoseSound(); });
-    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.q1 = false; f.recap = false; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
+    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.q1 = false; f.recap = false; f.lastRead = null; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); if (S.cele) S.cele.active = false; S.phase = 'gameOver'; });
     else if (a === 'newgame') { stopMusic(); if (S && S.fm) S.fm.over = true; if (S && S.cele) S.cele.active = false; if (S) commit(); openSetup(); }
   }
@@ -991,13 +991,14 @@ Nevada | 4`;
   function fmSetup() {
     const qs = parseQs(S.fastText != null ? S.fastText : setFor(S.setIdx || 0).fast).slice(0, 5);
     if (S.fire) S.fire.active = false;   // Fast Money is starting: end the celebration
-    S.fm = { names: (S.fmNames || ['', '']).slice(), q1: false, recap: false, qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
+    S.fm = { names: (S.fmNames || ['', '']).slice(), q1: false, recap: false, lastRead: null, qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
     S.phase = 'fm'; S.fm.win = S.champ;
   }
   // Questions still to be answered (not yet moved past with Next). A Pass sends the question to the back of the line.
   const fmPending = f => f.qs.map((_, i) => i).filter(i => !(f.doneQ || []).includes(i));
   function fmAdvance(f, passing) {
     f.doneQ = f.doneQ || []; f.passed = f.passed || [];
+    if (!passing) f.lastRead = f.idx;   // the question that has just been read (the one a Pass would apply to)
     if (passing) { if (!f.passed.includes(f.idx)) f.passed.push(f.idx); } else { f.doneQ.push(f.idx); f.passed = f.passed.filter(i => i !== f.idx); }
     const pend = fmPending(f);
     if (!pend.length) { fmFinishPlayer(); return; }
@@ -1158,7 +1159,7 @@ Nevada | 4`;
     $('pot').style.visibility = fm || S.phase === 'gameOver' ? 'hidden' : 'visible';
     $('pot').querySelector('span').textContent = S.phase === 'roundEnd' ? S.awarded : S.pot;
     const hideQ = (S.phase === 'buzz' || S.phase === 'fo') && !S.qVisible;
-    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running || S.fm.q1 ? ((S.fm.passed || []).includes(S.fm.idx) ? '↩ ' : '') + S.fm.qs[S.fm.idx].text : 'Get ready…') : S.phase === 'fmEntry' ? 'Fast Money — tallying ' + fmPos(S.fm.pl) + ' answers…' : S.phase === 'fmReveal' ? 'Fast Money — ' + fmPos(S.fm.pl) + ' answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : S.q.text) : S.q.text));
+    $('q').textContent = fm ? (S.phase === 'fm' ? (!isBoard && (S.fm.running || S.fm.q1) ? ((S.fm.passed || []).includes(S.fm.idx) ? '↩ ' : '') + S.fm.qs[S.fm.idx].text : (isBoard && S.fm.running ? '⏱ GO!' : 'Get ready…')) : S.phase === 'fmEntry' ? 'Fast Money — tallying ' + fmPos(S.fm.pl) + ' answers…' : S.phase === 'fmReveal' ? 'Fast Money — ' + fmPos(S.fm.pl) + ' answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : S.q.text) : S.q.text));
     // board
     if (!fm && S.q) {
       const priv = !isBoard;   // the MC window always shows the answers (small, on each unrevealed tile); the TV window never does
@@ -1206,7 +1207,7 @@ Nevada | 4`;
   function recapTable() {
     const f = S.fm; if (!f || f.pl !== 2 || !f.recap || f.q1 || f.running) return '';
     let h = '<table>'; for (let r = 0; r < f.n; r++) { const a = f.p[0][r];
-      h += '<tr><td class="a">' + (a && a.text ? a.text : '&nbsp;') + '</td><td class="c">' + f.qs[r].text.replace(/^name\s+/i, '') + '</td><td class="d"><span class="p">' + (a ? a.pts : 0) + '</span></td></tr>'; }
+      h += '<tr><td class="a">' + (a && a.text ? a.text : '&nbsp;') + '</td><td class="d"><span class="p">' + (a ? a.pts : 0) + '</span></td></tr>'; }
     return h + '</table>';
   }
   function renderFM() {
@@ -1258,7 +1259,7 @@ Nevada | 4`;
       const f = S.fm;
       if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields() + (f.q1 ? '<div style="flex:1 1 100%;margin-top:6px"><b>Question 1:</b> ' + f.qs[f.idx].text + ' — read it out, <b>then</b> start the clock.</div>' : '')) + (f.pl === 2 && !f.q1 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + (f.q1 ? b('fmbegin', '▶ Start the clock', 'go') : b('fmshowq', '📖 Show the first question', 'go')) + un;
       const pend = fmPending(f), last = pend.length <= 1, back = (f.passed || []).includes(f.idx), ps = (f.passed || []).filter(i => i !== f.idx);
-      return say('<b>Q' + (f.idx + 1) + ' of ' + f.n + (back ? ' — back to a passed question' : '') + ':</b> ' + f.qs[f.idx].text + ' — read it out. <b>Next</b> when they answer, or <b>Pass</b> if they skip it.' + (ps.length ? ' <i>Passed so far: ' + ps.map(i => 'Q' + (i + 1)).join(', ') + '</i>' : '')) + b('fmq', last ? '✔ That was the last one' : 'Next question ▶', 'gold') + (last ? '' : b('fmpass', '⤼ Pass', 'bad')) + un;
+      return say('<b>Next up — Q' + (f.idx + 1) + ' of ' + f.n + (back ? ' (back to a passed question)' : '') + ':</b> ' + f.qs[f.idx].text + ' — read it when they finish answering. Click <b>Next</b> once you\'ve read it (to see the question after), or <b>Pass</b> if they passed on the question you just read.' + (ps.length ? ' <i>Passed so far: ' + ps.map(i => 'Q' + (i + 1)).join(', ') + '</i>' : '')) + b('fmq', last ? '✔ That was the last one' : 'Next question ▶', 'gold') + (f.lastRead != null ? b('fmpass', '⤼ Pass (the one just read)', 'bad') : '') + un;
     }
     if (p === 'fmEntry') { const f = S.fm; return say('<b>' + fmWho(f.pl) + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
