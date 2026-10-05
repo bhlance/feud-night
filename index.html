@@ -58,7 +58,7 @@
   .tile .f .pk { font-size: clamp(11px, 2.3vh, 22px); color: #ffe9a8; font-weight: 700; margin-top: -.2vh; max-width: 94%; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .tile .b { transform: rotateX(180deg); background: linear-gradient(#ffd96a, #f0a81a); color: var(--ink); border: .3vh solid #fff3c4; justify-content: space-between; padding: 0 1.2vw; gap: 1vw; }
   .tile.dim .b { background: linear-gradient(#8a93b8, #596291); color: #e8ecff; border-color: #aab3da; }
-  .tile .b .tx { font-weight: 900; font-size: clamp(14px, 3.2vh, 38px); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .tile .b .tx { font-weight: 900; font-size: clamp(14px, 3.2vh, 38px); text-transform: uppercase; overflow: hidden; white-space: normal; overflow-wrap: anywhere; line-height: 1.05; flex: 1; min-width: 0; align-self: stretch; display: flex; align-items: center; }
   .tile .b .pt { font-family: var(--big); font-size: clamp(20px, 4.6vh, 56px); background: var(--ink); color: var(--gold); padding: 0 .8vw; border-radius: .8vh; }
   .tile.empty .f { background: #060f45; border: .3vh solid #17267a; } .tile.empty .no, .tile.empty .pk { display: none; }
   #strikes { width: 12vw; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1.2vh; }
@@ -113,6 +113,10 @@
   #fm td .p.h { background: rgba(255,255,255,.25); color: rgba(255,255,255,.7); }
   #fm td .p { display: inline-block; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; margin: 0 .5vw; font-family: var(--big); }
   #fm .tot { font-family: var(--big); font-size: clamp(34px, 9vh, 100px); color: var(--gold); }
+  #fm .p1strip { font-weight: 900; font-size: clamp(18px, 3.6vh, 44px); color: var(--gold); background: rgba(255,255,255,.1); border-radius: 1.4vh; padding: .8vh 2vw; text-align: center; }
+  body.board #fm .p1strip { font-size: clamp(24px, 5.4vh, 66px); }
+  #fm .top1 { display: inline-block; margin-top: .3vh; font-size: .62em; font-weight: 900; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; text-transform: uppercase; }
+  #fm td.top1c { box-shadow: inset 0 0 0 .5vh var(--gold); }
   #fm .verdict { font-weight: 900; font-size: clamp(20px, 4.5vh, 52px); }
   /* ---- Fast Money display: bigger everything, no team score boxes ---- */
   body.fmmode #tm0, body.fmmode #tm1 { display: none; }
@@ -299,7 +303,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 50';
+  const GAME_VERSION = '2026-10-03 · build 51';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -742,6 +746,7 @@ Nevada | 4`;
       refreshMusicUI(); startPrelude(); } catch (e) {}
   }
   function stopMusic(soft) {
+    if (!soft) stopFanfare();
     const n = nowPlaying; if (!n || (soft && n.keep)) return; nowPlaying = null;
     try { n.g.gain.cancelScheduledValues(ac.currentTime); n.g.gain.setValueAtTime(n.g.gain.value, ac.currentTime); n.g.gain.linearRampToValueAtTime(0, ac.currentTime + .25); n.src.stop(ac.currentTime + .3); } catch (e) {}
     try { updatePreStatus(); } catch (e) {}
@@ -773,10 +778,10 @@ Nevada | 4`;
       nowPlaying = { src, g, keep: !!loop }; return true; } catch (e) { return false; }
   }
   // After a round: that round's own song (Round 1 … Round 5; round 6 and later share the Round 6 song). No song for that round = the built-in fanfare.
-  const roundSound = round => { if (playMusic(round <= 5 ? 'r' + round : 'win')) return; sWin(); };   // rounds 1–5 use their own song; round 6 and later use the Round 6 song; no song = built-in fanfare
+  const roundSound = round => { if (playMusic(round <= 5 ? 'r' + round : 'win', true)) return; loopFanfare(); };   // rounds 1–5 use their own song; round 6 and later use the Round 6 song; no song = built-in fanfare
   const winSound = () => { if (!playMusic('win')) sWin(); };
   // The game-winner song repeats until the MC starts Fast Money (or starts over); stopMusic() ends it.
-  const gameWinSound = () => { if (!playMusic('game', true)) sWin(); };
+  const gameWinSound = () => { if (!playMusic('game', true)) loopFanfare(); };
   // ---- Audience reactions for Fast Money point reveals ----
   // Built-in versions are computer-made crowd sounds (clapping = hundreds of tiny noise claps; "aww" and "yay" = a crowd of
   // vowel-shaped voices). Real recordings can be uploaded in the Menu and take over automatically.
@@ -826,7 +831,7 @@ Nevada | 4`;
   window.__feudAudio = () => ac;   // read-only hook used for testing the master volume
   window.__buildReact = { aww: buildAww, cheer: buildCheer, clap: buildApplause };
   // The Fast Money winner song repeats until the MC starts a new game (or goes back); confetti keeps falling the whole time.
-  const fmWinSound = () => { if (!playMusic('fm', true)) sWin(); };
+  const fmWinSound = () => { if (!playMusic('fm', true)) loopFanfare(); };
   // Fast Money ended below the target: the loser song repeats until the MC starts a new game / goes back. It begins just after the last
   // reveal's strike sound; nothing plays if no loser song has been added.
   const fmLoseSound = () => setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won && !playMusic('fmlose', true)) sSadTrombone(); }, 1300);   // no song loaded → built-in sad trombone
@@ -841,6 +846,10 @@ Nevada | 4`;
       g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.45, t + .05); g.gain.setValueAtTime(.45, t + d - .1); g.gain.linearRampToValueAtTime(0, t + d);
       o.connect(lp); lp.connect(g); g.connect(outNode()); o.start(t); vib.start(t); o.stop(t + d + .05); vib.stop(t + d + .05); }); } catch (e) {}
   }
+  // The built-in fanfare repeats too, until stopMusic() (the MC clicks Next / New game).
+  var fanTimer = 0;
+  function stopFanfare() { clearInterval(fanTimer); fanTimer = 0; }
+  function loopFanfare() { stopFanfare(); sWin(); fanTimer = setInterval(sWin, 2600); }
   const sWin = () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, .3, 'triangle', .25, i * .14));
   // Fast Money countdown: a clock "tick… tock…" once a second (alternating pitch, crisp click).
   let tickAlt = false, clickBuf = null;
@@ -1093,6 +1102,13 @@ Nevada | 4`;
     t.innerHTML = '<div class="in"><div class="f"><span class="no">' + (i + 1) + '</span><span class="pk"></span></div><div class="b"><span class="tx"></span><span class="pt"></span></div></div>';
     t.addEventListener('pointerdown', e => { e.preventDefault(); onTile(i); }); $('board').appendChild(t); tiles.push(t);
   }
+  // A long answer wraps onto more lines and, if it still doesn't fit, the lettering shrinks until all of it shows.
+  function fitTiles() {
+    tiles.forEach(t => { const tx = t.querySelector('.tx'); if (!tx || t.style.display === 'none') return; tx.style.fontSize = ''; if (!tx.textContent) return;
+      let px = parseFloat(getComputedStyle(tx).fontSize), g = 0;
+      while ((tx.scrollHeight > tx.clientHeight + 1 || tx.scrollWidth > tx.clientWidth + 1) && px > 9 && g++ < 40) { px *= .93; tx.style.fontSize = px + 'px'; } });
+  }
+  addEventListener('resize', () => { if (S && !document.body.classList.contains('fmmode')) fitTiles(); });
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
     $('wait').style.display = 'none'; if (isBoard) document.title = 'FHE FEUD';
@@ -1119,6 +1135,7 @@ Nevada | 4`;
         if (a) { t.querySelector('.tx').textContent = a.text; t.querySelector('.pt').textContent = a.pts * (S.mult || 1);
           t.classList.toggle('flip', !!a.revealed || !!a.shown); t.classList.toggle('dim', !a.revealed && !!a.shown);
           t.querySelector('.pk').textContent = priv && !a.revealed ? a.text + ' · ' + a.pts : ''; } else t.classList.remove('flip'); });
+      fitTiles();
       $('xs').innerHTML = [0, 1, 2].map(i => '<div class="xbox' + ((S.phase === 'steal' || S.phase === 'roundEnd' && S.strikes >= 3 ? 3 : S.strikes) > i ? ' on' : '') + '">✕</div>').join('');
     }
     if (fm) renderFM();
@@ -1146,11 +1163,19 @@ Nevada | 4`;
     while (el.scrollHeight > el.clientHeight + 1 && px > 14 && guard++ < 40) { px *= 0.94; t.style.fontSize = px + 'px'; }
   }
   addEventListener('resize', () => { if (S) fitFM(); });
+  // Player 2's turn onward: Player 1's total and how many points are still needed (updates as Player 2's answers are revealed).
+  function p1Strip() {
+    const f = S.fm; if (!f || f.pl !== 2 || S.phase === 'fmResult') return '';
+    let p1 = 0; for (let r = 0; r < f.rev[0]; r++) p1 += f.p[0][r] ? f.p[0][r].pts : 0;
+    const left = Math.max(0, S.fmTarget - fmTotal());
+    return '<div class="p1strip">' + (fmNm(1) ? fmNm(1).toUpperCase() : 'PLAYER 1') + ' SCORED ' + p1 + ' · ' + (left ? left + ' MORE TO WIN' : '🎉 TARGET REACHED!') + '</div>';
+  }
   function renderFM() {
     const f = S.fm, el = $('fm');
     if (S.phase === 'fm') {
-      el.innerHTML = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + fmWho(f.pl) + (f.running ? ' · Question ' + (f.idx + 1) + ' of ' + f.n : ' · ' + f.secs + ' seconds') + '</div><div id="timer">' + fmTimeLeft() + '</div>';
+      el.innerHTML = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + fmWho(f.pl) + (f.running ? ' · Question ' + (f.idx + 1) + ' of ' + f.n : ' · ' + f.secs + ' seconds') + '</div><div id="timer">' + fmTimeLeft() + '</div>' + p1Strip();
     } else {
+      const mcTop = !isBoard && S.phase === 'fmReveal' && f.pl === 2;   // MC only, while Player 2's answers are being revealed: mark each question's #1 answer
       let h = '<div class="ttl">FAST MONEY — ' + S.fmTarget + ' TO WIN</div><table><tr><td class="a" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 1</td><td class="c" style="background:none"></td><td class="d" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 2</td></tr>';
       const stg = f.stage || [0, 0];
       // With a separate TV window open, the MC's own screen shows everything up front (dimmed until revealed on the TV).
@@ -1163,8 +1188,9 @@ Nevada | 4`;
         const cur = (p1Now && stg[0] >= 1) || p2Now || (mcFull && (p1Now || p2Now));
         const L1 = (full1 || part1) && a ? (a.text || '') + pt(a, full1) : (mcFull && a ? '<span class="pvw">' + (a.text || '(blank)') + pt(a, false, true) + '</span>' : '&nbsp;');
         const R1 = (full2 || part2) && b ? pt(b, full2) + (b.text || '') : (mcFull && b ? '<span class="pvw">' + pt(b, false, true) + (b.text || '(blank)') + '</span>' : '&nbsp;');
-        h += '<tr' + (cur ? ' class="cur"' : '') + '><td class="a">' + L1 + '</td><td class="c">' + (qShown ? f.qs[r].text.replace(/^name\s+/i, '') : '&nbsp;') + '</td><td class="d">' + R1 + '</td></tr>'; }
-      h += '</table><div class="tot">TOTAL: ' + fmTotal() + '</div>';
+        const top = mcTop && f.qs[r].answers[0] ? '<br><span class="top1">★ #1: ' + f.qs[r].answers[0].text + ' · ' + f.qs[r].answers[0].pts + '</span>' : '';
+        h += '<tr' + (cur ? ' class="cur"' : '') + '><td class="a' + (mcTop && a && a.rank === 0 ? ' top1c' : '') + '">' + L1 + '</td><td class="c">' + (qShown ? f.qs[r].text.replace(/^name\s+/i, '') : '&nbsp;') + top + '</td><td class="d' + (mcTop && b && b.rank === 0 ? ' top1c' : '') + '">' + R1 + '</td></tr>'; }
+      h += '</table><div class="tot">TOTAL: ' + fmTotal() + '</div>' + p1Strip();
       if (f.done) h += '<div class="verdict">' + (fmTotal() >= S.fmTarget ? '🎉 ' + tn(f.win) + ' wins it all!' : 'So close! They needed ' + (S.fmTarget - fmTotal()) + ' more.') + '</div>';
       el.innerHTML = h; fitFM();
     }
