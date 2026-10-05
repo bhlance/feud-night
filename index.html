@@ -90,6 +90,8 @@
   #titleFb { display: none; font-size: 14vh; line-height: 1.05; text-transform: uppercase; text-shadow: 0 0 3vh #ffc93c, 0 .8vh 0 rgba(0,0,0,.6); }
   #titleFb img { height: 28vh; width: auto; display: block; margin: 0 auto 3vh; }
   #winFlashText { display: inline-block; max-width: 94vw; }
+  #winFlashSub { display: none; font-size: .6em; line-height: 1; margin-top: .05em; letter-spacing: .12em; }
+  #winVid { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 62; display: none; pointer-events: none; }
   @keyframes winBlink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
   #fireworks { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 57; pointer-events: none; }
   #confetti { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 55; pointer-events: none; }
@@ -201,8 +203,9 @@
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
 <div id="titleScr"><img id="titleImg" src="title.jpg?v=2" alt="" onerror="this.style.display='none';document.getElementById('titleFb').style.display='block'"><div id="titleFb"><img src="logo-white.png?v=4" alt="">FHE FEUD</div></div>
+<video id="winVid" muted loop playsinline></video>
 <div id="soClose"><img src="soclose.jpg?v=1" alt=""></div>
-<div id="winFlash"><span id="winFlashText"></span></div>
+<div id="winFlash"><div><span id="winFlashText"></span><div id="winFlashSub"></div></div></div>
 <div id="flash"><div class="xs"></div></div>
 <div class="wait" id="wait"><div><img src="logo-white.png?v=4" alt="" style="height:24vh;display:block;margin:0 auto 2vh">Family Home Evening<br><span style="font-size:.55em;font-weight:600;opacity:.8">Waiting for the host…</span></div></div>
 
@@ -250,6 +253,11 @@
   <label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
   <div class="note" id="latNote"></div>
   <div class="note">Tip for a TV: click <b>📺 Open board window</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
+  <h3>🏆 Fast Money win video</h3>
+  <div class="note">When a team wins Fast Money, the TV shows their name flashing with WIN (and confetti) for 10 seconds, then switches to this video, which repeats until you click New game. The video plays <b>silently</b> — the win music keeps playing the whole time. <b>Use an MP4 file</b> (H.264 video; the file ending in .mp4). WebM also works in Chrome and Edge. Under about 100 MB is best.</div>
+  <div class="btns"><button class="mb" id="vidPick">Choose video…</button><input type="file" id="vidFile" accept="video/mp4,video/webm,.mp4,.webm" style="display:none"><button class="mb" id="vidPrevBtn">▶ Preview</button><button class="mb" id="vidRemove">Remove</button></div>
+  <div class="note" id="vidNote">No video added yet — the name and WIN keep flashing instead.</div>
+  <video id="vidPrev" controls muted playsinline style="display:none;max-width:100%;max-height:30vh;background:#000;border-radius:10px"></video>
   <div class="btns" id="setupBtns" style="position:sticky;bottom:-2.4vh;background:#fff;padding:10px 0;border-top:2px solid #eef1ff;z-index:2">
     <button class="mb go" id="saveBackBtn" style="display:none">💾 Save changes &amp; back to the game</button>
     <button class="mb" id="cancelBackBtn" style="display:none">↩ Back to the game (no changes)</button>
@@ -303,7 +311,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 55';
+  const GAME_VERSION = '2026-10-03 · build 56';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1015,11 +1023,8 @@ Nevada | 4`;
     return { r };
   }
   // The moment the revealed total reaches the target, the Fast Money song starts.
-  // Reaching the target: the winner music, confetti and flashing name start FM_WIN_DELAY after the answer that got them there.
-  const FM_WIN_DELAY = 1000;
-  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; const stamp = f.winAt = Date.now(), nm = S.teams[f.win] ? S.teams[f.win].name : '';
-    setTimeout(() => { if (!S || !S.fm || !S.fm.won || S.fm.winAt !== stamp) return;   // undone or restarted in the meantime
-      fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true, name: nm }; commit(); }, FM_WIN_DELAY); } }
+  // Reaching the target: the winner music, confetti and flashing name (with WIN) start right away.
+  function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true, name: (S.teams[f.win] ? S.teams[f.win].name : '') }; } }
   function fmTotal() { const f = S.fm; let t = 0; for (let w = 0; w < 2; w++) for (let r = 0; r < f.rev[w]; r++) t += f.p[w][r] ? f.p[w][r].pts : 0; return t; }
   function fmTimeLeft() { const f = S.fm; return f.running ? Math.max(0, Math.ceil((f.end - Date.now()) / 1000)) : f.secs; }
   const clockLeft = () => { const t = S.tm; return !t.running ? t.secs : t.paused ? Math.ceil(t.rem / 1000) : Math.max(0, Math.ceil((t.end - Date.now()) / 1000)); };
@@ -1067,11 +1072,11 @@ Nevada | 4`;
   }
   // The winning team's name, huge, flashing on and off for as long as the fireworks last (shrinks to fit long names).
   let winFlashTimer = 0;
-  function flashWinner(name, secs, endless) {
-    const el = $('winFlash'), t = $('winFlashText'); t.textContent = name; el.style.display = 'flex';
+  function flashWinner(name, secs, endless, sub) {
+    const el = $('winFlash'), t = $('winFlashText'), sb = $('winFlashSub'); t.textContent = name; sb.textContent = sub || ''; sb.style.display = sub ? 'block' : 'none'; el.style.display = 'flex';
     let px = innerHeight * .34; el.style.fontSize = px + 'px'; let guard = 0;
     // shrink only until the NAME fits: no word wider than the screen, and the (wrapped) name no taller than ~80% of it
-    while ((t.scrollWidth > t.clientWidth + 1 || t.offsetHeight > innerHeight * .8) && px > 18 && guard++ < 70) { px *= .94; el.style.fontSize = px + 'px'; }
+    while ((t.scrollWidth > t.clientWidth + 1 || t.offsetHeight + (sub ? px * .66 : 0) > innerHeight * .8) && px > 18 && guard++ < 70) { px *= .94; el.style.fontSize = px + 'px'; }
     clearTimeout(winFlashTimer); if (!endless) winFlashTimer = setTimeout(() => { el.style.display = 'none'; }, secs * 1000);
   }
   function hideWinner() { clearTimeout(winFlashTimer); $('winFlash').style.display = 'none'; }
@@ -1115,10 +1120,26 @@ Nevada | 4`;
       while ((tx.scrollHeight > tx.clientHeight + 1 || tx.scrollWidth > tx.clientWidth + 1) && px > 9 && g++ < 40) { px *= .93; tx.style.fontSize = px + 'px'; } });
   }
   addEventListener('resize', () => { if (S && !document.body.classList.contains('fmmode')) fitTiles(); });
+  // Fast Money win video (uploaded in the setup menu, stored in this browser; the TV window reads it from there).
+  // The TV shows the flashing name + WIN with confetti for WIN_VIDEO_AFTER ms, then switches to the video, which repeats until New game.
+  const WIN_VIDEO_AFTER = 10000;
+  const winVid = { url: null, tried: false };
+  let vidTimer = 0;
+  function loadWinVideo() { return mdb('readonly', st => st.get('winvideo')).then(r => { winVid.tried = true; if (winVid.url) { try { URL.revokeObjectURL(winVid.url); } catch (e) {} winVid.url = null; } if (r && r.blob) winVid.url = URL.createObjectURL(r.blob); }); }
+  function paintWinVideo() {
+    const v = $('winVid'); if (!v) return;
+    const on = isBoard && S && S.fm && S.fm.won && S.cele && S.cele.endless && S.cele.active; clearTimeout(vidTimer);
+    if (on && !winVid.tried) { loadWinVideo().then(paintWinVideo); return; }
+    const wait = on ? S.cele.k + WIN_VIDEO_AFTER - Date.now() : 0;
+    if (on && winVid.url && wait > 0) vidTimer = setTimeout(paintWinVideo, wait + 30);
+    if (on && winVid.url && wait <= 0) { if (v.getAttribute('src') !== winVid.url) v.src = winVid.url; v.style.display = 'block'; v.muted = true; const pr = v.play(); if (pr && pr.catch) pr.catch(() => {}); }
+    else { v.style.display = 'none'; try { v.pause(); } catch (e) {} }
+  }
   let soTimer = 0;
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
     $('wait').style.display = 'none'; if (isBoard) document.title = 'FHE FEUD';
+    paintWinVideo();
     const soWait = S.fm && S.fm.loseAt ? S.fm.loseAt + LOSE_DELAY - Date.now() : 0; clearTimeout(soTimer); if (isBoard && soWait > 0) soTimer = setTimeout(render, soWait + 30);
     $('soClose').style.display = isBoard && S.phase === 'fmResult' && S.fm && !S.fm.won && !S.fm.over && soWait <= 0 ? 'flex' : 'none';   // "So close…" picture stays up until New game
     const fm = ['fm', 'fmEntry', 'fmReveal', 'fmResult'].includes(S.phase);
@@ -1147,8 +1168,8 @@ Nevada | 4`;
       $('xs').innerHTML = [0, 1, 2].map(i => '<div class="xbox' + ((S.phase === 'steal' || S.phase === 'roundEnd' && S.strikes >= 3 ? 3 : S.strikes) > i ? ' on' : '') + '">✕</div>').join('');
     }
     if (fm) renderFM();
-    if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; if (S.cele && S.cele.endless && S.cele.active) { startConfetti(0, true); if (S.cele.name) flashWinner(S.cele.name, 0, true); } }
-    else if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; if (S.cele.endless) { startConfetti(0, true); if (S.cele.name) flashWinner(S.cele.name, 0, true); } else startConfetti(S.cele.secs || 12); }
+    if (!celeInit) { celeInit = true; lastCele = S.cele ? S.cele.k : 0; if (S.cele && S.cele.endless && S.cele.active) { startConfetti(0, true); if (S.cele.name) flashWinner(S.cele.name, 0, true, 'WIN'); } }
+    else if (S.cele && S.cele.k !== lastCele) { lastCele = S.cele.k; if (S.cele.endless) { startConfetti(0, true); if (S.cele.name) flashWinner(S.cele.name, 0, true, 'WIN'); } else startConfetti(S.cele.secs || 12); }
     if (confEndless && !(S.cele && S.cele.endless && S.cele.active)) stopConfettiEndless();   // new game, back, or the win was undone
     if (!fireInit) { fireInit = true; lastFire = S.fire ? S.fire.k : 0;
       if (S.fire && S.fire.endless && S.fire.active) { startFireworks(0, true); if (S.fire.name) flashWinner(S.fire.name, 0, true); } }   // a window opened mid-celebration joins in
@@ -1296,6 +1317,7 @@ Nevada | 4`;
     if (isBoard && m.t === 'state') { S = m.S; render(); }
     if (!isBoard && m.t === 'hello') { boardOpen = true; if (S) bc.postMessage({ t: 'state', S }); if (titleOn) bc.postMessage({ t: 'title', on: true }); render(); }
     if (isBoard && m.t === 'title') { titleOn = !!m.on; paintTitle(); }
+    if (isBoard && m.t === 'vid') { winVid.tried = false; if (S) paintWinVideo(); }
   };
   if (isBoard && bc) { bc.postMessage({ t: 'hello' }); setTimeout(() => { if (!S) bc.postMessage({ t: 'hello' }); }, 1500); }
 
@@ -1378,6 +1400,20 @@ Nevada | 4`;
   $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel(+$('setSel').value || 0); if (S && S.qs) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor;
+  // Fast Money win video (setup menu)
+  (function () {
+    const note = $('vidNote'), prev = $('vidPrev'); let prevUrl = null;
+    const mb = n => (n / 1048576).toFixed(1) + ' MB';
+    const refresh = () => mdb('readonly', st => st.get('winvideo')).then(r => { note.textContent = r && r.blob ? '🏆 Using: ' + r.name + ' (' + mb(r.blob.size) + ')' : 'No video added yet — the name and WIN keep flashing instead.'; });
+    $('vidPick').onclick = () => $('vidFile').click();
+    $('vidFile').onchange = async () => { const f = $('vidFile').files[0]; if (!f) return; $('vidFile').value = '';
+      if (f.size > 250 * 1048576) { note.textContent = 'That file is ' + mb(f.size) + ' — too big. Please use one under about 100 MB.'; return; }
+      note.textContent = 'Saving…'; await mdb('readwrite', st => st.put({ blob: f, name: f.name }, 'winvideo')); if (bc) bc.postMessage({ t: 'vid' }); await refresh(); };
+    $('vidRemove').onclick = async () => { await mdb('readwrite', st => st.delete('winvideo')); if (bc) bc.postMessage({ t: 'vid' }); prev.style.display = 'none'; prev.pause(); await refresh(); };
+    $('vidPrevBtn').onclick = async () => { const r = await mdb('readonly', st => st.get('winvideo')); if (!r || !r.blob) { note.textContent = 'Add a video first.'; return; }
+      if (prevUrl) URL.revokeObjectURL(prevUrl); prevUrl = URL.createObjectURL(r.blob); prev.src = prevUrl; prev.style.display = 'block'; prev.play().catch(() => {}); };
+    refresh();
+  })();
   // Ready-made Games 1–3 (6 main rounds + 5 Fast Money each). Adding them puts them first; the games already saved become Game 4, Game 5, …
   const READY = [{"main": "Q: Name a miracle Jesus performed in the New Testament.\nFeeding the 5,000 | 28\nTurning water into wine | 24\nWalking on water | 16\nRaising Lazarus from the dead | 12\nHealing the blind | 8\nCalming the storm | 6\nHealing the lepers | 4\nCatching a huge haul of fish | 2\n\nQ: Name something people over 55 can't do as well as they used to.\nRemember names | 28\nRead small print | 17\nHear what people are saying | 15\nStay up late | 12\nGet up off the floor | 9\nSleep through the night | 7\nClimb a ladder | 5\nEat spicy food | 4\nJump | 3\n\nQ: Besides Sunday worship, name something Latter-day Saints regularly go to the church building for.\nMidweek youth activities | 24\nWard dinners | 18\nChurch basketball | 14\nChoir practice | 11\nScouts | 7\nWeddings | 7\nFunerals | 6\nRelief Society and Elders Quorum activities | 5\nInterviews with the bishop | 4\nFamily history center | 4\n\nQ: Name a TV show from the 1970s.\nHappy Days | 25\nM*A*S*H | 18\nThe Brady Bunch | 16\nLittle House on the Prairie | 10\nAll in the Family | 8\nCharlie's Angels | 7\nThe Waltons | 6\nThree's Company | 5\nLaverne & Shirley | 3\nSanford and Son | 2\n\nQ: Name a major change the Church of Jesus Christ of Latter-day Saints has made in the past 60 years.\nTwo-hour Sunday block | 27\nPriesthood for all worthy men, regardless of race | 22\nMoving away from the nickname \"Mormon\" | 14\nMinistering replacing home and visiting teaching | 12\nLower missionary age | 9\nEnding ties with the Boy Scouts of America | 6\nWeekly calls or video chats home from missionaries | 5\nWomen and youth as ordinance witnesses | 3\nWomen in Sunday School presidencies | 2\n\nQ: Name a place where you're forced to wait in a long line.\nDMV | 26\nGrocery checkout | 18\nAirport security | 14\nTheme park | 12\nPost office | 8\nDrive-thru | 7\nCostco | 6\nBank | 4\nPharmacy | 3\nPublic restroom | 2", "fast": "Q: Name something you add to a cup of coffee.\nCreamer or cream | 32\nSugar | 28\nMilk | 14\nSweetener | 10\nFlavored syrup | 8\nCinnamon | 5\nHoney | 3\n\nQ: Name a sport where players wear helmets.\nFootball | 32\nHockey | 22\nBaseball | 14\nBiking | 12\nSkiing or snowboarding | 8\nMotorcycle racing | 6\nLacrosse | 6\n\nQ: Name a place where you're expected to be completely quiet.\nLibrary | 30\nChurch | 26\nMovie theater | 12\nHospital | 10\nTemple | 8\nClassroom during a test | 8\nMuseum | 6\n\nQ: Name something you'd find in a junk drawer.\nBatteries | 26\nTape | 18\nRubber bands | 14\nPens | 14\nScissors | 10\nKeys | 10\nTakeout menus | 8\n\nQ: Name something grandparents keep at their house just for the grandkids.\nToys | 30\nCandy or snacks | 24\nGames or puzzles | 14\nCrib or Pack 'n Play | 12\nKids' movies | 10\nStuffed animals | 6\nKid-sized cups and plates | 4"}, {"main": "Q: Name an old church tradition or practice you wish would make a comeback.\nBoy Scouts | 26\nFather and sons campout | 18\nRoadshows | 14\nWard talent show | 12\nGold and Green Ball and ward campouts | 10\nDance festival | 8\nCompetitive church sports | 7\n3-hour church | 5\n\nQ: Name something you do more of since the kids moved out.\nTravel | 26\nEat out | 20\nSleep in | 16\nWatch TV or movies | 12\nRead | 8\nWork on hobbies | 7\nRelax at home | 6\nGo on dates | 5\n\nQ: Name a dish you're almost guaranteed to see at a ward potluck dinner.\nFuneral potatoes | 28\nJell-O salad | 20\nRolls | 12\nHam | 10\nPie | 8\nBrownies | 7\nCookies | 6\nGreen salad | 5\nChili | 4\n\nQ: Name something families realize they forgot at home after they've already left for church.\nScriptures | 27\nDiaper bag | 16\nGlasses | 14\nLesson materials or manual | 12\nPhone | 11\nKids' snacks | 8\nShoes | 8\nA child | 4\n\nQ: Name something you'd find in the glove compartment of a car.\nRegistration and insurance papers | 28\nOwner's manual | 20\nNapkins | 14\nFlashlight | 8\nTire pressure gauge | 7\nPen or pencil | 6\nMaps | 6\nLoose change | 5\nGum or mints | 4\nHand sanitizer | 2\n\nQ: Name a phrase you hear at almost every fast and testimony meeting.\n\"I know this church is true\" | 29\n\"In the name of Jesus Christ, amen\" | 24\n\"I'm grateful for my family\" | 12\n\"I love you all\" | 9\n\"I wasn't planning on coming up here\" | 8\n\"I'd like to bear my testimony\" | 8\n\"I'll be brief\" | 5\n\"I know the Book of Mormon is true\" | 3\n\"Brothers and sisters\" | 2", "fast": "Q: Name an animal you'd see at the zoo.\nLion | 24\nElephant | 22\nGiraffe | 18\nMonkey | 12\nTiger | 10\nZebra | 8\nPenguin | 6\n\nQ: Name a common measurement used in baking recipes.\nCup | 34\nTeaspoon | 26\nTablespoon | 20\nOunce | 8\nPinch | 6\nPound | 4\nDash | 2\n\nQ: Name something you do the minute you get home from church.\nChange clothes | 34\nEat lunch | 22\nTake a nap | 16\nTake off your shoes or tie | 10\nCheck your phone | 8\nLet the dog out | 6\nTurn on the TV | 4\n\nQ: Name something you'd eat at a family barbecue.\nHamburgers | 30\nHot dogs | 26\nCorn on the cob | 12\nRibs | 11\nPotato salad | 9\nBaked beans | 7\nWatermelon | 5\n\nQ: Name something you do to stay in shape.\nWalk | 32\nGo to the gym | 20\nRun | 14\nRide a bike | 10\nSwim | 8\nPlay pickleball | 8\nDo yoga or stretch | 8"}, {"main": "Q: Name something you do to get ready for bed.\nBrush your teeth | 28\nPut on pajamas | 15\nWash your face | 12\nLock the doors | 10\nSet an alarm or plug in your phone | 9\nSay your prayers | 8\nRead a book | 8\nTake vitamins or medicine | 6\nLet the dog out | 4\n\nQ: Name a reason people wake up at 3:00 in the morning.\nBathroom | 28\nWorrying or racing thoughts | 20\nToo hot or too cold | 12\nSpouse snoring | 10\nA pet | 8\nThirsty or hungry | 7\nAches and pains | 6\nNoise outside | 5\nBad dream | 4\n\nQ: Name a singer or band from the 1960s or '70s.\nThe Beatles | 28\nElvis Presley | 16\nThe Beach Boys | 12\nElton John | 9\nThe Rolling Stones | 8\nABBA | 7\nThe Carpenters | 6\nJohn Denver | 5\nThe Bee Gees | 5\nFleetwood Mac | 4\n\nQ: Name a real or fictional person from Idaho.\nNapoleon Dynamite/Jon Heder | 27\nAaron Paul/Breaking Bad | 20\nPicabo Street/Olympic skier | 17\nSarah Palin/Alaska governor | 12\nLana Turner/Hollywood actress | 9\nSacagawea/Lewis and Clark guide | 9\nGutzon Borglum/Mount Rushmore | 6\n\nQ: Name an excuse a kid uses to get out of going to bed or taking a nap.\n\"I need a drink of water\" | 28\n\"I have to go potty\" | 22\n\"I'm not tired\" | 14\n\"I'm scared\" | 10\n\"One more story\" | 8\n\"I'm hungry\" | 7\n\"I forgot to tell you something\" | 5\n\"My tummy hurts\" | 4\n\"I can't sleep\" | 2\n\nQ: Name a career that requires a lot of public speaking.\nPolitician | 28\nTeacher or professor | 22\nPastor or preacher | 14\nLawyer | 10\nSalesperson | 8\nAuctioneer | 6\nMotivational speaker | 6\nNews anchor | 4\nTour guide | 2", "fast": "Q: Name a breakfast food.\nEggs | 30\nBacon | 22\nPancakes | 16\nCereal | 12\nToast | 10\nWaffles | 6\nOatmeal | 4\n\nQ: Name something people do when they're happy.\nSmile | 30\nLaugh | 26\nSing | 12\nDance | 12\nHum or whistle | 8\nHug someone | 7\nClap | 5\n\nQ: Name an appliance found in almost every kitchen.\nRefrigerator | 34\nStove or oven | 26\nMicrowave | 20\nDishwasher | 10\nToaster | 6\nCoffee maker | 4\n\nQ: Name something that frequently gets lost in your house.\nKeys | 28\nTV remote | 22\nPhone | 16\nGlasses | 14\nWallet | 10\nSocks | 6\nPens | 4\n\nQ: Name a vegetable people grow in a garden.\nTomatoes | 34\nZucchini | 16\nCarrots | 14\nCorn | 10\nCucumbers | 10\nPeppers | 8\nPotatoes | 8"}];
   let readyArm = 0;
