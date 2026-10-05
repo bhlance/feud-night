@@ -54,8 +54,8 @@
   .tile.flip .in { transform: rotateX(180deg); }
   .tile .f, .tile .b { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 1.2vh; display: flex; align-items: center; justify-content: center; }
   .tile .f { background: linear-gradient(var(--tile1), var(--tile2)); border: .3vh solid #9fb8ff; flex-direction: column; }
-  .tile .f .no { font-family: var(--big); font-size: clamp(26px, 6vh, 70px); color: #fff; text-shadow: 0 .3vh 0 rgba(0,0,0,.35); }
-  .tile .f .pk { font-size: clamp(10px, 1.7vh, 17px); color: #ffe9a8; font-weight: 700; margin-top: -.4vh; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .f .no { font-family: var(--big); font-size: clamp(20px, 4.4vh, 52px); color: #fff; text-shadow: 0 .3vh 0 rgba(0,0,0,.35); }
+  .tile .f .pk { font-size: clamp(11px, 2.3vh, 22px); color: #ffe9a8; font-weight: 700; margin-top: -.2vh; max-width: 94%; text-align: center; line-height: 1.1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .tile .b { transform: rotateX(180deg); background: linear-gradient(#ffd96a, #f0a81a); color: var(--ink); border: .3vh solid #fff3c4; justify-content: space-between; padding: 0 1.2vw; gap: 1vw; }
   .tile.dim .b { background: linear-gradient(#8a93b8, #596291); color: #e8ecff; border-color: #aab3da; }
   .tile .b .tx { font-weight: 900; font-size: clamp(14px, 3.2vh, 38px); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
@@ -299,7 +299,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 45';
+  const GAME_VERSION = '2026-10-03 · build 46';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -770,9 +770,8 @@ Nevada | 4`;
       else { g.gain.setValueAtTime(1, t); g.gain.setValueAtTime(1, t + len - 1); g.gain.linearRampToValueAtTime(0, t + len); src.start(t, a0); src.stop(t + len + .05); }
       nowPlaying = { src, g, keep: !!loop }; return true; } catch (e) { return false; }
   }
-  // After a round: that round's own song (Round 1 song, Round 2 song, …; round 5 and later share the last slot).
-  // A round with no song of its own uses the fallback song; with none of those, the built-in fanfare.
-  const roundSound = round => { if (playMusic('r' + Math.min(round, 5))) return; if (!playMusic('win')) sWin(); };
+  // After a round: that round's own song (Round 1 … Round 5; round 6 and later share the Round 6 song). No song for that round = the built-in fanfare.
+  const roundSound = round => { if (playMusic(round <= 5 ? 'r' + round : 'win')) return; sWin(); };   // rounds 1–5 use their own song; round 6 and later use the Round 6 song; no song = built-in fanfare
   const winSound = () => { if (!playMusic('win')) sWin(); };
   // The game-winner song repeats until the MC starts Fast Money (or starts over); stopMusic() ends it.
   const gameWinSound = () => { if (!playMusic('game', true)) sWin(); };
@@ -1107,7 +1106,7 @@ Nevada | 4`;
     $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? ((S.fm.passed || []).includes(S.fm.idx) ? '↩ ' : '') + S.fm.qs[S.fm.idx].text : 'Get ready…') : S.phase === 'fmEntry' ? 'Fast Money — tallying Player ' + S.fm.pl + '’s answers…' : S.phase === 'fmReveal' ? 'Fast Money — Player ' + S.fm.pl + '’s answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : S.q.text) : S.q.text));
     // board
     if (!fm && S.q) {
-      const priv = !isBoard && (boardOpen || peek);
+      const priv = !isBoard;   // the MC window always shows the answers (small, on each unrevealed tile); the TV window never does
       const nTiles = S.q.answers.length > 8 ? 10 : 8; $('board').style.gridTemplateRows = 'repeat(' + (nTiles / 2) + ', 1fr)';
       tiles.forEach((t, i) => { const a = S.q.answers[i]; t.style.display = i < nTiles ? '' : 'none'; t.classList.toggle('empty', !a);
         if (a) { t.querySelector('.tx').textContent = a.text; t.querySelector('.pt').textContent = a.pts * (S.mult || 1);
@@ -1371,8 +1370,8 @@ Nevada | 4`;
       + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
       + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
     $('musicOrder').innerHTML =
-        sec('🎬 Prelude music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + sec('🎬 Title screen music — plays on repeat while the FHE FEUD picture is on the TV, until you click Start new game', 'Title', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 and later winner song', 'R5', 10)
-      + sec('6 · Fallback song — used for any round above that has no song of its own', '', 10)
+        sec('🎬 Prelude music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + sec('🎬 Title screen music — plays on repeat while the FHE FEUD picture is on the TV, until you click Start new game', 'Title', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
+      + sec('6 · Round 6 Winner Song — also used for any later round', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + reactIntro + sec('8 · Fast Money: disappointed “aww” (low scores)', 'Aww', 3) + sec('9 · Fast Money: generous applause (middle scores)', 'Clap', 4) + sec('10 · Fast Money: loud cheering (high scores)', 'Cheer', 5)
       + sec('11 · Fast Money winner song — plays and repeats the moment the total reaches the Fast Money target', 'Fm', 30)
