@@ -303,7 +303,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 52';
+  const GAME_VERSION = '2026-10-03 · build 53';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -834,7 +834,8 @@ Nevada | 4`;
   const fmWinSound = () => { if (!playMusic('fm', true)) loopFanfare(); };
   // Fast Money ended below the target: the loser song repeats until the MC starts a new game / goes back. It begins just after the last
   // reveal's strike sound; nothing plays if no loser song has been added.
-  const fmLoseSound = () => setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won && !playMusic('fmlose', true)) sSadTrombone(); }, 1300);   // no song loaded → built-in sad trombone
+  const LOSE_DELAY = 4000;   // after a Fast Money loss, the loser song and the "So Close" picture both wait this long
+  const fmLoseSound = () => { if (S && S.fm) S.fm.loseAt = Date.now(); setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won && !playMusic('fmlose', true)) sSadTrombone(); }, LOSE_DELAY); };   // no song loaded → built-in sad trombone
   if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'title', 'fmlose'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
   // "Wah wah wah waaah": four falling brassy notes, the last one sliding down.
   function sSadTrombone() {
@@ -1109,10 +1110,12 @@ Nevada | 4`;
       while ((tx.scrollHeight > tx.clientHeight + 1 || tx.scrollWidth > tx.clientWidth + 1) && px > 9 && g++ < 40) { px *= .93; tx.style.fontSize = px + 'px'; } });
   }
   addEventListener('resize', () => { if (S && !document.body.classList.contains('fmmode')) fitTiles(); });
+  let soTimer = 0;
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
     $('wait').style.display = 'none'; if (isBoard) document.title = 'FHE FEUD';
-    $('soClose').style.display = isBoard && S.phase === 'fmResult' && S.fm && !S.fm.won && !S.fm.over ? 'flex' : 'none';   // "So close…" picture stays up until New game
+    const soWait = S.fm && S.fm.loseAt ? S.fm.loseAt + LOSE_DELAY - Date.now() : 0; clearTimeout(soTimer); if (isBoard && soWait > 0) soTimer = setTimeout(render, soWait + 30);
+    $('soClose').style.display = isBoard && S.phase === 'fmResult' && S.fm && !S.fm.won && !S.fm.over && soWait <= 0 ? 'flex' : 'none';   // "So close…" picture stays up until New game
     const fm = ['fm', 'fmEntry', 'fmReveal', 'fmResult'].includes(S.phase);
     document.body.classList.toggle('fmmode', fm); document.body.classList.toggle('fmtable', fm && S.phase !== 'fm');
     $('board').style.display = fm ? 'none' : 'grid'; $('strikes').style.display = fm ? 'none' : 'flex'; $('fm').style.display = fm ? 'flex' : 'none';
