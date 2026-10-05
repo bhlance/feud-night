@@ -303,7 +303,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 54';
+  const GAME_VERSION = '2026-10-03 · build 55';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1016,7 +1016,7 @@ Nevada | 4`;
   }
   // The moment the revealed total reaches the target, the Fast Money song starts.
   // Reaching the target: the winner music, confetti and flashing name start FM_WIN_DELAY after the answer that got them there.
-  const FM_WIN_DELAY = 2000;
+  const FM_WIN_DELAY = 1000;
   function fmCheckWin() { const f = S.fm; if (!f.won && fmTotal() >= S.fmTarget) { f.won = true; const stamp = f.winAt = Date.now(), nm = S.teams[f.win] ? S.teams[f.win].name : '';
     setTimeout(() => { if (!S || !S.fm || !S.fm.won || S.fm.winAt !== stamp) return;   // undone or restarted in the meantime
       fmWinSound(); S.cele = { k: Math.max(Date.now(), ((S.cele && S.cele.k) || 0) + 1), secs: 0, endless: true, active: true, name: nm }; commit(); }, FM_WIN_DELAY); } }
