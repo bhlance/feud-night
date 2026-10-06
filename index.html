@@ -281,9 +281,6 @@
     <h3>⚡ Skip to Fast Money (for testing)</h3>
     <div class="note">Jumps straight to the Fast Money round, as if this team had just won the game. Undo brings you back.</div>
     <div class="btns"><button class="mb gold" id="skipFm0"></button><button class="mb gold" id="skipFm1"></button></div>
-    <h3>⏹ End this game</h3>
-    <div class="note">Ends the game that is running and goes back to the setup page. The TV returns to the welcome screen. This cannot be undone.</div>
-    <div class="btns"><button class="mb bad" id="endGameBtn">⏹ End this game</button></div>
   </div>
   <div class="note" id="verSetup" style="opacity:.6">Game version —</div>
   <div id="musicHome">
@@ -341,6 +338,7 @@
     <button class="mb" id="sheetBtn">🖨 Print MC cheat sheet</button>
     <label style="display:flex;gap:8px;align-items:center;font-weight:700;align-self:center"><input type="checkbox" id="muteChkSetup" style="width:auto"> 🔇 Mute all sounds</label>
     <button class="mb" id="testFmBtn">⚡ Test: jump to Fast Money</button>
+    <button class="mb bad" id="endGameBtn" style="display:none" title="Ends the game that is running, deletes it, and returns the TV to the welcome screen. Cannot be undone.">⏹ End this game</button>
   </div>
 </div></div>
 
@@ -406,7 +404,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 121';
+  const GAME_VERSION = '2026-10-03 · build 122';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1742,7 +1740,7 @@ Nevada | 4`;
     $('saveBackBtn').style.display = $('cancelBackBtn').style.display = inGame ? 'inline-block' : 'none';
     $('startBtn').textContent = inGame ? '▶ Start a NEW game (replaces this one)' : '▶ Start new game';
     $('resumeBtn').style.display = !inGame && load(LS, null) ? 'inline-block' : 'none';
-    $('testFmBtn').style.display = inGame ? 'none' : 'inline-block';
+    $('testFmBtn').style.display = inGame ? 'none' : 'inline-block'; $('endGameBtn').style.display = inGame ? 'inline-block' : 'none';
     try { refreshPackSel(); $('packNote').style.display = 'none'; } catch (e) {}   // (the added-games note clears when the menu is opened again)
     show('setup', true);
     const card = $('setup').querySelector('.card'); if (card) card.scrollTop = 0;
