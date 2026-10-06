@@ -130,7 +130,7 @@
   #fm.mctiles .p1strip { text-align: left; font-size: clamp(13px, 2.4vh, 28px); padding: .5vh 1.2vw; }
   #fm.mctiles .ttl { font-size: clamp(16px, 3vh, 34px); }
   #fm.mctiles #timer, body.board.fmmode #fm.mctiles #timer { font-size: clamp(44px, 11vh, 130px); }
-  #fm .voicelive { white-space: pre-wrap; font-size: clamp(13px, 2.2vh, 26px); font-weight: 700; color: #bfe7ff; min-height: 1.2em; }
+  #fm .voicelive { height: 6.6em; overflow: hidden; line-height: 1.3; white-space: pre-wrap; font-size: clamp(13px, 2.2vh, 26px);   /* fixed height: the live text can grow without pushing the question tiles around */ font-weight: 700; color: #bfe7ff; min-height: 1.2em; }
   #fm.mctiles .mcl1 { display: flex; align-items: baseline; gap: 1.6vw; flex-wrap: wrap; }
   #fm.mctiles .mcl1 .ttl { font-size: clamp(18px, 3.8vh, 44px); } #fm.mctiles .mcl1 .who { font-size: clamp(16px, 3.2vh, 38px); }
   body.fmmode:not(.board) #q { font-size: clamp(16px, 3vh, 36px); min-height: 5vh; padding: .5vh 2vw; }   /* MC: the big "Get ready…" bar is smaller so the five question tiles fit */
@@ -370,7 +370,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 94';
+  const GAME_VERSION = '2026-10-03 · build 95';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
