@@ -163,6 +163,13 @@
   .modal input, .modal textarea { font-family: var(--font); font-size: 17px; border: 2px solid #c9d2f5; border-radius: 12px; padding: 9px; width: 100%; user-select: text; -webkit-user-select: text; }
   .modal textarea { min-height: 120px; resize: vertical; }
   .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  /* the songs & sounds are their own framed panel, set apart from the top buttons and the bottom Start/Resume/Edit buttons */
+  #musicHome { margin: 22px 0 18px; }
+  #musicBlock { border: 3px solid #3b55c9; border-radius: 16px; background: #f4f6ff; padding: 0 16px 16px; overflow: hidden; box-shadow: 0 3px 10px rgba(30,50,140,.18); }
+  #musicBlock > summary { margin: 0 -16px 12px; padding: 13px 18px; background: #1b2f8f; color: #fff; font-weight: 900; font-size: 19px; cursor: pointer; }
+  #musicBlock:not([open]) > summary { margin-bottom: 0; }
+  #musicBlock h3 { margin: 16px 0 6px; padding-top: 12px; border-top: 2px dashed #c3ccf0; }
+  #musicBlock h3:first-of-type { border-top: 0; padding-top: 0; }
   #setup .card { width: min(1200px, 100%); }   /* wider menu so each song row fits on one line */
   #musicOrder > .row { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end; }
   #musicOrder .row .row { grid-template-columns: 1fr 1fr; align-items: end; }
@@ -264,7 +271,7 @@
   <div class="note" id="verSetup" style="opacity:.6">Game version —</div>
   <div id="musicHome">
   <details open id="musicBlock">
-    <summary style="font-weight:800;font-size:16px;cursor:pointer;margin-top:.8vh">🎵 Celebration music &amp; sounds — listed in the order they play</summary>
+    <summary>🎵 Celebration music &amp; sounds — listed in the order they play</summary>
     <div class="note" style="margin:6px 0">Pick songs from your laptop — set them up once and they stay saved on this laptop. Each can play for up to 3 minutes and fades out at the end. Without a song, a built-in sound plays. The numbers follow the order of a game.</div>
     <div id="musicOrder"></div>
   </details>
@@ -332,7 +339,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 70';
+  const GAME_VERSION = '2026-10-03 · build 71';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
