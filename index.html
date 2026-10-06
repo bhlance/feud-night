@@ -396,7 +396,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 114';
+  const GAME_VERSION = '2026-10-03 · build 115';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1823,8 +1823,8 @@ Nevada | 4`;
       const x = await mediaIdx(), d = x[slot], seen = new Map();
       [slot].concat(MEDIA_SLOTS.filter(z => z !== slot)).forEach(z => x[z].items.forEach(it => { if (!allowVideo && !imgT(it.type)) return; if (!seen.has(key(it))) seen.set(key(it), { slot: z, it }); }));
       const list = [...seen.values()].sort((a, b) => String(a.it.name).localeCompare(String(b.it.name), undefined, { numeric: true, sensitivity: 'base' }));
-      sel.innerHTML = '<option value="">' + (noneLabel || '— None —') + '</option>' + list.map(e => '<option value="' + e.slot + ':' + e.it.id + '">' + (imgT(e.it.type) ? '🖼 ' : '🎬 ') + esc(e.it.name) + ' (' + mb(e.it.size) + ')</option>').join('');
-      const cur = d.sel && d.items.find(it => it.id === d.sel), hit = cur && seen.get(key(cur)); sel.value = hit ? hit.slot + ':' + hit.it.id : '';
+      sel.innerHTML = '<option value="">' + (noneLabel || '— None —') + '</option>' + list.map(e => '<option value="' + e.slot + ':' + e.it.id + '" data-name="' + esc(e.it.name).replace(/"/g, '&quot;') + '">' + (imgT(e.it.type) ? '🖼 ' : '🎬 ') + esc(e.it.name) + ' (' + mb(e.it.size) + ')</option>').join('');
+      const cur = d.sel && d.items.find(it => it.id === d.sel), hit = cur && seen.get(key(cur)); sel.value = hit ? hit.slot + ':' + hit.it.id : ''; makeCombo(sel).sync();
       note.textContent = cur && hit ? '✅ In use: ' + cur.name : (list.length ? list.length + ' saved — pick one above to use it.' : none);
     };
     mediaRefreshers.push(refresh);
@@ -1938,13 +1938,29 @@ Nevada | 4`;
     try { fillAllSongSel(); } catch (e) {}
   }
   // One pick-list per slot: "— default —" or any song you've added. Adding several songs is fine; the selected one is used.
+  // Turns a pull-down into ONE field: open the list with the arrow, or start typing a name (like the "Which game's questions?" field).
+  // The original <select> stays hidden underneath and still holds the real choice.
+  function makeCombo(sel) {
+    if (sel._combo) return sel._combo;
+    const inp = document.createElement('input'), dl = document.createElement('datalist'), id = 'dl' + Math.random().toString(36).slice(2); let prev = '';
+    dl.id = id; inp.setAttribute('list', id); inp.type = 'text'; inp.autocomplete = 'off'; inp.style.cssText = sel.style.cssText; inp.style.display = ''; inp.className = 'combo';
+    sel.style.display = 'none'; sel.parentNode.insertBefore(inp, sel); sel.parentNode.insertBefore(dl, sel);
+    const names = () => [...sel.options].map(o => ({ v: o.value, n: o.dataset.name || o.textContent }));
+    const sync = () => { dl.innerHTML = ''; names().forEach(o => { const d = document.createElement('option'); d.value = o.n; dl.appendChild(d); }); const cur = names().find(o => o.v === sel.value); inp.value = cur ? cur.n : ''; };
+    const pick = v => { if (sel.value !== v) { sel.value = v; sel.dispatchEvent(new Event('change')); } };
+    inp.addEventListener('focus', () => { prev = inp.value; inp.placeholder = prev || 'Choose, or start typing a name…'; inp.value = ''; });
+    inp.addEventListener('blur', () => { if (!inp.value) inp.value = prev; });
+    inp.addEventListener('input', () => { const t = inp.value.trim().toLowerCase(), m = names().find(o => o.n.toLowerCase() === t); if (m) { prev = m.n; pick(m.v); } });
+    inp.addEventListener('change', () => { const t = inp.value.trim().toLowerCase(); if (!t) return; const m = names().filter(o => o.n.toLowerCase().includes(t)); if (m.length === 1) { inp.value = m[0].n; prev = m[0].n; pick(m[0].v); } });
+    return (sel._combo = { sync });
+  }
   // Every song saved anywhere in the game is offered in every music field (each song once, alphabetical). Picking one that is saved under another field copies it into this one.
   function fillSongSel(k, x) {
     const sel = $('songSel' + x); if (!sel || !musIdxCache) return; const d = musIdxCache[k], key = it => it.name + '|' + (it.size || 0), seen = new Map();
     [k].concat(MUS_KEYS.filter(z => z !== k)).forEach(z => musIdxCache[z].items.forEach(it => { const kk = key(it); if (!seen.has(kk)) seen.set(kk, { slot: z, it }); }));
     const list = [...seen.values()].sort((a, b) => String(a.it.name).localeCompare(String(b.it.name), undefined, { numeric: true, sensitivity: 'base' }));
-    sel.innerHTML = '<option value="">— ' + (bundled[k] ? 'Comes with the game' : ['aww', 'clap', 'cheer'].includes(k) ? 'Built-in crowd sound' : 'Built-in sound') + ' —</option>' + list.map(e => '<option value="' + e.slot + ':' + e.it.id + '">🎵 ' + String(e.it.name).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
-    const cur = d.sel && d.items.find(it => it.id === d.sel), hit = cur && seen.get(key(cur)); sel.value = hit ? hit.slot + ':' + hit.it.id : '';
+    sel.innerHTML = '<option value="">— ' + (bundled[k] ? 'Comes with the game' : ['aww', 'clap', 'cheer'].includes(k) ? 'Built-in crowd sound' : 'Built-in sound') + ' —</option>' + list.map(e => '<option value="' + e.slot + ':' + e.it.id + '" data-name="' + String(e.it.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '">🎵 ' + String(e.it.name).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
+    const cur = d.sel && d.items.find(it => it.id === d.sel), hit = cur && seen.get(key(cur)); sel.value = hit ? hit.slot + ':' + hit.it.id : ''; makeCombo(sel).sync();
   }
   function fillAllSongSel() { SLOT_DEFS.forEach(([k, x]) => fillSongSel(k, x)); }
   SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
