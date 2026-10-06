@@ -130,6 +130,7 @@
   #fm.mctiles .p1strip { text-align: left; font-size: clamp(13px, 2.4vh, 28px); padding: .5vh 1.2vw; }
   #fm.mctiles .ttl { font-size: clamp(16px, 3vh, 34px); }
   #fm.mctiles #timer, body.board.fmmode #fm.mctiles #timer { font-size: clamp(44px, 11vh, 130px); }
+  #fm .voicelive { font-size: clamp(13px, 2.2vh, 26px); font-weight: 700; color: #bfe7ff; min-height: 1.2em; }
   #fm.mctiles .mcl1 { display: flex; align-items: baseline; gap: 1.6vw; flex-wrap: wrap; }
   #fm.mctiles .mcl1 .ttl { font-size: clamp(18px, 3.8vh, 44px); } #fm.mctiles .mcl1 .who { font-size: clamp(16px, 3.2vh, 38px); }
   body.fmmode:not(.board) #q { font-size: clamp(16px, 3vh, 36px); min-height: 5vh; padding: .5vh 2vw; }   /* MC: the big "Get ready…" bar is smaller so the five question tiles fit */
@@ -359,7 +360,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 81';
+  const GAME_VERSION = '2026-10-03 · build 82';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1018,10 +1019,12 @@ Nevada | 4`;
     });
     else if (a === 'champ') act(() => { const w = +v; S.champ = w; S.phase = 'gameOver'; gameWinSound(); fireworks(0, S.teams[w].name, true); });   // tied after the last question: the MC picks who goes to Fast Money
     else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
-    else if (a === 'fmtick') act(() => { const f = S.fm; f.chk = f.chk || []; f.chk[+v] = !f.chk[+v]; })   // tick a question once it has been answered (leave it unticked if they pass)
+    else if (a === 'fmtick') act(() => { const f = S.fm; f.chk = f.chk || []; f.chk[+v] = !f.chk[+v]; f.draft = f.draft || [[], []];
+      if (f.chk[+v]) { if (voice.on) { const c = voiceTake(+v); if (c) f.draft[f.pl - 1][+v] = c; } } else if (voice.on) f.draft[f.pl - 1][+v] = ''; })   // tick a question once it has been answered (leave it unticked if they pass)
+    else if (a === 'voice') { if (voice.on) voiceStop(); else voiceStart(); render(); }
     else if (a === 'fmdone') act(() => { fmFinishPlayer(); })   // end their turn early   // show the first question on the TV; the clock waits until it's been read
     else if (a === 'fmrecap') act(() => { S.fm.recap = !S.fm.recap; })   // Player 2's turn: remind the audience of Player 1's answers on the TV
-    else if (a === 'fmbegin') act(() => { S.fm.q1 = true; if (S.fm.pl === 2) S.fm.recap = true; S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });   // the first question was read before the clock; Q1 is what they answer now, and Q2 is shown as NEXT
+    else if (a === 'fmbegin') act(() => { voiceMark(); S.fm.q1 = true; if (S.fm.pl === 2) S.fm.recap = true; S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });   // the first question was read before the clock; Q1 is what they answer now, and Q2 is shown as NEXT
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
     else if (a === 'fmpass') act(() => { if (fmPending(S.fm).length > 1) fmAdvance(S.fm, true); });   // they skipped this question: it goes to the back of the line
     else if (a === 'fmrev') act(() => {
@@ -1083,7 +1086,40 @@ Nevada | 4`;
     const pick = list => list.find(i => i > f.idx) !== undefined ? list.find(i => i > f.idx) : list[0];
     if (fresh.length) f.idx = pick(fresh); else if (cand.length) f.idx = pick(cand);
   }
+  // ---- Voice entry (MC window only): the browser's speech recognition listens to the microphone chosen in the Mac's Sound settings.
+  // When the MC taps a question's tile, whatever the contestant just said becomes that question's typed answer.
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const voice = { on: false, rec: null, utts: [], base: 0, used: -1, map: {}, msg: '' };
+  const voiceClean = t => String(t || '').replace(/\b(pass|passed|next|skip|um|uh|uhh|umm)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  function voiceShow() { const el = document.getElementById('voiceLive'); if (el) el.textContent = voiceLine(); }
+  function voiceLine() {
+    if (!SpeechRec) return '🎤 Voice entry needs Safari or Chrome on a Mac/PC.';
+    if (voice.msg) return '🎤 ' + voice.msg;
+    if (!voice.on) return '';
+    let last = ''; for (let i = voice.utts.length - 1; i > voice.used; i--) { const c = voiceClean(voice.utts[i]); if (c) { last = c; break; } }
+    return '🎤 Listening… ' + (last ? 'just heard: “' + last + '”' : '(say the answers — tap each question’s tile after they answer)');
+  }
+  function voiceAssign(q, text) { const f = S && S.fm; if (!f || !text) return; f.draft = f.draft || [[], []]; f.draft[f.pl - 1][q] = text; }
+  function voiceStart() {
+    if (isBoard || !SpeechRec || voice.on) return; voice.msg = '';
+    try {
+      const rec = new SpeechRec(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; voice.rec = rec; voice.on = true;
+      rec.onstart = () => { voice.base = voice.utts.length; };
+      rec.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) { const idx = voice.base + i, t = e.results[i][0].transcript.trim(); voice.utts[idx] = t;
+          if (voice.map[idx] != null) { const c = voiceClean(t); if (c) voiceAssign(voice.map[idx], c); } } voiceShow(); };
+      rec.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; voice.msg = e.error === 'not-allowed' ? 'The microphone is blocked. Allow it for this page in Safari (Safari > Settings > Websites > Microphone), then tap Listen again.' : 'Speech recognition is off. Turn on Dictation in System Settings > Keyboard, then tap Listen again.'; voiceShow(); render(); } };
+      rec.onend = () => { if (voice.on) setTimeout(() => { try { rec.start(); } catch (e) {} }, 200); };
+      rec.start();
+    } catch (e) { voice.on = false; voice.msg = 'Couldn’t start the microphone.'; }
+  }
+  function voiceStop() { voice.on = false; try { if (voice.rec) { voice.rec.onend = null; voice.rec.stop(); } } catch (e) {} voice.rec = null; }
+  const voiceMark = () => { voice.used = voice.utts.length - 1; voice.map = {}; };   // the clock started: ignore everything said before (you reading the first question)
+  function voiceTake(q) {   // the newest thing said since the last tap, minus "pass"/"next"/"um"
+    for (let i = voice.utts.length - 1; i > voice.used; i--) { const c = voiceClean(voice.utts[i]); if (c) { voice.used = i; voice.map[i] = q; return c; } }
+    return '';
+  }
   function fmFinishPlayer() {
+    voiceStop();
     const f = S.fm; f.running = false;
     S.phase = 'fmEntry';   // type in what they said, then reveal their answers one at a time
   }
@@ -1343,7 +1379,7 @@ Nevada | 4`;
       const recapOn = isBoard && !!(f.pl === 2 && f.recap);   // TV only; stays up the whole time Player 2 is answering
       const head = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</div><div id="timer">' + fmTimeLeft() + '</div>' + p1Strip();
       // MC screen: the clock sits to the right of the "Fast Money — name" line so all five question tiles fit above the instructions.
-      const mcHead = '<div class="mchead"><div class="mcl"><div class="mcl1"><span class="ttl">FAST MONEY</span><span class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</span></div>' + p1Strip() + '</div><div id="timer">' + fmTimeLeft() + '</div></div>';
+      const mcHead = '<div class="mchead"><div class="mcl"><div class="mcl1"><span class="ttl">FAST MONEY</span><span class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</span></div>' + p1Strip() + '<div id="voiceLive" class="voicelive">' + voiceLine() + '</div></div><div id="timer">' + fmTimeLeft() + '</div></div>';
       // Player 2's recap: two columns — Player 1's answers on the left; the get-ready info, clock, score and points needed on the right.
       el.innerHTML = recapOn ? '<div class="rcols"><div class="rl"><div class="rttl">' + (fmNm(1) ? fmNm(1).toUpperCase() + '’S' : 'PLAYER 1’S') + ' ANSWERS</div>' + recapTable() + '</div><div class="rr">' + head + '</div></div>' : (isBoard ? head : mcHead + qTiles(f));
       el.classList.toggle('mctiles', !isBoard); el.classList.toggle('recap', recapOn); if (recapOn) { fitFM(); fitStrip(); }
@@ -1390,8 +1426,8 @@ Nevada | 4`;
     if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money and type their names below (Player 2 must be out of earshot).' + nameFields()) + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
     if (p === 'fm') {
       const f = S.fm;
-      if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' All the questions are on your screen. Read the first one, <b>then</b> start the clock. Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields()) + (f.pl === 2 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + b('fmbegin', '▶ Start the clock', 'go') + un;
-      return say('<b>' + fmWho(f.pl) + ' is answering.</b> Tap a question\'s tile when they\'ve answered it (you get a ✔). If they pass, leave it and move on — you can come back to it and tap it later. The turn ends when the clock runs out.') + b('fmdone', '✔ Done — end their turn now', 'gold') + un;
+      if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' All the questions are on your screen. Read the first one, <b>then</b> start the clock. Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields()) + (f.pl === 2 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + b('fmbegin', '▶ Start the clock', 'go') + un;
+      return say('<b>' + fmWho(f.pl) + ' is answering.</b> Tap a question\'s tile when they\'ve answered it (you get a ✔). If they pass, leave it and move on — you can come back to it and tap it later. The turn ends when the clock runs out.') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + b('fmdone', '✔ Done — end their turn now', 'gold') + un;
     }
     if (p === 'fmEntry') { const f = S.fm; return say('<b>' + fmWho(f.pl) + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
