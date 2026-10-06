@@ -344,6 +344,12 @@
 </div>
 
 <!-- Confirm replacing a game in progress -->
+<div class="modal" id="previewModal" style="z-index:97"><div class="card" style="max-width:min(92vw,1100px);align-items:center;gap:12px">
+  <div id="pvName" style="font-weight:900;font-size:18px"></div>
+  <img id="pvImg" alt="" style="display:none;max-width:100%;max-height:70vh;border-radius:12px">
+  <video id="pvVid" controls playsinline style="display:none;max-width:100%;max-height:70vh;border-radius:12px;background:#000"></video>
+  <div class="btns"><button class="mb go" id="pvClose">Close</button></div>
+</div></div>
 <div class="modal" id="renameModal" style="z-index:96"><div class="card" style="max-width:520px;gap:14px">
   <h3 style="margin:0" id="renTitle">Rename</h3>
   <input id="renInput" type="text" autocomplete="off" style="font-size:18px;padding:10px;border-radius:10px;border:2px solid #c9d2f5;width:100%">
@@ -396,7 +402,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 115';
+  const GAME_VERSION = '2026-10-03 · build 116';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1810,6 +1816,16 @@ Nevada | 4`;
       $('renSave').onclick = () => done(inp.value.trim() || null); $('renCancel').onclick = () => done(null);
       inp.onkeydown = e => { if (e.key === 'Enter') done(inp.value.trim() || null); else if (e.key === 'Escape') done(null); }; });
   }
+  let pvUrl = null;
+  function showPreview(r, name) {   // pops up a picture or video so you can see it
+    const img = $('pvImg'), vid = $('pvVid'); if (pvUrl) { try { URL.revokeObjectURL(pvUrl); } catch (e) {} } pvUrl = URL.createObjectURL(r.blob);
+    $('pvName').textContent = name || ''; const isImage = /^image\//.test(r.type || r.blob.type || '');
+    img.style.display = isImage ? 'block' : 'none'; vid.style.display = isImage ? 'none' : 'block';
+    if (isImage) { img.src = pvUrl; try { vid.pause(); } catch (e) {} } else { vid.src = pvUrl; vid.play().catch(() => {}); }
+    $('previewModal').style.display = 'flex';
+  }
+  $('pvClose').onclick = () => { $('previewModal').style.display = 'none'; try { $('pvVid').pause(); } catch (e) {} };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('previewModal').style.display === 'flex') $('pvClose').click(); });
   const MEDIA_SLOTS = ['win', 'lose', 'title', 'wait'], mediaRefreshers = [];
   const refreshAllMedia = () => Promise.all(mediaRefreshers.map(f => f()));
   // Every saved picture/video is offered in every picker (each once, alphabetical). Picking one saved under another picker copies it into this one.
@@ -1818,6 +1834,10 @@ Nevada | 4`;
     const note = $(p + 'Note'), sel = $(p + 'Sel'), prevV = $(p + 'Prev'), prevI = $(p + 'PrevImg'); let prevUrl = null;
     const mb = n => (n / 1048576).toFixed(1) + ' MB', esc = x => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'), imgT = t => /^image\//.test(t || ''), allowVideo = slot === 'win' || slot === 'lose';
     const hidePrev = () => { prevV.style.display = 'none'; try { prevV.pause(); } catch (e) {} prevI.style.display = 'none'; };
+    // one framed field: [file name ▾] [➕ Add] [✏️ Rename]; Preview and Remove sit underneath
+    const pickBox = document.createElement('div'); pickBox.className = 'fpick'; sel.parentNode.insertBefore(pickBox, sel); pickBox.appendChild(sel); sel.style.cssText = 'flex:1;min-width:0;font-family:var(--font);font-size:15px;border:0;background:transparent;font-weight:700'; makeCombo(sel);
+    $(p + 'Pick').textContent = '➕ Add'; $(p + 'Rename').textContent = '✏️ Rename'; $(p + 'PrevBtn').textContent = '▶ Preview'; $(p + 'Remove').textContent = 'Remove';
+    pickBox.appendChild($(p + 'Pick')); pickBox.appendChild($(p + 'Rename'));
     const save = x => mdb('readwrite', st => st.put(x, 'mediaidx')), key = it => it.name + '|' + (it.size || 0);
     const refresh = async () => {
       const x = await mediaIdx(), d = x[slot], seen = new Map();
@@ -1854,9 +1874,8 @@ Nevada | 4`;
     };
     $(p + 'Remove').onclick = async () => { const x = await mediaIdx(), id = x[slot].sel; if (!id) { note.textContent = 'Pick the one to remove from the list first.'; return; }
       await mdb('readwrite', st => st.delete(slot + ':' + id)); x[slot].items = x[slot].items.filter(it => it.id !== id); x[slot].sel = null; await save(x); if (bc) bc.postMessage({ t: msg }); hidePrev(); await refreshAllMedia(); };
-    $(p + 'PrevBtn').onclick = async () => { const x = await mediaIdx(), id = x[slot].sel; const r = id ? await mdb('readonly', st => st.get(slot + ':' + id)) : null; if (!r || !r.blob) { note.textContent = 'Pick one from the list first.'; return; }
-      if (prevUrl) URL.revokeObjectURL(prevUrl); prevUrl = URL.createObjectURL(r.blob); hidePrev();
-      if (imgT(r.type || r.blob.type)) { prevI.src = prevUrl; prevI.style.display = 'block'; } else { prevV.src = prevUrl; prevV.style.display = 'block'; prevV.play().catch(() => {}); } };
+    $(p + 'PrevBtn').onclick = async () => { const x = await mediaIdx(), id = x[slot].sel; const r = id ? await mdb('readonly', st => st.get(slot + ':' + id)) : null; if (!r || !r.blob) { note.textContent = 'Pick one from the list first, then Preview.'; return; }
+      const cur = x[slot].items.find(i => i.id === id); showPreview(r, cur ? cur.name : ''); };
     refresh();
   }
   mediaUI('win', 'vid', 'Nothing added yet — the name and WIN keep flashing instead.', 'vid');
