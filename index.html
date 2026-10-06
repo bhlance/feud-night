@@ -297,7 +297,7 @@
   <h4 style="margin:10px 0 4px">😬 Loser video or image</h4>
   <div class="note">When Fast Money ends below the target, the TV shows the video or image you pick below (about half the screen), 4 seconds later, with the loser song, until you click New game. A video plays silently and repeats. <b>Nothing added = no picture</b>, just the loser song. Video: MP4 (H.264). Image: JPG, PNG or WebP.</div>
   <label for="lmSel" style="font-weight:800">Use this one for the game:</label><select id="lmSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
-  <div class="btns"><button class="mb" id="lmPick">➕ Add video(s) or image(s)…</button><input type="file" multiple id="lmFile" accept="video/mp4,video/webm,image/*,.mp4,.webm,.jpg,.jpeg,.png,.gif,.webp" style="display:none"><button class="mb" id="lmPrevBtn">▶ Preview</button><button class="mb" id="lmRemove">Remove the selected one</button></div>
+  <div class="btns"><button class="mb" id="lmPick">➕ Add video(s) or image(s)…</button><input type="file" multiple id="lmFile" accept="video/mp4,video/webm,image/*,.mp4,.webm,.jpg,.jpeg,.png,.gif,.webp" style="display:none"><button class="mb" id="lmPrevBtn">▶ Preview</button><button class="mb" id="lmRename">✏️ Rename the selected one</button><button class="mb" id="lmRemove">Remove the selected one</button></div>
   <div class="note" id="lmNote">Nothing added — only the loser song plays.</div>
   <video id="lmPrev" controls muted playsinline style="display:none;max-width:100%;max-height:30vh;background:#000;border-radius:10px"></video>
   <img id="lmPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
@@ -306,7 +306,7 @@
   <h4 style="margin:10px 0 4px">🏆 Win video or image</h4>
   <div class="note">When a team wins Fast Money, the TV shows their name flashing with WIN (and confetti) for 5 seconds, then switches to the video or image you pick below, which stays up until you click New game. A video plays <b>silently</b> and repeats — the win music keeps playing. <b>Video: use an MP4 file</b> (H.264). <b>Image:</b> JPG, PNG or WebP. Under about 100 MB is best.</div>
   <label for="vidSel" style="font-weight:800">Use this one for the game:</label><select id="vidSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
-  <div class="btns"><button class="mb" id="vidPick">➕ Add video(s) or image(s)…</button><input type="file" multiple id="vidFile" accept="video/mp4,video/webm,image/*,.mp4,.webm,.jpg,.jpeg,.png,.gif,.webp" style="display:none"><button class="mb" id="vidPrevBtn">▶ Preview</button><button class="mb" id="vidRemove">Remove the selected one</button></div>
+  <div class="btns"><button class="mb" id="vidPick">➕ Add video(s) or image(s)…</button><input type="file" multiple id="vidFile" accept="video/mp4,video/webm,image/*,.mp4,.webm,.jpg,.jpeg,.png,.gif,.webp" style="display:none"><button class="mb" id="vidPrevBtn">▶ Preview</button><button class="mb" id="vidRename">✏️ Rename the selected one</button><button class="mb" id="vidRemove">Remove the selected one</button></div>
   <div class="note" id="vidNote">Nothing added yet — the name and WIN keep flashing instead.</div>
   <img id="vidPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   <video id="vidPrev" controls muted playsinline style="display:none;max-width:100%;max-height:30vh;background:#000;border-radius:10px"></video>
@@ -314,14 +314,14 @@
   <div id="wtBlock">
   <h4 style="margin:12px 0 4px">Welcome Screen Picture (shown after 📺 Show Welcome Screen, before the game starts)</h4>
   <label for="wtSel" style="font-weight:800">Use this one:</label><select id="wtSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
-  <div class="btns"><button class="mb" id="wtPick">➕ Add picture(s)…</button><input type="file" multiple id="wtFile" accept="image/*" style="display:none"><button class="mb" id="wtPrevBtn">▶ Preview</button><button class="mb" id="wtRemove">Remove the selected one</button></div>
+  <div class="btns"><button class="mb" id="wtPick">➕ Add picture(s)…</button><input type="file" multiple id="wtFile" accept="image/*" style="display:none"><button class="mb" id="wtPrevBtn">▶ Preview</button><button class="mb" id="wtRename">✏️ Rename the selected one</button><button class="mb" id="wtRemove">Remove the selected one</button></div>
   <div class="note" id="wtNote"></div>
   <video id="wtPrev" controls muted playsinline style="display:none"></video><img id="wtPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   </div>
   <div id="tiBlock">
   <h4 style="margin:12px 0 4px">Game Board Picture — shown on the TV when you click 🎬 Show Game Board</h4>
   <label for="tiSel" style="font-weight:800">Use this one:</label><select id="tiSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
-  <div class="btns"><button class="mb" id="tiPick">➕ Add picture(s)…</button><input type="file" multiple id="tiFile" accept="image/*" style="display:none"><button class="mb" id="tiPrevBtn">▶ Preview</button><button class="mb" id="tiRemove">Remove the selected one</button></div>
+  <div class="btns"><button class="mb" id="tiPick">➕ Add picture(s)…</button><input type="file" multiple id="tiFile" accept="image/*" style="display:none"><button class="mb" id="tiPrevBtn">▶ Preview</button><button class="mb" id="tiRename">✏️ Rename the selected one</button><button class="mb" id="tiRemove">Remove the selected one</button></div>
   <div class="note" id="tiNote"></div>
   <video id="tiPrev" controls muted playsinline style="display:none"></video><img id="tiPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   </div>
@@ -344,6 +344,11 @@
 </div>
 
 <!-- Confirm replacing a game in progress -->
+<div class="modal" id="renameModal" style="z-index:96"><div class="card" style="max-width:520px;gap:14px">
+  <h3 style="margin:0" id="renTitle">Rename</h3>
+  <input id="renInput" type="text" autocomplete="off" style="font-size:18px;padding:10px;border-radius:10px;border:2px solid #c9d2f5;width:100%">
+  <div class="btns"><button class="mb go" id="renSave">Save</button><button class="mb" id="renCancel">Cancel</button></div>
+</div></div>
 <div class="modal" id="micModal" style="z-index:95"><div class="card" style="max-width:600px;gap:14px">
   <h3 style="margin:0">🎤 Microphone check</h3>
   <div class="note" style="font-size:15px">This is the microphone the game will listen to:</div>
@@ -391,7 +396,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 113';
+  const GAME_VERSION = '2026-10-03 · build 114';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1798,22 +1803,57 @@ Nevada | 4`;
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor;
   // Win / loser video-or-image libraries (setup menu): add several, pick which one is used. Saved in this browser (IndexedDB); the TV window reads them from there.
+  // A small in-page rename box (used for songs, pictures and videos).
+  function askName(title, current) {
+    return new Promise(res => { const m = $('renameModal'), inp = $('renInput'); $('renTitle').textContent = title; inp.value = current; m.style.display = 'flex'; setTimeout(() => { inp.focus(); inp.select(); }, 30);
+      const done = v => { m.style.display = 'none'; $('renSave').onclick = $('renCancel').onclick = inp.onkeydown = null; res(v); };
+      $('renSave').onclick = () => done(inp.value.trim() || null); $('renCancel').onclick = () => done(null);
+      inp.onkeydown = e => { if (e.key === 'Enter') done(inp.value.trim() || null); else if (e.key === 'Escape') done(null); }; });
+  }
+  const MEDIA_SLOTS = ['win', 'lose', 'title', 'wait'], mediaRefreshers = [];
+  const refreshAllMedia = () => Promise.all(mediaRefreshers.map(f => f()));
+  // Every saved picture/video is offered in every picker (each once, alphabetical). Picking one saved under another picker copies it into this one.
+  // The Game Board / Welcome Screen pickers only take pictures; the winner / loser pickers take pictures and videos.
   function mediaUI(slot, p, none, msg, noneLabel) {
     const note = $(p + 'Note'), sel = $(p + 'Sel'), prevV = $(p + 'Prev'), prevI = $(p + 'PrevImg'); let prevUrl = null;
-    const mb = n => (n / 1048576).toFixed(1) + ' MB', esc = x => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'), imgT = t => /^image\//.test(t || '');
+    const mb = n => (n / 1048576).toFixed(1) + ' MB', esc = x => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'), imgT = t => /^image\//.test(t || ''), allowVideo = slot === 'win' || slot === 'lose';
     const hidePrev = () => { prevV.style.display = 'none'; try { prevV.pause(); } catch (e) {} prevI.style.display = 'none'; };
-    const save = x => mdb('readwrite', st => st.put(x, 'mediaidx'));
-    const refresh = async () => { const x = await mediaIdx(), d = x[slot]; sel.innerHTML = '<option value="">' + (noneLabel || '— None —') + '</option>' + d.items.map(it => '<option value="' + it.id + '">' + (imgT(it.type) ? '🖼 ' : '🎬 ') + esc(it.name) + ' (' + mb(it.size) + ')</option>').join(''); sel.value = d.sel && d.items.some(it => it.id === d.sel) ? d.sel : '';
-      note.textContent = sel.value ? '✅ In use: ' + d.items.find(it => it.id === sel.value).name + (d.items.length > 1 ? ' (' + d.items.length + ' saved)' : '') : (d.items.length ? d.items.length + ' saved — pick one above to use it.' : none); };
+    const save = x => mdb('readwrite', st => st.put(x, 'mediaidx')), key = it => it.name + '|' + (it.size || 0);
+    const refresh = async () => {
+      const x = await mediaIdx(), d = x[slot], seen = new Map();
+      [slot].concat(MEDIA_SLOTS.filter(z => z !== slot)).forEach(z => x[z].items.forEach(it => { if (!allowVideo && !imgT(it.type)) return; if (!seen.has(key(it))) seen.set(key(it), { slot: z, it }); }));
+      const list = [...seen.values()].sort((a, b) => String(a.it.name).localeCompare(String(b.it.name), undefined, { numeric: true, sensitivity: 'base' }));
+      sel.innerHTML = '<option value="">' + (noneLabel || '— None —') + '</option>' + list.map(e => '<option value="' + e.slot + ':' + e.it.id + '">' + (imgT(e.it.type) ? '🖼 ' : '🎬 ') + esc(e.it.name) + ' (' + mb(e.it.size) + ')</option>').join('');
+      const cur = d.sel && d.items.find(it => it.id === d.sel), hit = cur && seen.get(key(cur)); sel.value = hit ? hit.slot + ':' + hit.it.id : '';
+      note.textContent = cur && hit ? '✅ In use: ' + cur.name : (list.length ? list.length + ' saved — pick one above to use it.' : none);
+    };
+    mediaRefreshers.push(refresh);
     $(p + 'Pick').onclick = () => $(p + 'File').click();
     $(p + 'File').onchange = async () => { const files = Array.from($(p + 'File').files); $(p + 'File').value = ''; if (!files.length) return;
       const x = await mediaIdx(); note.textContent = 'Saving…'; let skipped = 0;
       for (const f of files) { if (f.size > 250 * 1048576) { skipped++; continue; } const id = slot + Date.now() + Math.floor(Math.random() * 1000);
         await mdb('readwrite', st => st.put({ blob: f, name: f.name, type: f.type }, slot + ':' + id)); x[slot].items.push({ id, name: f.name, type: f.type || '', size: f.size }); x[slot].sel = id; }
-      await save(x); if (bc) bc.postMessage({ t: msg }); hidePrev(); await refresh(); if (skipped) note.textContent += ' (' + skipped + ' file' + (skipped > 1 ? 's' : '') + ' over 250 MB skipped.)'; };
-    sel.onchange = async () => { const x = await mediaIdx(); x[slot].sel = sel.value || null; await save(x); if (bc) bc.postMessage({ t: msg }); hidePrev(); await refresh(); };
+      await save(x); if (bc) bc.postMessage({ t: msg }); hidePrev(); await refreshAllMedia(); if (skipped) note.textContent += ' (' + skipped + ' file' + (skipped > 1 ? 's' : '') + ' over 250 MB skipped.)'; };
+    sel.onchange = async () => {
+      const x = await mediaIdx(), d = x[slot], v = sel.value;
+      if (!v) d.sel = null;
+      else { const c = v.indexOf(':'), src = v.slice(0, c), id = v.slice(c + 1);
+        if (src === slot) d.sel = id;
+        else { const it = x[src].items.find(i => i.id === id);
+          if (it) { const have = d.items.find(i => key(i) === key(it));
+            if (have) d.sel = have.id;
+            else { const r = await mdb('readonly', st => st.get(src + ':' + id));
+              if (r && r.blob) { const nid = slot + Date.now() + Math.floor(Math.random() * 1000); await mdb('readwrite', st => st.put({ blob: r.blob, name: it.name, type: it.type }, slot + ':' + nid)); d.items.push({ id: nid, name: it.name, type: it.type, size: it.size }); d.sel = nid; } } } } }
+      await save(x); if (bc) bc.postMessage({ t: msg }); hidePrev(); await refreshAllMedia();
+    };
+    $(p + 'Rename').onclick = async () => {
+      const x = await mediaIdx(), cur = x[slot].items.find(i => i.id === x[slot].sel); if (!cur) { note.textContent = 'Pick the one to rename from the list first.'; return; }
+      const nn = await askName('Rename this file', cur.name); if (!nn || nn === cur.name) return;
+      const old = key(cur); MEDIA_SLOTS.forEach(z => x[z].items.forEach(i => { if (key(i) === old) i.name = nn; }));   // every copy of it gets the new name
+      await save(x); if (bc) bc.postMessage({ t: msg }); await refreshAllMedia();
+    };
     $(p + 'Remove').onclick = async () => { const x = await mediaIdx(), id = x[slot].sel; if (!id) { note.textContent = 'Pick the one to remove from the list first.'; return; }
-      await mdb('readwrite', st => st.delete(slot + ':' + id)); x[slot].items = x[slot].items.filter(it => it.id !== id); x[slot].sel = null; await save(x); if (bc) bc.postMessage({ t: msg }); hidePrev(); await refresh(); };
+      await mdb('readwrite', st => st.delete(slot + ':' + id)); x[slot].items = x[slot].items.filter(it => it.id !== id); x[slot].sel = null; await save(x); if (bc) bc.postMessage({ t: msg }); hidePrev(); await refreshAllMedia(); };
     $(p + 'PrevBtn').onclick = async () => { const x = await mediaIdx(), id = x[slot].sel; const r = id ? await mdb('readonly', st => st.get(slot + ':' + id)) : null; if (!r || !r.blob) { note.textContent = 'Pick one from the list first.'; return; }
       if (prevUrl) URL.revokeObjectURL(prevUrl); prevUrl = URL.createObjectURL(r.blob); hidePrev();
       if (imgT(r.type || r.blob.type)) { prevI.src = prevUrl; prevI.style.display = 'block'; } else { prevV.src = prevUrl; prevV.style.display = 'block'; prevV.play().catch(() => {}); } };
@@ -1909,8 +1949,14 @@ Nevada | 4`;
   function fillAllSongSel() { SLOT_DEFS.forEach(([k, x]) => fillSongSel(k, x)); }
   SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
     const nat = $('musicFile' + x); nat.style.display = 'none'; nat.multiple = true;
-    const pick = document.createElement('div'); pick.className = 'fpick'; pick.innerHTML = '<select id="songSel' + x + '" style="flex:1;min-width:0;font-family:var(--font);font-size:15px;border:0;background:transparent;font-weight:700"></select><button type="button" class="mb">➕ Add song(s)</button>';
+    const pick = document.createElement('div'); pick.className = 'fpick'; pick.innerHTML = '<select id="songSel' + x + '" style="flex:1;min-width:0;font-family:var(--font);font-size:15px;border:0;background:transparent;font-weight:700"></select><button type="button" class="mb">➕ Add song(s)</button><button type="button" class="mb ren">✏️ Rename</button>';
     nat.parentNode.insertBefore(pick, nat.nextSibling); pick.querySelector('button').onclick = () => nat.click();
+    pick.querySelector('.ren').onclick = async () => {   // rename the selected song (every copy of it, in every field)
+      const all = await musIdx(), cur = all[k].items.find(i => i.id === all[k].sel); if (!cur) { $('musicNote' + x).textContent = 'Pick the song to rename from the list first.'; return; }
+      const nn = await askName('Rename this song', cur.name); if (!nn || nn === cur.name) return;
+      const old = cur.name + '|' + (cur.size || 0); MUS_KEYS.forEach(z => all[z].items.forEach(i => { if (i.name + '|' + (i.size || 0) === old) i.name = nn; }));
+      await musSave(); for (const z of MUS_KEYS) await applyMusSel(z); refreshMusicUI(); fillAllSongSel();
+    };
     const sel = pick.querySelector('select');
     sel.onchange = async () => {
       const all = await musIdx(), d = all[k], v = sel.value;
