@@ -281,6 +281,9 @@
     <h3>⚡ Skip to Fast Money (for testing)</h3>
     <div class="note">Jumps straight to the Fast Money round, as if this team had just won the game. Undo brings you back.</div>
     <div class="btns"><button class="mb gold" id="skipFm0"></button><button class="mb gold" id="skipFm1"></button></div>
+    <h3>⏹ End this game</h3>
+    <div class="note">Ends the game that is running and goes back to the setup page. The TV returns to the welcome screen. This cannot be undone.</div>
+    <div class="btns"><button class="mb bad" id="endGameBtn">⏹ End this game</button></div>
   </div>
   <div class="note" id="verSetup" style="opacity:.6">Game version —</div>
   <div id="musicHome">
@@ -403,7 +406,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 119';
+  const GAME_VERSION = '2026-10-03 · build 120';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1462,7 +1465,7 @@ Nevada | 4`;
   let soTimer = 0;
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; paintWait(); return; }
-    $('wait').style.display = 'none'; if (isBoard) document.title = 'FHE FEUD';
+    $('wait').style.display = isBoard && welcomeShown ? 'flex' : 'none'; if (isBoard && welcomeShown) paintWait(); if (isBoard) document.title = 'FHE FEUD';
     paintWinVideo();
     const soWait = S.fm && S.fm.loseAt ? S.fm.loseAt + LOSE_DELAY - Date.now() : 0; clearTimeout(soTimer); if (isBoard && soWait > 0) soTimer = setTimeout(render, soWait + 30);
     const soShow = isBoard && S.phase === 'fmResult' && S.fm && !S.fm.won && !S.fm.over && soWait <= 0 && !!loseMedia.url;   // only an uploaded loser video/image is shown (nothing is built in)
@@ -1682,13 +1685,14 @@ Nevada | 4`;
   if (bc) bc.onmessage = e => {
     const m = e.data || {};
     if (isBoard && m.t === 'state') { S = m.S; render(); }
-    if (!isBoard && m.t === 'hello') { boardOpen = true; try { paintBoardBtn(); showTVToast(false); } catch (e) {} if (S) bc.postMessage({ t: 'state', S }); if (titleOn) bc.postMessage({ t: 'title', on: true }); render(); }
+    if (!isBoard && m.t === 'hello') { boardOpen = true; try { paintBoardBtn(); showTVToast(false); } catch (e) {} if (S) bc.postMessage({ t: 'state', S }); if (welcomeOn) bc.postMessage({ t: 'welcome', on: true }); if (titleOn) bc.postMessage({ t: 'title', on: true }); render(); }
     if (isBoard && m.t === 'title') { titleOn = !!m.on; paintTitle(); }
     if (isBoard && m.t === 'ti') { tiMedia.tried = false; if (titleOn) paintTitle(); }
     if (isBoard && m.t === 'wi') { wtMedia.tried = false; if (!S) paintWait(); }
+    if (isBoard && m.t === 'welcome') { welcomeShown = !!m.on; render(); }
     if (isBoard && m.t === 'closeboard') { try { window.close(); } catch (e) {} }
     if (isBoard && m.t === 'ping') bc.postMessage({ t: 'hello' });
-    if (!isBoard && m.t === 'bye') { boardOpen = false; try { paintBoardBtn(); } catch (e) {} }
+    if (!isBoard && m.t === 'bye') { boardOpen = false; welcomeOn = false; stopWelcome(); try { paintBoardBtn(); } catch (e) {} }
     if (isBoard && m.t === 'vid') { winVid.tried = false; if (S) paintWinVideo(); }
     if (isBoard && m.t === 'lm') { loseMedia.tried = false; if (S) render(); }
   };
@@ -1696,7 +1700,17 @@ Nevada | 4`;
 
   // setup / questions / menu (host page only)
   let inGame = false;   // true while the setup screen is opened from the ☰ Menu button during a game
-  const show = (id, on) => { const el = $(id); if (!el) return; el.style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) { if (!inGame) startPrelude(); } else { setTitle(false); stopWelcome(); stopPrelude(); } } };
+  const show = (id, on) => { const el = $(id); if (!el) return; el.style.display = on ? 'flex' : 'none'; if (id === 'setup') { if (on) { if (!inGame) startPrelude(); } else { setTitle(false); if (welcomeOn) setWelcome(false); else stopWelcome(); stopPrelude(); } } };
+  let endArm = 0;
+  $('endGameBtn').onclick = () => {   // two clicks: the game is deleted
+    const btn = $('endGameBtn');
+    if (Date.now() - endArm > 6000) { endArm = Date.now(); btn.textContent = '⚠ Click again to end the game'; setTimeout(() => { if (Date.now() - endArm >= 5900) btn.textContent = '⏹ End this game'; }, 6100); return; }
+    endArm = 0; btn.textContent = '⏹ End this game';
+    stopMusic(); try { stopEndless(); stopConfettiEndless(); } catch (e) {}
+    S = null; undo = []; try { localStorage.removeItem(LS); } catch (e) {}
+    if (bc) bc.postMessage({ t: 'state', S: null });   // the TV goes back to its welcome screen
+    inGame = false; openSetup();
+  };
   const closeSetup = () => { inGame = false; stopMusic(true); show('setup', false); };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function fillSetSel(sel) {
@@ -1734,6 +1748,7 @@ Nevada | 4`;
     const card = $('setup').querySelector('.card'); if (card) card.scrollTop = 0;
   }
   // Title screen: the MC clicks a button, the TV shows the FHE FEUD picture, the title music repeats until the game starts.
+  let welcomeShown = false;   // TV window: the welcome screen is laid over whatever is on screen (even a running game)
   const tiMedia = { url: null, tried: false }, wtMedia = { url: null, tried: false };
   function loadSlotImg(slot, st) { return mediaSelected(slot, '__none').then(r => { st.tried = true; if (st.url) { try { URL.revokeObjectURL(st.url); } catch (e) {} } st.url = r && r.blob ? URL.createObjectURL(r.blob) : null; }); }
   function paintTitle() {
@@ -2043,7 +2058,9 @@ Nevada | 4`;
   // Show Welcome Screen -> Welcome Music starts right away and repeats until the welcome screen is hidden or the game starts.
   function startWelcome() { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (effBuf('title') && playMusic('title', true) && nowPlaying) nowPlaying.welcome = true; }); }
   function stopWelcome() { if (nowPlaying && nowPlaying.welcome) stopMusic(); }
-  function paintBoardBtn() { $('openBoard').textContent = boardOpen ? '📺 Hide Welcome Screen' : '📺 Show Welcome Screen'; }
+  let welcomeOn = false;   // host side: is the welcome screen laid over the TV right now?
+  function paintBoardBtn() { $('openBoard').textContent = welcomeOn ? '📺 Hide Welcome Screen' : '📺 Show Welcome Screen'; }
+  function setWelcome(on) { welcomeOn = !!on; if (bc) bc.postMessage({ t: 'welcome', on: welcomeOn }); paintBoardBtn(); if (welcomeOn) startWelcome(); else stopWelcome(); }
   function showTVToast(on) { const t = $('tvToast'); if (t) t.style.display = on ? 'block' : 'none'; }
   $('tvToast').onclick = () => { showTVToast(false); openBoardWindow(); };
   // Make sure the TV window is up. If it isn't (or the window was closed by hand), open it; if the browser blocks the pop-up, an orange banner offers a one-click open.
@@ -2070,12 +2087,12 @@ Nevada | 4`;
     return true;
   }
   $('openBoard').onclick = async () => {
-    if (boardOpen) {   // the same button closes the TV window
-      if (bc) bc.postMessage({ t: 'closeboard' }); try { if (boardWin) boardWin.close(); } catch (e) {}
-      boardOpen = false; paintBoardBtn(); stopWelcome(); $('menuNote').textContent = 'Welcome screen hidden. Click again to show it.'; return;
+    if (!welcomeOn) {   // show the welcome screen on the TV (even in the middle of a game); open the TV window first if needed
+      ensureTV(); setWelcome(true); return;
     }
-    startWelcome();   // music starts the moment you click (before the window finishes opening)
-    await openBoardWindow();
+    setWelcome(false);   // back to whatever was on the TV (the game)
+    if (!S) { if (bc) bc.postMessage({ t: 'closeboard' }); try { if (boardWin) boardWin.close(); } catch (e) {} boardOpen = false; $('menuNote').textContent = 'Welcome screen hidden and the TV window closed. Click again to show it.'; }
+    else $('menuNote').textContent = 'Welcome screen hidden — the TV shows the game again.';
   };
 
   if (isBoard) {
