@@ -283,7 +283,7 @@
     <div class="note" style="margin:6px 0">Add as many songs as you like to each slot and pick which one to use for this crowd — they stay saved on this laptop. Each can play for up to 3 minutes and fades out at the end. Without a song, a built-in sound plays. The numbers follow the order of a game.</div>
     <div id="musicOrder"></div>
   <h3>📺 TV window &amp; sound checks</h3>
-  <div class="btns"><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
+  <div class="btns"><button class="mb" id="micTestBtn">🎤 Mic check</button><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
   <label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
   <div class="note" id="latNote"></div>
   <div class="note">Tip for a TV: click <b>📺 Open board window</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
@@ -324,6 +324,15 @@
 </div>
 
 <!-- Confirm replacing a game in progress -->
+<div class="modal" id="micModal" style="z-index:95"><div class="card" style="max-width:600px;gap:14px">
+  <h3 style="margin:0">🎤 Microphone check</h3>
+  <div class="note" style="font-size:15px">This is the microphone the game will listen to:</div>
+  <div id="micName" style="font-size:22px;font-weight:900">…</div>
+  <div class="note" id="micWarn" style="font-size:15px;font-weight:700"></div>
+  <div style="height:22px;background:#e6eaff;border-radius:99px;overflow:hidden"><div id="micBar" style="height:100%;width:0;background:#1fae5b;transition:width .06s"></div></div>
+  <div class="note">Talk into the microphone — the green bar should jump. If it names the wrong microphone, hold the <b>Option</b> key and click the sound icon at the top of your screen (or go to System Settings &gt; Sound &gt; Input) and pick the lapel-mic receiver, then tap Check again.</div>
+  <div class="btns"><button class="mb go" id="micClose">Done</button><button class="mb" id="micAgain">Check again</button></div>
+</div></div>
 <div class="modal" id="newConf" style="z-index:90"><div class="card" style="text-align:center;max-width:460px"><h2>Start a NEW game?</h2><p style="margin:0">This replaces the game in progress — its scores and progress will be lost.</p><div class="btns" style="justify-content:center"><button class="mb" id="newConfNo">Cancel</button><button class="mb bad" id="newConfYes">Yes, start a new game</button></div></div></div>
 
 <!-- Fast Money answer entry -->
@@ -360,7 +369,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 83';
+  const GAME_VERSION = '2026-10-03 · build 84';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1021,6 +1030,7 @@ Nevada | 4`;
     else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
     else if (a === 'fmtick') act(() => { const f = S.fm; f.chk = f.chk || []; f.chk[+v] = !f.chk[+v]; f.draft = f.draft || [[], []];
       if (f.chk[+v]) { if (voice.on) { const c = voiceTake(+v); if (c) f.draft[f.pl - 1][+v] = c; } } else if (voice.on) f.draft[f.pl - 1][+v] = ''; })   // tick a question once it has been answered (leave it unticked if they pass)
+    else if (a === 'mic') micCheckOpen();
     else if (a === 'voice') { if (voice.on) voiceStop(); else voiceStart(); render(); }
     else if (a === 'fmdone') act(() => { fmFinishPlayer(); })   // end their turn early   // show the first question on the TV; the clock waits until it's been read
     else if (a === 'fmrecap') act(() => { S.fm.recap = !S.fm.recap; })   // Player 2's turn: remind the audience of Player 1's answers on the TV
@@ -1435,7 +1445,7 @@ Nevada | 4`;
     if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money and type their names below (Player 2 must be out of earshot).' + nameFields()) + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
     if (p === 'fm') {
       const f = S.fm;
-      if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' All the questions are on your screen. Read the first one, <b>then</b> start the clock. Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields()) + (f.pl === 2 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + b('fmbegin', '▶ Start the clock', 'go') + un;
+      if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' All the questions are on your screen. Read the first one, <b>then</b> start the clock. Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields()) + (f.pl === 2 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + b('mic', '🎤 Mic check', 'ghost') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + b('fmbegin', '▶ Start the clock', 'go') + un;
       return say('<b>' + fmWho(f.pl) + ' is answering.</b> Tap a question\'s tile when they\'ve answered it (you get a ✔). If they pass, leave it and move on — you can come back to it and tap it later. The turn ends when the clock runs out.') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + b('fmdone', '✔ Done — end their turn now', 'gold') + un;
     }
     if (p === 'fmEntry') { const f = S.fm; return say('<b>' + fmWho(f.pl) + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
@@ -1707,6 +1717,19 @@ Nevada | 4`;
       stopMusic(); await mdb('readwrite', st => st.delete('m:' + k + ':' + id)); d.items = d.items.filter(i => i.id !== id); d.sel = null; await musSave(); await applyMusSel(k); refreshMusicUI(); fillSongSel(k, x); };
   });
   musIdx().then(fillAllSongSel);
+  // Microphone check: shows which microphone the Mac is using (the one voice entry listens to) and a live level bar.
+  let micStream = null, micRaf = 0, micCtx = null;
+  async function micCheckOpen() {
+    micCheckStop(); show('micModal', true); $('micName').textContent = 'Starting…'; $('micWarn').textContent = ''; $('micBar').style.width = '0';
+    try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+    catch (e) { $('micName').textContent = 'The microphone is blocked.'; $('micWarn').textContent = 'Allow it for this page: Safari > Settings > Websites > Microphone, then tap Check again.'; return; }
+    const tr = micStream.getAudioTracks()[0], label = (tr && tr.label) || 'Unknown microphone'; $('micName').textContent = label;
+    $('micWarn').textContent = /macbook|built-in|imac|studio display/i.test(label) ? '⚠ That looks like the built-in microphone, not your lapel mic.' : '✅ Not the built-in microphone.';
+    micCtx = new (window.AudioContext || window.webkitAudioContext)(); const an = micCtx.createAnalyser(); an.fftSize = 1024; micCtx.createMediaStreamSource(micStream).connect(an); const buf = new Uint8Array(an.fftSize);
+    const tick = () => { an.getByteTimeDomainData(buf); let m = 0; for (let i = 0; i < buf.length; i++) m = Math.max(m, Math.abs(buf[i] - 128)); $('micBar').style.width = Math.min(100, m / 128 * 220) + '%'; micRaf = requestAnimationFrame(tick); }; tick();
+  }
+  function micCheckStop() { cancelAnimationFrame(micRaf); if (micStream) micStream.getTracks().forEach(t => t.stop()); micStream = null; if (micCtx) { try { micCtx.close(); } catch (e) {} micCtx = null; } }
+  $('micTestBtn').onclick = micCheckOpen; $('micAgain').onclick = micCheckOpen; $('micClose').onclick = () => { micCheckStop(); show('micModal', false); };
   $('testDing').onclick = () => { sDing(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
   $('testBuzz').onclick = () => { sBuzz(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
   $('keepAwake').onchange = () => { try { localStorage.setItem('feud.keepawake', $('keepAwake').checked ? '1' : '0'); } catch (e) {} if ($('keepAwake').checked) { getAC(); startKeepAlive(); } else stopKeepAlive(); };
