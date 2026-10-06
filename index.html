@@ -130,7 +130,7 @@
   #fm.mctiles .p1strip { text-align: left; font-size: clamp(13px, 2.4vh, 28px); padding: .5vh 1.2vw; }
   #fm.mctiles .ttl { font-size: clamp(16px, 3vh, 34px); }
   #fm.mctiles #timer, body.board.fmmode #fm.mctiles #timer { font-size: clamp(44px, 11vh, 130px); }
-  #fm .voicelive { font-size: clamp(13px, 2.2vh, 26px); font-weight: 700; color: #bfe7ff; min-height: 1.2em; }
+  #fm .voicelive { white-space: pre-wrap; font-size: clamp(13px, 2.2vh, 26px); font-weight: 700; color: #bfe7ff; min-height: 1.2em; }
   #fm.mctiles .mcl1 { display: flex; align-items: baseline; gap: 1.6vw; flex-wrap: wrap; }
   #fm.mctiles .mcl1 .ttl { font-size: clamp(18px, 3.8vh, 44px); } #fm.mctiles .mcl1 .who { font-size: clamp(16px, 3.2vh, 38px); }
   body.fmmode:not(.board) #q { font-size: clamp(16px, 3vh, 36px); min-height: 5vh; padding: .5vh 2vw; }   /* MC: the big "Get ready…" bar is smaller so the five question tiles fit */
@@ -369,7 +369,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 87';
+  const GAME_VERSION = '2026-10-03 · build 88';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1099,18 +1099,18 @@ Nevada | 4`;
   // ---- Voice entry (MC window only): the browser's speech recognition listens to the microphone chosen in the Mac's Sound settings.
   // When the MC taps a question's tile, whatever the contestant just said becomes that question's typed answer.
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const voice = { on: false, rec: null, utts: [], base: 0, used: 0, open: null, msg: '', state: '' };
+  const voice = { on: false, rec: null, utts: [], base: 0, used: 0, open: null, msg: '', state: '', marks: [] };
   // If the contestant's mic also picks up the MC reading a question (even when the computer mishears a word), the question words are thrown away
   // and only the contestant's answer is kept. A "question run" is a stretch of words made of words from the questions (plus little words like
   // a / the / you / to) that contains at least two real question words.
   const V_NEUTRAL = new Set('a an the of to in on at is are be you your youre where that and or for with it its this these those when who what which'.split(' '));
   const vStem = w => { w = w.replace(/'/g, ''); if (w.length > 4 && w.endsWith('ly')) w = w.slice(0, -2); if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) w = w.slice(0, -1); if (w.length > 4 && w.endsWith('ed')) w = w.slice(0, -2); return w; };
   const vWords = t => String(t || '').toLowerCase().replace(/[^a-z0-9'\s]/g, ' ').split(/\s+/).filter(Boolean);
-  function voiceStripQuestions(t) {
-    const f = S && S.fm; if (!f || !f.qs) return t; const w = vWords(t); if (w.length < 3) return t;
+  // Marks which words are the MC reading a question (true = question word), for a list of words.
+  function voiceDropMask(w) {
+    const f = S && S.fm, drop = new Array(w.length).fill(false); if (!f || !f.qs || w.length < 3) return drop;
     const qv = new Set(); f.qs.forEach(q => vWords(q.text).forEach(x => { const st = vStem(x); if (!V_NEUTRAL.has(x) && !V_NEUTRAL.has(st)) qv.add(st); }));
     const st = w.map(vStem), isQ = i => qv.has(st[i]), isN = i => V_NEUTRAL.has(w[i]) || V_NEUTRAL.has(st[i]);
-    const drop = new Array(w.length).fill(false);
     for (let i = 0; i < w.length;) {
       if (!(isQ(i) || isN(i))) { i++; continue; }
       let j = i; while (j < w.length && (isQ(j) || isN(j))) j++;
@@ -1118,8 +1118,25 @@ Nevada | 4`;
       if (a <= b) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= 2) for (let k = a; k <= b; k++) drop[k] = true; }
       i = j;
     }
-    const r = w.filter((_, i) => !drop[i]); while (r.length && V_NEUTRAL.has(r[0])) r.shift(); while (r.length && V_NEUTRAL.has(r[r.length - 1])) r.pop();   // no leftover "a" / "the" at the ends
+    return drop;
+  }
+  function voiceStripQuestions(t) {
+    const w = vWords(t), drop = voiceDropMask(w), r = w.filter((_, i) => !drop[i]);
+    while (r.length && V_NEUTRAL.has(r[0])) r.shift(); while (r.length && V_NEUTRAL.has(r[r.length - 1])) r.pop();   // no leftover "a" / "the" at the ends
     return r.join(' ');
+  }
+  // The next answer after position `from`: skips the MC's question words and "pass"/"um", then takes words until the next question starts.
+  // `end` is where that answer stopped, so the next tap picks up right after it (works even when speech runs together).
+  const V_FILLER = new Set(['pass', 'passed', 'next', 'skip', 'um', 'uh', 'uhh', 'umm']);
+  function voiceChunk(all, from) {
+    const drop = voiceDropMask(all), out = []; let end = from;
+    for (let i = from; i < all.length; i++) {
+      if (drop[i]) { if (out.length) break; end = i + 1; continue; }
+      if (V_FILLER.has(all[i])) { if (!out.length) end = i + 1; continue; }
+      out.push(all[i]); end = i + 1;
+    }
+    while (out.length && V_NEUTRAL.has(out[0])) out.shift(); while (out.length && V_NEUTRAL.has(out[out.length - 1])) out.pop();
+    return { text: out.join(' '), end: out.length ? end : from };
   }
   const voiceClean = t => voiceStripQuestions(String(t || '')).replace(/\b(pass|passed|next|skip|um|uh|uhh|umm)\b/gi, ' ').replace(/\s+/g, ' ').trim();
   function voiceShow() { const el = document.getElementById('voiceLive'); if (el) el.textContent = voiceLine(); }
@@ -1128,8 +1145,10 @@ Nevada | 4`;
     if (!SpeechRec) return '🎤 Voice entry needs Safari or Chrome on a Mac/PC.';
     if (voice.msg) return '🎤 ' + voice.msg;
     if (!voice.on) return '';
-    const last = voiceClean(voiceAll().slice(voice.used).join(' '));
-    return '🎤 Listening (' + (voice.state || 'starting') + ')… ' + (last ? 'just heard: “' + last + '”' : '(say the answers — tap each question’s tile after they answer)');
+    const all = voiceAll(), ch = voiceChunk(all, Math.min(voice.used, all.length));
+    let log = '', pos = 0; const marks = voice.marks.slice();
+    all.forEach((w, i) => { marks.filter(m => m.pos === i && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; }); log += ' ' + w; }); marks.filter(m => m.pos >= all.length && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; });
+    return '🎤 Listening (' + (voice.state || 'starting') + ')… ' + (ch.text ? 'next answer: “' + ch.text + '”' : '(say the answers — tap each question’s tile after they answer)') + (log.trim() ? '\n' + log.trim().slice(-240) : '');
   }
   function voiceAssign(q, text) { const f = S && S.fm; if (!f || !text) return; f.draft = f.draft || [[], []]; f.draft[f.pl - 1][q] = text; }
   function voiceStart() {
@@ -1141,7 +1160,7 @@ Nevada | 4`;
       rec.onspeechstart = () => { voice.state = 'hearing you'; voiceShow(); };
       rec.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) voice.utts[voice.base + i] = e.results[i][0].transcript.trim();
         const o = voice.open;   // words that arrive just after a tap (the recognizer lags a moment) still belong to that question
-        if (o) { if (Date.now() < o.until) { const all = voiceAll(), c = voiceClean(all.slice(o.start).join(' ')); if (c) voiceAssign(o.q, c); voice.used = all.length; } else voice.open = null; }
+        if (o) { if (Date.now() < o.until) { const all = voiceAll(), ch = voiceChunk(all, o.start); if (ch.text) { voiceAssign(o.q, ch.text); voice.used = ch.end; o.until = Math.max(o.until, Date.now() + 900); } } else voice.open = null; }
         voiceShow(); };
       rec.onerror = e => { if (e.error && e.error !== 'no-speech' && e.error !== 'aborted') { voice.state = 'problem: ' + e.error; voiceShow(); }
         if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; voice.msg = e.error === 'not-allowed' ? 'The microphone is blocked. Allow it for this page in Safari (Safari > Settings > Websites > Microphone), then tap Listen again.' : 'Speech recognition is off. Turn on Dictation in System Settings > Keyboard, then tap Listen again.'; voiceShow(); render(); } };
@@ -1150,11 +1169,13 @@ Nevada | 4`;
     } catch (e) { voice.on = false; voice.msg = 'Couldn’t start the microphone.'; }
   }
   function voiceStop() { voice.on = false; try { if (voice.rec) { voice.rec.onend = null; voice.rec.stop(); } } catch (e) {} voice.rec = null; }
-  const voiceMark = () => { voice.used = voiceAll().length; voice.open = null; };   // the clock started: ignore everything said before (you reading the first question)
-  function voiceTake(q) {   // everything said since the last tap, minus the question words and "pass"/"next"/"um"
-    const all = voiceAll(), start = Math.min(voice.used, all.length), c = voiceClean(all.slice(start).join(' '));
-    voice.used = all.length; voice.open = { q, start, until: Date.now() + 1800 };
-    return c;
+  const voiceMark = () => { voice.used = voiceAll().length; voice.open = null; voice.marks = [{ pos: voiceAll().length, q: 0 }]; };   // the clock started: ignore everything said before (you reading the first question)
+  function voiceTake(q) {   // this question's answer: the next thing said after the last answer (late words are added for a moment)
+    const all = voiceAll(), start = Math.min(voice.used, all.length), ch = voiceChunk(all, start);
+    if (ch.text) voice.used = ch.end;
+    voice.open = { q, start, until: Date.now() + (ch.text ? 1500 : 4500) };
+    voice.marks.push({ pos: all.length, q: q + 1 });
+    return ch.text;
   }
   function fmFinishPlayer() {
     voiceStop();
