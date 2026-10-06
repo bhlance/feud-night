@@ -340,6 +340,7 @@
   <h2 id="fmFormTitle"></h2>
   <div class="note">Type what they said for each question (from whoever wrote the answers down). An answer that matches the list scores its points. Anything else scores 0. Leave a line blank for no answer. Use the answer list under each question to tweak what you typed — tap one to use it exactly.</div>
   <label style="display:flex;gap:8px;align-items:center;font-weight:700"><input type="checkbox" id="fmPrev" style="width:auto"> Show the answer lists and match preview (anyone watching this screen would see them)</label>
+  <div class="note" id="fmVoiceLog" style="display:none;font-size:13px;background:#eef6ff;border-radius:10px;padding:8px 10px"></div>
   <div id="fmFormRows"></div>
   <div class="btns"><button class="mb go" id="fmFormGo">✔ Score these and start the reveal</button></div>
 </div></div>
@@ -369,7 +370,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 88';
+  const GAME_VERSION = '2026-10-03 · build 89';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1118,6 +1119,17 @@ Nevada | 4`;
       if (a <= b) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= 2) for (let k = a; k <= b; k++) drop[k] = true; }
       i = j;
     }
+    // Second pass: line each question up against the words (tolerating a mis-heard word here and there) and mark the whole stretch.
+    const lev = (x, y) => { const d = Array.from({ length: x.length + 1 }, (_, i) => [i]); for (let j = 1; j <= y.length; j++) d[0][j] = j; for (let i = 1; i <= x.length; i++) for (let j = 1; j <= y.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1)); return d[x.length][y.length]; };
+    const eq = (x, y) => x === y || (x.length >= 4 && y.length >= 4 && lev(x, y) <= 1);
+    f.qs.forEach(q => { const qt = vWords(q.text).map(vStem).filter(x => !V_NEUTRAL.has(x)), L = qt.length; if (L < 3) return;
+      for (let i = 0; i < w.length; i++) { const W = st.slice(i, i + L + 3).filter((_, k) => !V_NEUTRAL.has(w[i + k])), idx = []; for (let k = i; k < Math.min(w.length, i + L + 3); k++) if (!V_NEUTRAL.has(w[k])) idx.push(k);
+        // LCS between question words and the window
+        const m = qt.length, n = W.length, t = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+        for (let a = 1; a <= m; a++) for (let b = 1; b <= n; b++) t[a][b] = eq(qt[a - 1], W[b - 1]) ? t[a - 1][b - 1] + 1 : Math.max(t[a - 1][b], t[a][b - 1]);
+        if (t[m][n] >= Math.max(3, Math.ceil(L * 0.6))) { // find first/last matched window positions
+          let a = m, b = n, first = -1, last = -1; while (a > 0 && b > 0) { if (eq(qt[a - 1], W[b - 1]) && t[a][b] === t[a - 1][b - 1] + 1) { if (last < 0) last = b - 1; first = b - 1; a--; b--; } else if (t[a - 1][b] >= t[a][b - 1]) a--; else b--; }
+          if (first >= 0) { for (let k = idx[first]; k <= idx[last]; k++) drop[k] = true; i = idx[last]; } } } });
     return drop;
   }
   function voiceStripQuestions(t) {
@@ -1141,6 +1153,11 @@ Nevada | 4`;
   const voiceClean = t => voiceStripQuestions(String(t || '')).replace(/\b(pass|passed|next|skip|um|uh|uhh|umm)\b/gi, ' ').replace(/\s+/g, ' ').trim();
   function voiceShow() { const el = document.getElementById('voiceLive'); if (el) el.textContent = voiceLine(); }
   const voiceAll = () => voice.utts.reduce((a, t) => a.concat(vWords(t)), []);   // every word heard so far, in order (fast speech can run several phrases together, so words — not phrases — are tracked)
+  function voiceLogText() {
+    const all = voiceAll(); let log = ''; const marks = voice.marks.slice();
+    all.forEach((w, i) => { marks.filter(m => m.pos === i && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; }); log += ' ' + w; }); marks.filter(m => m.pos >= all.length && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; });
+    return log.trim();
+  }
   function voiceLine() {
     if (!SpeechRec) return '🎤 Voice entry needs Safari or Chrome on a Mac/PC.';
     if (voice.msg) return '🎤 ' + voice.msg;
@@ -1178,6 +1195,7 @@ Nevada | 4`;
     return ch.text;
   }
   function fmFinishPlayer() {
+    if (voice.on) { S.fm.vlog = S.fm.vlog || {}; S.fm.vlog[S.fm.pl] = voiceLogText(); }   // what the microphone heard, shown on the answer page
     voiceStop();
     const f = S.fm; f.running = false;
     S.phase = 'fmEntry';   // type in what they said, then reveal their answers one at a time
@@ -1514,7 +1532,7 @@ Nevada | 4`;
   function buildFmForm() {
     const f = S.fm, w = f.pl - 1, rows = $('fmFormRows'); fmFormFor = f.pl;
     $('fmFormTitle').textContent = 'Fast Money — ' + fmPos(f.pl) + ' answers';
-    $('fmPrev').checked = true; rows.innerHTML = '';   // "Show the answer lists" is on by default
+    $('fmPrev').checked = true; rows.innerHTML = ''; { const vl = $('fmVoiceLog'), t = f.vlog && f.vlog[f.pl]; vl.style.display = t ? 'block' : 'none'; vl.textContent = t ? '🎤 What the microphone heard (⟦Q#⟧ = where you tapped): ' + t : ''; }   // "Show the answer lists" is on by default
     f.qs.forEach((q, i) => {
       const d = document.createElement('div'); d.className = 'fmrow'; d.innerHTML = '<label></label><input type="text" autocomplete="off" autocapitalize="off"><div class="pv"></div><div class="ans"></div>';
       d.querySelector('label').textContent = 'Q' + (i + 1) + ': ' + q.text;
