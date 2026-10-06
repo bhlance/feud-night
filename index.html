@@ -360,7 +360,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 82';
+  const GAME_VERSION = '2026-10-03 · build 83';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1090,7 +1090,16 @@ Nevada | 4`;
   // When the MC taps a question's tile, whatever the contestant just said becomes that question's typed answer.
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   const voice = { on: false, rec: null, utts: [], base: 0, used: -1, map: {}, msg: '' };
-  const voiceClean = t => String(t || '').replace(/\b(pass|passed|next|skip|um|uh|uhh|umm)\b/gi, ' ').replace(/\s+/g, ' ').trim();
+  // If the contestant's mic also picks up the MC reading a question, any run of 4+ words that matches the question text is thrown away,
+  // so the MC's voice doesn't end up as an answer.
+  const vWords = t => String(t || '').toLowerCase().replace(/[^a-z0-9'\s]/g, ' ').split(/\s+/).filter(Boolean);
+  function voiceStripQuestions(t) {
+    const f = S && S.fm; if (!f || !f.qs) return t; const w = vWords(t); if (w.length < 4) return t;
+    const grams = new Set(); f.qs.forEach(q => { const qw = vWords(q.text); for (let j = 0; j + 4 <= qw.length; j++) grams.add(qw.slice(j, j + 4).join(' ')); });
+    const drop = new Array(w.length).fill(false); for (let i = 0; i + 4 <= w.length; i++) if (grams.has(w.slice(i, i + 4).join(' '))) for (let k = i; k < i + 4; k++) drop[k] = true;
+    return w.filter((_, i) => !drop[i]).join(' ');
+  }
+  const voiceClean = t => voiceStripQuestions(String(t || '')).replace(/\b(pass|passed|next|skip|um|uh|uhh|umm)\b/gi, ' ').replace(/\s+/g, ' ').trim();
   function voiceShow() { const el = document.getElementById('voiceLive'); if (el) el.textContent = voiceLine(); }
   function voiceLine() {
     if (!SpeechRec) return '🎤 Voice entry needs Safari or Chrome on a Mac/PC.';
