@@ -356,7 +356,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 78';
+  const GAME_VERSION = '2026-10-03 · build 79';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1517,6 +1517,9 @@ Nevada | 4`;
     if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { show('setup', false); commit(); }
   };
   $('setSel').onchange = () => { $('setNote').style.display = 'none'; };
+  // Team names, players, targets and multipliers save as you type (for the next new game). Not while the menu is open mid-game — those changes use "Save changes & back to the game".
+  const autoSaveCfg = () => { if (inGame) return; const c = load(CK, {}); c.n = [$('n0').value.trim(), $('n1').value.trim()]; c.p = [$('p0').value, $('p1').value]; c.tgt = +$('tgt').value || c.tgt || 300; c.fmt = +$('fmt').value || c.fmt || 200; c.m = $('mults').value.trim(); store(CK, c); };
+  ['n0', 'n1', 'p0', 'p1', 'tgt', 'fmt', 'mults'].forEach(id => $(id).addEventListener('input', autoSaveCfg));
   $('startBtn').onclick = () => { if (inGame) show('newConf', true); else doStart(); };
   $('titleBtn').onclick = () => setTitle(!titleOn);
   $('newConfNo').onclick = () => show('newConf', false);
