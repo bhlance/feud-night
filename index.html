@@ -391,7 +391,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 111';
+  const GAME_VERSION = '2026-10-03 · build 112';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -946,7 +946,7 @@ Nevada | 4`;
     Object.assign(m, { blob: null, buf: null, name: '' });
   }
   async function setStartingSongsOnce() {   // for now: Game Board Music = Family Feud Theme Music, Welcome Music = Any Dream Will Do (they were each saved in the other slot)
-    const x = await musIdx(); if (x.setSongs3) return;
+    const x = await musIdx(); if (x.setSongs4) return;
     const find = (slot, re) => { const it = x[slot].items.find(i => re.test(i.name)); return it ? { slot, it } : null; };
     const fam = find('title', /family feud theme/i) || find('pre', /family feud theme/i), any = find('pre', /any dream/i) || find('title', /any dream/i);
     const give = async (src, toSlot) => {
@@ -957,7 +957,7 @@ Nevada | 4`;
     };
     if (fam) { const it = await give(fam, 'pre'); if (it) x.pre.sel = it.id; }
     if (any) { const it = await give(any, 'title'); if (it) x.title.sel = it.id; }
-    if (fam || any) { x.setSongs3 = true; await musSave(); }
+    if (fam || any) { x.setSongs4 = true; await musSave(); }
   }
   if (!isBoard) (async () => { try { await setStartingSongsOnce(); } catch (e) {} for (const k of MUS_KEYS) await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); })();
   // "Wah wah wah waaah": four falling brassy notes, the last one sliding down.
@@ -1900,7 +1900,7 @@ Nevada | 4`;
   // One pick-list per slot: "— default —" or any song you've added. Adding several songs is fine; the selected one is used.
   function fillSongSel(k, x) {
     const sel = $('songSel' + x); if (!sel || !musIdxCache) return; const d = musIdxCache[k], fmtS = n => (n / 1048576).toFixed(1) + ' MB';
-    sel.innerHTML = '<option value="">— ' + (bundled[k] ? 'Comes with the game' : ['aww', 'clap', 'cheer'].includes(k) ? 'Built-in crowd sound' : 'Built-in sound') + ' —</option>' + d.items.map(it => '<option value="' + it.id + '">🎵 ' + String(it.name).replace(/&/g, '&amp;').replace(/</g, '&lt;') + ' (' + fmtS(it.size || 0) + ')</option>').join('');
+    sel.innerHTML = '<option value="">— ' + (bundled[k] ? 'Comes with the game' : ['aww', 'clap', 'cheer'].includes(k) ? 'Built-in crowd sound' : 'Built-in sound') + ' —</option>' + d.items.slice().sort((x, y) => String(x.name).localeCompare(String(y.name), undefined, { numeric: true, sensitivity: 'base' })).map(it => '<option value="' + it.id + '">🎵 ' + String(it.name).replace(/&/g, '&amp;').replace(/</g, '&lt;') + ' (' + fmtS(it.size || 0) + ')</option>').join('');
     sel.value = d.sel && d.items.some(it => it.id === d.sel) ? d.sel : '';
   }
   function fillAllSongSel() { SLOT_DEFS.forEach(([k, x]) => fillSongSel(k, x)); }
