@@ -318,7 +318,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 64';
+  const GAME_VERSION = '2026-10-03 · build 65';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -916,7 +916,8 @@ Nevada | 4`;
   function foAnswer(rank) {
     const t = S.turn; S.qVisible = true; S.fp[t]++;
     if (S.best === null) {
-      if (rank !== null) { S.best = { team: t, rank }; if (rank === 0) { foWin(t); return; } }
+      if (rank !== null) { const otherMissed = S.fp[other(t)] > 0;   // the other team already answered and missed, so ANY answer on the board wins the face-off
+        S.best = { team: t, rank }; if (rank === 0 || otherMissed) { foWin(t); return; } }
       S.turn = other(t); startClock(5);
     } else foWin(rank !== null && rank < S.best.rank ? t : S.best.team);
   }
