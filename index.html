@@ -266,7 +266,7 @@
     <div><label for="fmt">Fast Money target</label><input id="fmt" type="number" inputmode="numeric"></div>
   </div>
   <div class="row">
-    <div><label for="setSel">Which game's questions?</label><input id="setSearch" type="search" placeholder="🔍 Search your games by name…" autocomplete="off" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px 10px;width:100%;margin-bottom:6px"><select id="setSel" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:9px;width:100%"></select><div class="note" id="setNote" style="display:none;color:#b00020;font-weight:800;margin-top:4px">👆 Pick a game from the list first.</div></div>
+    <div><label for="setSearch">Which game's questions?</label><input id="setSearch" list="setList" type="text" placeholder="Choose a game — click the arrow, or start typing a name…" autocomplete="off" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:10px;width:100%"><datalist id="setList"></datalist><select id="setSel" style="display:none"></select><div class="note" id="setNote" style="display:none;color:#b00020;font-weight:800;margin-top:4px">👆 Pick a game from the list first.</div></div>
     <div class="note" style="align-self:end">After you start a game, the next one defaults to the next set — so Game 2 is ready to go with no re-entering. Add more games in ✏️ Edit questions.</div>
   </div>
   <div class="row">
@@ -390,7 +390,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 108';
+  const GAME_VERSION = '2026-10-03 · build 109';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1686,11 +1686,13 @@ Nevada | 4`;
   const closeSetup = () => { inGame = false; stopMusic(true); show('setup', false); };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function fillSetSel(sel) {
-    const a = loadSets(), box = $('setSel'), q = (($('setSearch') && $('setSearch').value) || '').trim().toLowerCase(); box.innerHTML = '';
+    const a = loadSets(), box = $('setSel'), dl = $('setList'); box.innerHTML = ''; dl.innerHTML = '';
     if (sel < 0) { const o = document.createElement('option'); o.value = ''; o.textContent = '— Choose a game —'; box.appendChild(o); }   // nothing is pre-selected
-    a.forEach((g, i) => { if (q && !String(g.name).toLowerCase().includes(q) && i !== sel) return; const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money'; box.appendChild(o); });
-    box.value = sel < 0 ? '' : String(Math.min(sel, a.length - 1));
-    if (box.selectedIndex < 0) box.selectedIndex = 0;
+    a.forEach((g, i) => { const info = parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money';
+      const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + info; box.appendChild(o);
+      const d = document.createElement('option'); d.value = g.name; d.label = info; dl.appendChild(d); });
+    box.value = sel < 0 ? '' : String(Math.min(sel, a.length - 1)); if (box.selectedIndex < 0) box.selectedIndex = 0;
+    $('setSearch').value = box.value === '' || !a[+box.value] ? '' : a[+box.value].name;
   }
   function openSetup(fromGame) {
     stopMusic(!!fromGame);   // opening Menu mid-celebration leaves the winner song going; a real new game stops it
@@ -1745,11 +1747,19 @@ Nevada | 4`;
     if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { show('setup', false); commit(); }
   };
   $('setSel').onchange = () => { $('setNote').style.display = 'none'; };
-  $('setSearch').oninput = () => {   // type part of a game's name to narrow the list; a single match is picked for you
-    const cur = $('setSel').value; fillSetSel(cur === '' ? -1 : +cur);
-    const real = [...$('setSel').options].filter(o => o.value !== ''); if (real.length === 1) $('setSel').value = real[0].value; else if (cur === '' || !real.some(o => o.value === cur)) $('setSel').value = '';
-    $('setNote').style.display = 'none';
-  };
+  // One field for choosing a game: open the list with the arrow, or start typing a name. Click the field and the whole list shows again.
+  let setPrev = '';
+  $('setSearch').addEventListener('focus', () => { setPrev = $('setSearch').value; $('setSearch').placeholder = setPrev || 'Choose a game — click the arrow, or start typing a name…'; $('setSearch').value = ''; });
+  $('setSearch').addEventListener('blur', () => { if (!$('setSearch').value) $('setSearch').value = setPrev; });
+  $('setSearch').addEventListener('input', () => {   // picking a name from the list (or typing it exactly) selects that game
+    const v = $('setSearch').value.trim().toLowerCase(), k = loadSets().findIndex(g => g.name.toLowerCase() === v);
+    $('setSel').value = k >= 0 ? String(k) : ''; if (k >= 0) { $('setNote').style.display = 'none'; setPrev = loadSets()[k].name; }
+  });
+  $('setSearch').addEventListener('change', () => {   // Enter / leaving the field: if what's typed matches exactly one game, take it
+    const v = $('setSearch').value.trim().toLowerCase(), a = loadSets(); if (!v) return;
+    const m = a.map((g, i) => [g, i]).filter(x => x[0].name.toLowerCase().includes(v));
+    if (m.length === 1) { $('setSel').value = String(m[0][1]); $('setSearch').value = m[0][0].name; setPrev = m[0][0].name; $('setNote').style.display = 'none'; }
+  });
   // Team names, players, targets and multipliers save as you type (for the next new game). Not while the menu is open mid-game — those changes use "Save changes & back to the game".
   const autoSaveCfg = () => { if (inGame) return; const c = load(CK, {}); c.n = [$('n0').value.trim(), $('n1').value.trim()]; c.p = [$('p0').value, $('p1').value]; c.tgt = +$('tgt').value || c.tgt || 300; c.fmt = +$('fmt').value || c.fmt || 200; c.m = $('mults').value.trim(); store(CK, c); };
   ['n0', 'n1', 'p0', 'p1', 'tgt', 'fmt', 'mults'].forEach(id => $(id).addEventListener('input', autoSaveCfg));
