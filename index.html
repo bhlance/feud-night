@@ -129,9 +129,12 @@
   #fm.mctiles .mcl { flex: 1; min-width: 0; text-align: left; display: flex; flex-direction: column; gap: .6vh; }
   #fm.mctiles .p1strip { text-align: left; font-size: clamp(13px, 2.4vh, 28px); padding: .5vh 1.2vw; }
   #fm.mctiles .ttl { font-size: clamp(16px, 3vh, 34px); }
-  #fm.mctiles #timer, body.board.fmmode #fm.mctiles #timer { font-size: clamp(36px, 8vh, 96px); }
+  #fm.mctiles #timer, body.board.fmmode #fm.mctiles #timer { font-size: clamp(44px, 11vh, 130px); }
+  #fm.mctiles .mcl1 { display: flex; align-items: baseline; gap: 1.6vw; flex-wrap: wrap; }
+  #fm.mctiles .mcl1 .ttl { font-size: clamp(18px, 3.8vh, 44px); } #fm.mctiles .mcl1 .who { font-size: clamp(16px, 3.2vh, 38px); }
+  body.fmmode:not(.board) #q { font-size: clamp(16px, 3vh, 36px); min-height: 5vh; padding: .5vh 2vw; }   /* MC: the big "Get ready…" bar is smaller so the five question tiles fit */
   #fm .qtiles { display: grid; gap: 1vh; width: min(96vw, 1200px); }
-  #fm .qt { display: flex; align-items: center; gap: 1vw; background: rgba(255,255,255,.12); border: .4vh solid rgba(255,255,255,.25); border-radius: 1.4vh; padding: .9vh 1.4vw; font-weight: 800; font-size: clamp(15px, 3vh, 34px); text-align: left; cursor: pointer; user-select: none; }
+  #fm .qt { display: flex; align-items: center; gap: 1vw; background: rgba(255,255,255,.12); border: .4vh solid rgba(255,255,255,.25); border-radius: 1.4vh; padding: .7vh 1.4vw; font-weight: 800; font-size: clamp(14px, 2.7vh, 32px); text-align: left; cursor: pointer; user-select: none; }
   #fm .qt .ck { width: 1.5em; height: 1.5em; flex: none; border-radius: .35em; border: .3vh solid #fff; display: inline-flex; align-items: center; justify-content: center; }
   #fm .qt.ok { background: #1f8f46; border-color: #8cf0a8; } #fm .qt.ok .ck { background: #fff; color: #1f8f46; }
   #fm .p1strip { font-weight: 900; font-size: clamp(18px, 3.6vh, 44px); color: var(--gold); background: rgba(255,255,255,.1); border-radius: 1.4vh; padding: .8vh 2vw; text-align: center; }
@@ -356,7 +359,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 80';
+  const GAME_VERSION = '2026-10-03 · build 81';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1340,7 +1343,7 @@ Nevada | 4`;
       const recapOn = isBoard && !!(f.pl === 2 && f.recap);   // TV only; stays up the whole time Player 2 is answering
       const head = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</div><div id="timer">' + fmTimeLeft() + '</div>' + p1Strip();
       // MC screen: the clock sits to the right of the "Fast Money — name" line so all five question tiles fit above the instructions.
-      const mcHead = '<div class="mchead"><div class="mcl"><div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</div>' + p1Strip() + '</div><div id="timer">' + fmTimeLeft() + '</div></div>';
+      const mcHead = '<div class="mchead"><div class="mcl"><div class="mcl1"><span class="ttl">FAST MONEY</span><span class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</span></div>' + p1Strip() + '</div><div id="timer">' + fmTimeLeft() + '</div></div>';
       // Player 2's recap: two columns — Player 1's answers on the left; the get-ready info, clock, score and points needed on the right.
       el.innerHTML = recapOn ? '<div class="rcols"><div class="rl"><div class="rttl">' + (fmNm(1) ? fmNm(1).toUpperCase() + '’S' : 'PLAYER 1’S') + ' ANSWERS</div>' + recapTable() + '</div><div class="rr">' + head + '</div></div>' : (isBoard ? head : mcHead + qTiles(f));
       el.classList.toggle('mctiles', !isBoard); el.classList.toggle('recap', recapOn); if (recapOn) { fitFM(); fitStrip(); }
