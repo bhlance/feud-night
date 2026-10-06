@@ -122,6 +122,13 @@
   #fm.recap .rr { flex: 1 1 38%; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 1.6vh; text-align: center; }
   #fm.recap .p1strip, body.board #fm.recap .p1strip { font-size: clamp(16px, 3.2vh, 42px); white-space: normal; max-width: 100%; box-sizing: border-box; line-height: 1.15; }
   #fm.recap #timer, body.board.fmmode #fm.recap #timer { font-size: clamp(60px, 22vh, 260px); }
+  #fm.mctiles { gap: 1vh; justify-content: flex-start; }
+  #fm.mctiles .ttl { font-size: clamp(16px, 3vh, 34px); }
+  #fm.mctiles #timer, body.board.fmmode #fm.mctiles #timer { font-size: clamp(36px, 8vh, 96px); }
+  #fm .qtiles { display: grid; gap: 1vh; width: min(96vw, 1200px); }
+  #fm .qt { display: flex; align-items: center; gap: 1vw; background: rgba(255,255,255,.12); border: .4vh solid rgba(255,255,255,.25); border-radius: 1.4vh; padding: 1.2vh 1.4vw; font-weight: 800; font-size: clamp(16px, 3.4vh, 40px); text-align: left; cursor: pointer; user-select: none; }
+  #fm .qt .ck { width: 1.5em; height: 1.5em; flex: none; border-radius: .35em; border: .3vh solid #fff; display: inline-flex; align-items: center; justify-content: center; }
+  #fm .qt.ok { background: #1f8f46; border-color: #8cf0a8; } #fm .qt.ok .ck { background: #fff; color: #1f8f46; }
   #fm .p1strip { font-weight: 900; font-size: clamp(18px, 3.6vh, 44px); color: var(--gold); background: rgba(255,255,255,.1); border-radius: 1.4vh; padding: .8vh 2vw; text-align: center; }
   body.board #fm .p1strip { font-size: clamp(24px, 5.4vh, 66px); }
   #fm .top1 { display: inline-block; margin-top: .3vh; font-size: .62em; font-weight: 900; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; text-transform: uppercase; }
@@ -318,7 +325,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 66';
+  const GAME_VERSION = '2026-10-03 · build 67';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -956,7 +963,8 @@ Nevada | 4`;
     });
     else if (a === 'champ') act(() => { const w = +v; S.champ = w; S.phase = 'gameOver'; gameWinSound(); fireworks(0, S.teams[w].name, true); });   // tied after the last question: the MC picks who goes to Fast Money
     else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
-    else if (a === 'fmshowq') act(() => { S.fm.q1 = true; })   // show the first question on the TV; the clock waits until it's been read
+    else if (a === 'fmtick') act(() => { const f = S.fm; f.chk = f.chk || []; f.chk[+v] = !f.chk[+v]; })   // tick a question once it has been answered (leave it unticked if they pass)
+    else if (a === 'fmdone') act(() => { fmFinishPlayer(); })   // end their turn early   // show the first question on the TV; the clock waits until it's been read
     else if (a === 'fmrecap') act(() => { S.fm.recap = !S.fm.recap; })   // Player 2's turn: remind the audience of Player 1's answers on the TV
     else if (a === 'fmbegin') act(() => { S.fm.q1 = true; if (S.fm.pl === 2) S.fm.recap = true; S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });   // the first question was read before the clock; Q1 is what they answer now, and Q2 is shown as NEXT
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
@@ -975,7 +983,7 @@ Nevada | 4`;
     });
     else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; if (!f.won) fmLoseSound(); } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; if (!S.fm.won) fmLoseSound(); });
-    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.q1 = false; f.recap = false; f.lastRead = null; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
+    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.q1 = false; f.recap = false; f.lastRead = null; f.chk = []; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); if (S.cele) S.cele.active = false; S.phase = 'gameOver'; });
     else if (a === 'newgame') { stopMusic(); if (S && S.fm) S.fm.over = true; if (S && S.cele) S.cele.active = false; if (S) commit(); openSetup(); }
   }
@@ -998,7 +1006,7 @@ Nevada | 4`;
   function fmSetup() {
     const qs = parseQs(S.fastText != null ? S.fastText : setFor(S.setIdx || 0).fast).slice(0, 5);
     if (S.fire) S.fire.active = false;   // Fast Money is starting: end the celebration
-    S.fm = { names: (S.fmNames || ['', '']).slice(), q1: false, recap: false, lastRead: null, qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
+    S.fm = { names: (S.fmNames || ['', '']).slice(), q1: false, recap: false, lastRead: null, chk: [], qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
     S.phase = 'fm'; S.fm.win = S.champ;
   }
   // Questions still to be answered (not yet moved past with Next). A Pass sends the question to the back of the line.
@@ -1173,7 +1181,7 @@ Nevada | 4`;
     $('pot').style.visibility = fm || S.phase === 'gameOver' ? 'hidden' : 'visible';
     $('pot').querySelector('span').textContent = S.phase === 'roundEnd' ? S.awarded : S.pot;
     const hideQ = (S.phase === 'buzz' || S.phase === 'fo') && !S.qVisible;
-    $('q').textContent = fm ? (S.phase === 'fm' ? (!isBoard && (S.fm.running || S.fm.q1) ? ((S.fm.passed || []).includes(S.fm.idx) ? '↩ ' : '') + S.fm.qs[S.fm.idx].text : (isBoard && S.fm.running ? '⏱ GO!' : 'Get ready…')) : S.phase === 'fmEntry' ? 'Fast Money — tallying ' + fmPos(S.fm.pl) + ' answers…' : S.phase === 'fmReveal' ? 'Fast Money — ' + fmPos(S.fm.pl) + ' answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : S.q.text) : S.q.text));
+    $('q').textContent = fm ? (S.phase === 'fm' ? (S.fm.running ? (isBoard ? '⏱ GO!' : '⏱ GO! — tap each question as they answer it') : 'Get ready…') : S.phase === 'fmEntry' ? 'Fast Money — tallying ' + fmPos(S.fm.pl) + ' answers…' : S.phase === 'fmReveal' ? 'Fast Money — ' + fmPos(S.fm.pl) + ' answers' : 'Fast Money — the results!') : (S.phase === 'gameOver' ? '🏆 ' + S.teams[S.champ].name + ' wins the game!' : (hideQ ? (isBoard ? '🎤 FACE-OFF! ' + pname(0) + ' vs. ' + pname(1) : S.q.text) : S.q.text));
     // board
     if (!fm && S.q) {
       const priv = !isBoard;   // the MC window always shows the answers (small, on each unrevealed tile); the TV window never does
@@ -1237,16 +1245,21 @@ Nevada | 4`;
       h += '<tr><td class="a">' + (a && a.text ? a.text : '&nbsp;') + '</td><td class="d"><span class="p">' + (a ? a.pts : 0) + '</span></td></tr>'; }
     return h + '</table>';
   }
+  // MC only: all the Fast Money questions at once. Tap a question's tile when they've answered it (tick); no tick = passed / not answered.
+  function qTiles(f) {
+    const esc = x => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+    return '<div class="qtiles">' + f.qs.map((q, i) => { const ok = !!(f.chk && f.chk[i]); return '<div class="qt' + (ok ? ' ok' : '') + '" data-act="fmtick" data-v="' + i + '"><span class="ck">' + (ok ? '✔' : '') + '</span><span>' + (i + 1) + '. ' + esc(q.text) + '</span></div>'; }).join('') + '</div>';
+  }
   function renderFM() {
     const f = S.fm, el = $('fm');
     if (S.phase === 'fm') {
-      const recapOn = !!(f.pl === 2 && f.recap);   // stays up the whole time Player 2 is answering
+      const recapOn = isBoard && !!(f.pl === 2 && f.recap);   // TV only; stays up the whole time Player 2 is answering
       const head = '<div class="ttl">FAST MONEY</div><div class="who">' + tn(f.win) + ' — ' + (fmNm(f.pl) || 'Player ' + f.pl) + '</div><div id="timer">' + fmTimeLeft() + '</div>' + p1Strip();
       // Player 2's recap: two columns — Player 1's answers on the left; the get-ready info, clock, score and points needed on the right.
-      el.innerHTML = recapOn ? '<div class="rcols"><div class="rl"><div class="rttl">' + (fmNm(1) ? fmNm(1).toUpperCase() + '’S' : 'PLAYER 1’S') + ' ANSWERS</div>' + recapTable() + '</div><div class="rr">' + head + '</div></div>' : head;
-      el.classList.toggle('recap', recapOn); if (recapOn) { fitFM(); fitStrip(); }
+      el.innerHTML = recapOn ? '<div class="rcols"><div class="rl"><div class="rttl">' + (fmNm(1) ? fmNm(1).toUpperCase() + '’S' : 'PLAYER 1’S') + ' ANSWERS</div>' + recapTable() + '</div><div class="rr">' + head + '</div></div>' : head + (isBoard ? '' : qTiles(f));
+      el.classList.toggle('mctiles', !isBoard); el.classList.toggle('recap', recapOn); if (recapOn) { fitFM(); fitStrip(); }
     } else {
-      el.classList.remove('recap');
+      el.classList.remove('recap'); el.classList.remove('mctiles');
       const mcTop = !isBoard && S.phase === 'fmReveal';   // MC window only, during both players' reveals: mark each question's #1 answer (never on the TV)
       let h = '<div class="ttl">FAST MONEY — ' + S.fmTarget + ' TO WIN</div><table><tr><td class="a" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 1</td><td class="c" style="background:none"></td><td class="d" style="background:none;font-size:.7em;color:var(--gold)">PLAYER 2</td></tr>';
       const stg = f.stage || [0, 0];
@@ -1288,10 +1301,8 @@ Nevada | 4`;
     if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money and type their names below (Player 2 must be out of earshot).' + nameFields()) + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
     if (p === 'fm') {
       const f = S.fm;
-      if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields() + (f.q1 ? '<div style="flex:1 1 100%;margin-top:6px"><b>Question 1:</b> ' + f.qs[f.idx].text + ' — read it out, <b>then</b> start the clock.</div>' : '')) + (f.pl === 2 && !f.q1 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + (f.q1 ? b('fmbegin', '▶ Start the clock', 'go') : b('fmshowq', '📖 Show the first question', 'go')) + un;
-      const pend = fmPending(f), last = pend.length <= 1, back = (f.passed || []).includes(f.idx), ps = (f.passed || []).filter(i => i !== f.idx);
-      const nx = fmNextIdx(f);
-      return say('<b>NOW — Q' + (f.idx + 1) + ' of ' + f.n + (back ? ' (back to a passed question)' : '') + ':</b> ' + f.qs[f.idx].text + (nx !== null ? '<br><span style="font-size:1.15em"><b>NEXT — Q' + (nx + 1) + ':</b> ' + f.qs[nx].text + '</span>' : '') + '<br>When they finish answering, click <b>Next</b> to move on to the next question, or <b>Pass</b> if they skip this one.' + (ps.length ? ' <i>Passed so far: ' + ps.map(i => 'Q' + (i + 1)).join(', ') + '</i>' : '')) + b('fmq', last ? '✔ That was the last one' : 'Next question ▶', 'gold') + (last ? '' : b('fmpass', '⤼ Pass', 'bad')) + un;
+      if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' All the questions are on your screen. Read the first one, <b>then</b> start the clock. Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields()) + (f.pl === 2 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + b('fmbegin', '▶ Start the clock', 'go') + un;
+      return say('<b>' + fmWho(f.pl) + ' is answering.</b> Tap a question\'s tile when they\'ve answered it (you get a ✔). If they pass, leave it and move on — you can come back to it and tap it later. The turn ends when the clock runs out.') + b('fmdone', '✔ Done — end their turn now', 'gold') + un;
     }
     if (p === 'fmEntry') { const f = S.fm; return say('<b>' + fmWho(f.pl) + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
@@ -1352,6 +1363,8 @@ Nevada | 4`;
   let lastPD = 0;   // act on the press itself (no waiting for the finger/mouse to lift); keep click for keyboard use
   $('ctl').addEventListener('pointerdown', e => { const el = e.target.closest('[data-act]'); if (el && !el.disabled) { lastPD = Date.now(); doAct(el.dataset.act, el.dataset.v); } });
   $('ctl').addEventListener('input', e => { const id = e.target.id; if (!S || (id !== 'fmN1' && id !== 'fmN2')) return; const i = id === 'fmN1' ? 0 : 1; S.fmNames = S.fmNames || ['', '']; S.fmNames[i] = e.target.value; if (S.fm) { S.fm.names = S.fm.names || ['', '']; S.fm.names[i] = e.target.value; } store(LS, S); });
+  $('fm').addEventListener('pointerdown', e => { const el = e.target.closest('[data-act="fmtick"]'); if (el && !isBoard) { e.preventDefault(); lastPD = Date.now(); doAct('fmtick', el.dataset.v); } });
+  $('fm').addEventListener('click', e => { const el = e.target.closest('[data-act="fmtick"]'); if (el && !isBoard && Date.now() - lastPD > 700) doAct('fmtick', el.dataset.v); });
   $('ctl').onclick = e => { if (Date.now() - lastPD < 700) return; const el = e.target.closest('[data-act]'); if (el && !el.disabled) doAct(el.dataset.act, el.dataset.v); };
   const pk = (on) => () => { if (!S) return; peek = on; render(); };
   document.addEventListener('keydown', e => { if (isBoard || !S || e.code !== 'Space' || /INPUT|TEXTAREA|BUTTON/.test((e.target.tagName || ''))) return; if (['fo', 'play', 'steal'].includes(S.phase) && S.tm) { e.preventDefault(); doAct(S.tm.running ? 'pause' : 'start'); } });
