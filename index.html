@@ -318,7 +318,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 65';
+  const GAME_VERSION = '2026-10-03 · build 66';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -958,9 +958,9 @@ Nevada | 4`;
     else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
     else if (a === 'fmshowq') act(() => { S.fm.q1 = true; })   // show the first question on the TV; the clock waits until it's been read
     else if (a === 'fmrecap') act(() => { S.fm.recap = !S.fm.recap; })   // Player 2's turn: remind the audience of Player 1's answers on the TV
-    else if (a === 'fmbegin') act(() => { S.fm.q1 = true; if (S.fm.pl === 2) S.fm.recap = true; S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; if (S.fm.n > 1) fmAdvance(S.fm, false); });   // the first question has been read: the panel moves on to Q2
+    else if (a === 'fmbegin') act(() => { S.fm.q1 = true; if (S.fm.pl === 2) S.fm.recap = true; S.fm._lt = null; S.fm.running = true; S.fm.end = Date.now() + S.fm.secs * 1000; });   // the first question was read before the clock; Q1 is what they answer now, and Q2 is shown as NEXT
     else if (a === 'fmq') act(() => fmAdvance(S.fm, false));
-    else if (a === 'fmpass') act(() => { const f = S.fm, q = f.lastRead; if (q == null) return; f.doneQ = (f.doneQ || []).filter(i => i !== q); f.passed = f.passed || []; if (!f.passed.includes(q)) f.passed.push(q); f.lastRead = null; });   // they passed on the question just read: it goes to the back of the line
+    else if (a === 'fmpass') act(() => { if (fmPending(S.fm).length > 1) fmAdvance(S.fm, true); });   // they skipped this question: it goes to the back of the line
     else if (a === 'fmrev') act(() => {
       const f = S.fm, who = f.pl - 1, r = f.rev[who]; if (r >= f.n) return;
       f.stage = f.stage || [0, 0];
@@ -1003,6 +1003,13 @@ Nevada | 4`;
   }
   // Questions still to be answered (not yet moved past with Next). A Pass sends the question to the back of the line.
   const fmPending = f => f.qs.map((_, i) => i).filter(i => !(f.doneQ || []).includes(i));
+  // Which question Next would bring up (without changing anything) — shown to the MC as NEXT.
+  function fmNextIdx(f) {
+    const done = (f.doneQ || []).concat([f.idx]), passed = (f.passed || []).filter(i => i !== f.idx), pend = f.qs.map((_, i) => i).filter(i => !done.includes(i));
+    if (!pend.length) return null;
+    const fresh = pend.filter(i => !passed.includes(i)), pick = list => list.find(i => i > f.idx) !== undefined ? list.find(i => i > f.idx) : list[0];
+    return pick(fresh.length ? fresh : pend);
+  }
   function fmAdvance(f, passing) {
     f.doneQ = f.doneQ || []; f.passed = f.passed || [];
     if (!passing) f.lastRead = f.idx;   // the question that has just been read (the one a Pass would apply to)
@@ -1283,7 +1290,8 @@ Nevada | 4`;
       const f = S.fm;
       if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields() + (f.q1 ? '<div style="flex:1 1 100%;margin-top:6px"><b>Question 1:</b> ' + f.qs[f.idx].text + ' — read it out, <b>then</b> start the clock.</div>' : '')) + (f.pl === 2 && !f.q1 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + (f.q1 ? b('fmbegin', '▶ Start the clock', 'go') : b('fmshowq', '📖 Show the first question', 'go')) + un;
       const pend = fmPending(f), last = pend.length <= 1, back = (f.passed || []).includes(f.idx), ps = (f.passed || []).filter(i => i !== f.idx);
-      return say('<b>Next up — Q' + (f.idx + 1) + ' of ' + f.n + (back ? ' (back to a passed question)' : '') + ':</b> ' + f.qs[f.idx].text + ' — read it when they finish answering. Click <b>Next</b> once you\'ve read it (to see the question after), or <b>Pass</b> if they passed on the question you just read.' + (ps.length ? ' <i>Passed so far: ' + ps.map(i => 'Q' + (i + 1)).join(', ') + '</i>' : '')) + b('fmq', last ? '✔ That was the last one' : 'Next question ▶', 'gold') + (f.lastRead != null ? b('fmpass', '⤼ Pass (the one just read)', 'bad') : '') + un;
+      const nx = fmNextIdx(f);
+      return say('<b>NOW — Q' + (f.idx + 1) + ' of ' + f.n + (back ? ' (back to a passed question)' : '') + ':</b> ' + f.qs[f.idx].text + (nx !== null ? '<br><span style="font-size:1.15em"><b>NEXT — Q' + (nx + 1) + ':</b> ' + f.qs[nx].text + '</span>' : '') + '<br>When they finish answering, click <b>Next</b> to move on to the next question, or <b>Pass</b> if they skip this one.' + (ps.length ? ' <i>Passed so far: ' + ps.map(i => 'Q' + (i + 1)).join(', ') + '</i>' : '')) + b('fmq', last ? '✔ That was the last one' : 'Next question ▶', 'gold') + (last ? '' : b('fmpass', '⤼ Pass', 'bad')) + un;
     }
     if (p === 'fmEntry') { const f = S.fm; return say('<b>' + fmWho(f.pl) + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
