@@ -188,6 +188,7 @@
   #musicOrder label { white-space: nowrap; }
   .modal .btns { display: flex; gap: 10px; flex-wrap: wrap; }
   .modal .note { font-size: 13px; color: #55608f; line-height: 1.4; }
+  .mb.tabsel { background: #ffe53b; color: #1a1a1a; box-shadow: 0 0 0 3px #f2b800; }   /* the game being edited */
   .mb { border: 0; border-radius: 99px; padding: 11px 22px; font-family: var(--font); font-weight: 900; font-size: 16px; background: #e6eaff; color: var(--ink); cursor: pointer; }
   .fmrow .ans { display: none; flex-wrap: wrap; gap: 5px; margin-top: 2px; } .fmrow .ac { border: 0; border-radius: 99px; padding: 4px 10px; font-family: var(--font); font-weight: 700; font-size: 12px; background: #e6eaff; color: var(--ink); cursor: pointer; } .fmrow .ac.used { opacity: .4; text-decoration: line-through; cursor: default; }
   .fpick { display: flex; align-items: center; gap: 10px; border: 2px solid #c9d2f5; border-radius: 12px; padding: 5px 8px; background: #fff; min-width: 0; } .fpick .mb { padding: 6px 14px; font-size: 14px; white-space: nowrap; } .fpick .fname { font-size: 15px; font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -390,7 +391,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 109';
+  const GAME_VERSION = '2026-10-03 · build 110';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1782,7 +1783,9 @@ Nevada | 4`;
   function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
   function drawTabs() {
     const box = $('setTabs'); box.innerHTML = '';
-    edSets.forEach((g, i) => { const t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' gold' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
+    // tabs in alphabetical order (numbers sort naturally: Game 2 before Game 10); the game being edited is highlighted in yellow
+    edSets.map((g, i) => i).sort((x, y) => String(edSets[x].name).localeCompare(String(edSets[y].name), undefined, { numeric: true, sensitivity: 'base' })).forEach(i => {
+      const g = edSets[i], t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' tabsel' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
     const add = document.createElement('button'); add.className = 'mb go'; add.textContent = '＋ Add a game'; add.onclick = () => { edCommit(); edSets.push({ name: 'Game ' + (edSets.length + 1), main: '', fast: '' }); edIdx = edSets.length - 1; edLoad(); }; box.appendChild(add);
   }
   function openEditor() { edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast })); edIdx = 0; edLoad(); show('qed', true); }
