@@ -141,6 +141,8 @@
   #fm .qt { display: flex; align-items: center; gap: 1vw; background: rgba(255,255,255,.12); border: .4vh solid rgba(255,255,255,.25); border-radius: 1.4vh; padding: .7vh 1.4vw; font-weight: 800; font-size: clamp(14px, 2.7vh, 32px); text-align: left; cursor: pointer; user-select: none; }
   #fm .qt .ck { width: 1.5em; height: 1.5em; flex: none; border-radius: .35em; border: .3vh solid #fff; display: inline-flex; align-items: center; justify-content: center; }
   #fm .qt.ok { background: #1f8f46; border-color: #8cf0a8; } #fm .qt.ok .ck { background: #fff; color: #1f8f46; }
+  #fm .qt .p1t { margin-left: auto; padding-left: 1vw; font-size: .62em; font-weight: 800; color: #ffd86b; white-space: nowrap; }
+  #fm .qt.rep { background: #e07b00; border-color: #ffc27a; } #fm .qt.rep .ck { background: #fff; color: #e07b00; } #fm .qt.rep .p1t { color: #fff; }
   #fm .p1strip { font-weight: 900; font-size: clamp(18px, 3.6vh, 44px); color: var(--gold); background: rgba(255,255,255,.1); border-radius: 1.4vh; padding: .8vh 2vw; text-align: center; }
   body.board #fm .p1strip { font-size: clamp(24px, 5.4vh, 66px); }
   #fm .top1 { display: inline-block; margin-top: .3vh; font-size: .62em; font-weight: 900; background: var(--gold); color: var(--ink); border-radius: .8vh; padding: 0 .6vw; text-transform: uppercase; }
@@ -373,7 +375,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 96';
+  const GAME_VERSION = '2026-10-03 · build 97';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1055,7 +1057,7 @@ Nevada | 4`;
     });
     else if (a === 'fmrest') act(() => { const f = S.fm; f.rev[f.pl - 1] = f.n; if (f.stage) f.stage[f.pl - 1] = 0; if (f.pl === 2) { f.done = true; S.phase = 'fmResult'; if (!f.won) fmLoseSound(); } });
     else if (a === 'finishfm') act(() => { S.fm.done = true; S.phase = 'fmResult'; if (!S.fm.won) fmLoseSound(); });
-    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.q1 = false; f.recap = false; f.lastRead = null; f.chk = []; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
+    else if (a === 'fmnext') act(() => { const f = S.fm; f.pl = 2; f.idx = 0; f.secs = 30; f.running = false; f.q1 = false; f.recap = false; f.lastRead = null; f.chk = []; f.rep = []; f.repTxt = []; f.repBuz = []; f.passed = []; f.doneQ = []; S.phase = 'fm'; });
     else if (a === 'again2') act(() => { stopMusic(); if (S.cele) S.cele.active = false; S.phase = 'gameOver'; });
     else if (a === 'newgame') { stopMusic(); if (S && S.fm) S.fm.over = true; if (S && S.cele) S.cele.active = false; if (S) commit(); openSetup(); }
   }
@@ -1211,7 +1213,18 @@ Nevada | 4`;
   }
   function voiceApply() {   // question-aware mode: each ticked question gets the answer heard right after that question was read
     const f = S && S.fm; if (!f) return false; const parsed = voiceParse(); if (!parsed) return false; f.draft = f.draft || [[], []];
-    f.qs.forEach((_, q) => { if ((f.chk && f.chk[q]) || S.phase === 'fmEntry') { const v = parsed[q] || ''; if ((f.draft[f.pl - 1][q] || '') !== v) { f.draft[f.pl - 1][q] = v; voicePush(q, v); } } });   // always what the transcript says now (no stale words)
+    f.rep = f.rep || []; f.repTxt = f.repTxt || []; f.repBuz = f.repBuz || []; let changed = false;
+    f.qs.forEach((_, q) => {
+      let v = parsed[q] || '';
+      if (f.pl === 2 && v) {   // Player 2 repeated one of Player 1's answers? Buzz once, turn the tile orange; a new answer clears it.
+        const rt = f.repTxt[q]; if (rt && v !== rt && v.indexOf(rt) === 0) v = v.slice(rt.length).trim();   // they said the repeat, then something new
+        const isRep = !!(v && matchFor(f, 1, q, v).dup);
+        if (isRep) { f.repTxt[q] = v; if (f.repBuz[q] !== v) { f.repBuz[q] = v; sBuzz(); } }
+        if (!!f.rep[q] !== isRep) { f.rep[q] = isRep; changed = true; }
+      } else if (f.rep[q]) { f.rep[q] = false; changed = true; }
+      if ((f.chk && f.chk[q]) || S.phase === 'fmEntry') { if ((f.draft[f.pl - 1][q] || '') !== v) { f.draft[f.pl - 1][q] = v; voicePush(q, v); } }   // always what the transcript says now (no stale words)
+    });
+    if (changed && S.phase === 'fm') render();
     return true;
   }
   function voiceAssign(q, text) { const f = S && S.fm; if (!f || !text) return; f.draft = f.draft || [[], []]; f.draft[f.pl - 1][q] = text; }
@@ -1495,7 +1508,8 @@ Nevada | 4`;
   // MC only: all the Fast Money questions at once. Tap a question's tile when they've answered it (tick); no tick = passed / not answered.
   function qTiles(f) {
     const esc = x => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    return '<div class="qtiles">' + f.qs.map((q, i) => { const ok = !!(f.chk && f.chk[i]); return '<div class="qt' + (ok ? ' ok' : '') + '" data-act="fmtick" data-v="' + i + '"><span class="ck">' + (ok ? '✔' : '') + '</span><span>' + (i + 1) + '. ' + esc(q.text) + '</span></div>'; }).join('') + '</div>';
+    return '<div class="qtiles">' + f.qs.map((q, i) => { const ok = !!(f.chk && f.chk[i]), rp = !!(f.rep && f.rep[i] && f.pl === 2), e1 = f.pl === 2 && f.p[0][i] ? (f.p[0][i].text || f.p[0][i].typed || '') : '';
+      return '<div class="qt' + (ok ? ' ok' : '') + (rp ? ' rep' : '') + '" data-act="fmtick" data-v="' + i + '"><span class="ck">' + (ok ? '✔' : '') + '</span><span>' + (i + 1) + '. ' + esc(q.text) + '</span>' + (e1 ? '<span class="p1t">P1: ' + esc(e1) + (rp ? ' — REPEAT, ask for another' : '') + '</span>' : (rp ? '<span class="p1t">REPEAT, ask for another</span>' : '')) + '</div>'; }).join('') + '</div>';
   }
   function renderFM() {
     const f = S.fm, el = $('fm');
