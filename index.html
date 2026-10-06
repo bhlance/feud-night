@@ -252,11 +252,11 @@
 
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="mb gold" id="openBoard" style="font-size:19px;padding:13px 26px">📺 Open Game Board</button><div class="note" id="menuNote" style="flex:1;min-width:200px">Opens the TV view in its own window — drag it onto the TV, then double-click it (or press F) for full screen.</div></div>
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show TV Screen</button><div class="note" style="flex:1;min-width:200px">Puts the title picture on the TV (choose which one under “TV screens” below) and plays the title music on repeat. It stays up until you click Start new game, which goes straight to the first face-off.</div></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="mb gold" id="openBoard" style="font-size:19px;padding:13px 26px">📺 Show Welcome Screen</button><div class="note" id="menuNote" style="flex:1;min-width:200px">Opens the TV view in its own window — drag it onto the TV, then double-click it (or press F) for full screen.</div></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show Game Board</button><div class="note" style="flex:1;min-width:200px">Puts the Game Board picture on the TV (choose which one under “Game Board Picture” in the panel below) and plays the title music on repeat. It stays up until you click Start new game, which goes straight to the first face-off.</div></div>
   <h2>🎤 Feud Night — Game Setup</h2>
   <div id="inGameBanner" style="display:none;background:#fff4d6;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px">🎮 A game is in progress. Change anything below, then tap <b>Save changes &amp; back to the game</b> — scores and progress are kept. (Which game's questions is fixed for this game; use ✏️ Edit questions to change the questions themselves.)</div>
-  <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Prelude music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause prelude music</button></div>
+  <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Game Board Music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause Game Board Music</button></div>
   <div class="row">
     <div><label for="n0">Team 1 name</label><input id="n0" maxlength="24"><label for="p0">Team 1 players (one per line or commas)</label><textarea id="p0" placeholder="Optional — used to announce face-off players"></textarea></div>
     <div><label for="n1">Team 2 name</label><input id="n1" maxlength="24"><label for="p1">Team 2 players (one per line or commas)</label><textarea id="p1" placeholder="Optional — used to announce face-off players"></textarea></div>
@@ -291,7 +291,7 @@
   <div class="btns"><button class="mb" id="micTestBtn">🎤 Mic check</button><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
   <label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
   <div class="note" id="latNote"></div>
-  <div class="note">Tip for a TV: click <b>📺 Open Game Board</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
+  <div class="note">Tip for a TV: click <b>📺 Show Welcome Screen</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
   <div id="loseMediaBlock">
   <h4 style="margin:10px 0 4px">😬 Loser video or image</h4>
   <div class="note">When Fast Money ends below the target, the TV shows the video or image you pick below (about half the screen), 4 seconds later, with the loser song, until you click New game. A video plays silently and repeats. <b>Nothing added = no picture</b>, just the loser song. Video: MP4 (H.264). Image: JPG, PNG or WebP.</div>
@@ -310,18 +310,20 @@
   <img id="vidPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   <video id="vidPrev" controls muted playsinline style="display:none;max-width:100%;max-height:30vh;background:#000;border-radius:10px"></video>
   </div>
-  <h3>📺 TV screens</h3>
-  <div class="note">Pictures for the TV window. Add as many as you like and pick which one to use. Images only (JPG, PNG or WebP).</div>
-  <h4 style="margin:12px 0 4px">Title screen picture (🎬 Show TV Screen)</h4>
-  <label for="tiSel" style="font-weight:800">Use this one:</label><select id="tiSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
-  <div class="btns"><button class="mb" id="tiPick">➕ Add picture(s)…</button><input type="file" multiple id="tiFile" accept="image/*" style="display:none"><button class="mb" id="tiPrevBtn">▶ Preview</button><button class="mb" id="tiRemove">Remove the selected one</button></div>
-  <div class="note" id="tiNote"></div>
-  <video id="tiPrev" controls muted playsinline style="display:none"></video><img id="tiPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
-  <h4 style="margin:12px 0 4px">Game board waiting screen (shown after 📺 Open Game Board, before the game starts)</h4>
+  <h3>📺 Welcome Screen</h3>
+  <div class="note">Add as many pictures as you like and pick which one to use. Images only (JPG, PNG or WebP).</div>
+  <h4 style="margin:12px 0 4px">Welcome Screen Picture (shown after 📺 Show Welcome Screen, before the game starts)</h4>
   <label for="wtSel" style="font-weight:800">Use this one:</label><select id="wtSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
   <div class="btns"><button class="mb" id="wtPick">➕ Add picture(s)…</button><input type="file" multiple id="wtFile" accept="image/*" style="display:none"><button class="mb" id="wtPrevBtn">▶ Preview</button><button class="mb" id="wtRemove">Remove the selected one</button></div>
   <div class="note" id="wtNote"></div>
   <video id="wtPrev" controls muted playsinline style="display:none"></video><img id="wtPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
+  <div id="tiBlock">
+  <h4 style="margin:12px 0 4px">Game Board Picture — shown on the TV when you click 🎬 Show Game Board</h4>
+  <label for="tiSel" style="font-weight:800">Use this one:</label><select id="tiSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
+  <div class="btns"><button class="mb" id="tiPick">➕ Add picture(s)…</button><input type="file" multiple id="tiFile" accept="image/*" style="display:none"><button class="mb" id="tiPrevBtn">▶ Preview</button><button class="mb" id="tiRemove">Remove the selected one</button></div>
+  <div class="note" id="tiNote"></div>
+  <video id="tiPrev" controls muted playsinline style="display:none"></video><img id="tiPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
+  </div>
   </details>
   </div>
   <div class="btns" id="setupBtns" style="position:sticky;bottom:-2.4vh;background:#fff;padding:10px 0;border-top:2px solid #eef1ff;z-index:2">
@@ -388,7 +390,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 106';
+  const GAME_VERSION = '2026-10-03 · build 107';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -851,8 +853,8 @@ Nevada | 4`;
   const preActive = () => !!(nowPlaying && nowPlaying.prelude);
   function stopPrelude() { if (preActive()) { stopMusic(); updatePreStatus(); } }
   function updatePreStatus() {
-    const msg = document.getElementById('preMsg'); if (msg) msg.textContent = (ac && ac.state !== 'running') ? '🔈 Click or tap anywhere on this page to start the prelude music' : '🎬 Prelude music repeats until you start the game';
-     const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('pre'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause prelude music' : '▶ Play prelude music'; }
+    const msg = document.getElementById('preMsg'); if (msg) msg.textContent = (ac && ac.state !== 'running') ? '🔈 Click or tap anywhere on this page to start the Game Board Music' : '🎬 Game Board Music repeats until you start the game';
+     const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('pre'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause Game Board Music' : '▶ Play Game Board Music'; }
   // loop = true repeats the chosen stretch of the song (start .. start + "Play for") until stopMusic() is called.
   function playMusic(slot, loop) {
     const m = mus[slot], buf = effBuf(slot); if (isBoard || !m || !buf) return false;
@@ -1719,7 +1721,7 @@ Nevada | 4`;
     if (bc) bc.postMessage({ t: 'title', on });
     if (on) { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (titleOn && effBuf('title') && playMusic('title', true) && nowPlaying) nowPlaying.title = true; }); }
     else if (nowPlaying && nowPlaying.title) stopMusic();
-    $('titleBtn').textContent = on ? '🎬 Hide TV Screen' : '🎬 Show TV Screen';
+    $('titleBtn').textContent = on ? '🎬 Hide Game Board' : '🎬 Show Game Board';
   }
   const doStart = () => {
     if ($('setSel').value === '') { $('setNote').style.display = 'block'; return; }   // no game picked yet
@@ -1793,7 +1795,7 @@ Nevada | 4`;
   mediaUI('win', 'vid', 'Nothing added yet — the name and WIN keep flashing instead.', 'vid');
   mediaUI('lose', 'lm', 'Nothing added — only the loser song plays.', 'lm');
   mediaUI('title', 'ti', 'Using the built-in “The Feud” picture.', 'ti', '— Built-in “The Feud” picture —');
-  mediaUI('wait', 'wt', 'No picture — the waiting screen just says “Waiting for the host…”.', 'wi', '— No picture —');
+  mediaUI('wait', 'wt', 'No picture — the Welcome Screen just says “Waiting for the host…”.', 'wi', '— No picture —');
   // Extra game sets (Kids Under 10, Adult, Adult R, Adult X). Each button ADDS its three games to the end of your list, or REPLACES them if
   // games with those names are already there (so a newer version of the questions can be loaded over an older one). Nothing else is touched.
   const KIDS = [{"name": "Kids Under 10-1", "main": "Q: Name something you take to school.\nBackpack | 28\nLunch | 20\nPencil | 14\nHomework | 10\nWater bottle | 8\nNotebook | 6\nJacket | 5\nLibrary book | 4\nShow-and-tell | 3\nEraser | 2\n\nQ: Name an animal you want to have as a pet.\nDog | 30\nCat | 26\nFish | 14\nHamster | 10\nBird | 8\nRabbit | 7\nTurtle | 5\n\nQ: Name something you do at a birthday party.\nEat cake | 28\nOpen presents | 20\nSing \"Happy Birthday\" | 16\nPlay games | 12\nBlow out candles | 9\nPop balloons | 5\nHit a piñata | 4\nWear party hats | 3\nGet a goodie bag | 3\n\nQ: Name your favorite fruit.\nApple | 28\nBanana | 22\nStrawberry | 18\nGrapes | 14\nOrange | 12\nWatermelon | 6\n\nQ: Name something you see at a playground.\nSwings | 28\nSlide | 26\nMonkey bars | 16\nSandbox | 12\nSeesaw | 8\nMerry-go-round | 6\nA bee | 4\n\nQ: Name something you wear when it's snowing.\nCoat | 30\nBoots | 26\nMittens | 20\nHat | 14\nEarmuffs | 10", "fast": "Q: Name a zoo animal.\nLion | 26\nElephant | 24\nGiraffe | 18\nMonkey | 14\nTiger | 8\nZebra | 6\nPenguin | 4\n\nQ: Name a day of the week.\nSaturday | 30\nFriday | 24\nSunday | 16\nMonday | 12\nWednesday | 8\nTuesday | 6\nThursday | 4\n\nQ: Name a pizza topping.\nPepperoni | 34\nCheese | 22\nSausage | 14\nMushrooms | 12\nOlives | 8\nPineapple | 6\nOnions | 4\n\nQ: Name something with wheels.\nCar | 30\nBike | 24\nSkateboard | 14\nBus | 12\nWagon | 8\nScooter | 6\nRoller skates | 6\n\nQ: Name a type of weather.\nRain | 30\nSnow | 24\nSunny | 18\nWind | 12\nCloudy | 8\nThunderstorm | 5\nFog | 3"}, {"name": "Kids Under 10-2", "main": "Q: Name a holiday that kids love.\nChristmas | 30\nHalloween | 24\nEaster | 14\nThanksgiving | 10\nYour birthday | 8\nFourth of July | 6\nValentine's Day | 4\nThe last day of school | 4\n\nQ: Name something you do to get ready for school in the morning.\nBrush your teeth | 30\nGet dressed | 26\nEat breakfast | 22\nBrush your hair | 12\nPack your backpack | 10\n\nQ: Name something kids have a hard time waiting for.\nChristmas morning | 26\nTheir birthday | 18\nDinner | 14\nDessert | 10\nSummer vacation | 9\nGetting there on a road trip | 7\nTheir turn in a game | 6\nOpening a present | 5\nThe ice cream truck | 3\nRecess | 2\n\nQ: Name something you eat with your hands.\nPizza | 28\nSandwich | 22\nFrench fries | 18\nChicken nuggets | 14\nPopcorn | 10\nCookies | 8\n\nQ: Name a superhero.\nSpider-Man | 28\nBatman | 24\nSuperman | 20\nIron Man | 8\nWonder Woman | 7\nCaptain America | 5\nThe Hulk | 4\nMom | 4\n\nQ: Name an animal you'd find on a farm.\nCow | 30\nPig | 26\nChicken | 20\nHorse | 14\nSheep | 10", "fast": "Q: Name a cartoon character.\nMickey Mouse | 28\nSpongeBob | 26\nBugs Bunny | 14\nMario | 12\nElsa | 10\nDonald Duck | 6\nScooby-Doo | 4\n\nQ: Name a vegetable kids don't like.\nBroccoli | 32\nBrussels sprouts | 20\nSpinach | 16\nPeas | 12\nCauliflower | 8\nLima beans | 6\nAsparagus | 6\n\nQ: Name something in a classroom.\nDesk | 28\nTeacher | 20\nWhiteboard | 16\nBooks | 14\nChair | 10\nGlobe | 6\nPencil sharpener | 6\n\nQ: Name a flavor of ice cream.\nChocolate | 32\nVanilla | 28\nStrawberry | 16\nMint chocolate chip | 10\nCookie dough | 8\nRocky road | 4\nCookies and cream | 2\n\nQ: Name something you do in the summer.\nSwim | 30\nPlay outside | 22\nGo camping | 14\nRide bikes | 12\nEat popsicles | 8\nGo on vacation | 8\nPlay in the sprinklers | 6"}, {"name": "Kids Under 10-3", "main": "Q: Name a sport that kids play.\nSoccer | 26\nBasketball | 20\nBaseball | 14\nFootball | 10\nSwimming | 8\nGymnastics | 6\nTennis | 5\nDodgeball | 5\nVolleyball | 3\nTag | 3\n\nQ: Name something you take to the beach.\nTowel | 28\nSunscreen | 20\nBucket and shovel | 16\nSunglasses | 12\nSwimsuit | 10\nBeach ball | 8\nUmbrella | 6\n\nQ: Name something cold.\nIce | 28\nSnow | 22\nIce cream | 18\nFreezer | 10\nPopsicle | 8\nWinter | 5\nA penguin | 4\nThe refrigerator | 3\nYour nose in winter | 2\n\nQ: Name a color of the rainbow.\nRed | 26\nBlue | 22\nYellow | 18\nGreen | 14\nOrange | 10\nPurple | 8\nIndigo | 2\n\nQ: Name something that is very loud.\nFireworks | 26\nThunder | 20\nA train | 12\nA fire truck | 12\nAn airplane | 10\nDrums | 8\nA lawn mower | 8\nA little brother/sister | 4\n\nQ: Name something you do on a rainy day.\nWatch a movie | 30\nPlay board games | 24\nRead a book | 20\nPlay video games | 14\nJump in puddles | 12", "fast": "Q: Name a fairy tale character.\nCinderella | 28\nSnow White | 22\nLittle Red Riding Hood | 14\nGoldilocks | 12\nRapunzel | 10\nThe Big Bad Wolf | 8\nPinocchio | 6\n\nQ: Name a drink kids like.\nJuice | 28\nMilk | 26\nWater | 18\nLemonade | 12\nHot chocolate | 8\nSoda | 4\nA smoothie | 4\n\nQ: Name a musical instrument.\nPiano | 32\nGuitar | 24\nDrums | 16\nViolin | 10\nTrumpet | 8\nFlute | 6\nRecorder | 4\n\nQ: Name something you put in a lunchbox.\nSandwich | 32\nApple | 18\nChips | 14\nJuice box | 12\nCookie | 10\nCrackers | 8\nYogurt | 6\n\nQ: Name something that flies.\nBird | 32\nAirplane | 26\nButterfly | 14\nHelicopter | 10\nKite | 8\nBee | 6\nBalloon | 4"}];
@@ -1847,12 +1849,13 @@ Nevada | 4`;
       + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
       + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
     $('musicOrder').innerHTML =
-        sec('🎬 Prelude music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + sec('🎬 Title screen music — plays on repeat while the FHE FEUD picture is on the TV, until you click Start new game', 'Title', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
+        sec('🎬 Game Board Music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + '<div id="tiSlot"></div>' + sec('🎬 Welcome Music — plays on repeat while the Game Board picture is on the TV, until you click Start new game', 'Title', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
       + sec('6 · Round 6 Winner Song — also used for any later round', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + '<h3>8 · Fast Money audience sounds — played as each score is revealed</h3>' + reactIntro + sec('Disappointed “aww” — low scores', 'Aww', 3, 'h4') + sec('Generous applause — middle scores', 'Clap', 4, 'h4') + sec('Loud cheering — high scores', 'Cheer', 5, 'h4')
       + sec('9 · Fast Money winner song and video or image — the song plays and repeats the moment the total reaches the target; the video appears 5 seconds later', 'Fm', 30) + '<div id="vidSlot"></div>'
       + sec('10 · Fast Money loser song and video or image — the song plays and repeats when Fast Money ends below the target (until you start a new game)', 'FmLose', 30) + '<div id="loseSlot"></div>';
+    if ($('tiSlot') && $('tiBlock')) $('tiSlot').appendChild($('tiBlock'));   // the Game Board Picture picker sits right under Game Board Music
     if ($('loseSlot') && $('loseMediaBlock')) $('loseSlot').appendChild($('loseMediaBlock'));
     if ($('vidSlot') && $('winVidBlock')) $('vidSlot').appendChild($('winVidBlock'));   // the win video lives under the Fast Money winner song
     const c = reactCfg(); $('reactOn').checked = c.on; $('reactLo').value = c.lo; $('reactHi').value = c.hi;
@@ -1912,11 +1915,11 @@ Nevada | 4`;
   // Opens the audience board in its own WINDOW (not a tab) so it can be dragged to the TV.
   // If the browser can see a second screen (Chrome/Edge will ask permission), it opens right on that screen.
   let boardWin = null;
-  function paintBoardBtn() { $('openBoard').textContent = boardOpen ? '📺 Close Game Board' : '📺 Open Game Board'; }
+  function paintBoardBtn() { $('openBoard').textContent = boardOpen ? '📺 Hide Welcome Screen' : '📺 Show Welcome Screen'; }
   $('openBoard').onclick = async () => {
     if (boardOpen) {   // the same button closes the TV window
       if (bc) bc.postMessage({ t: 'closeboard' }); try { if (boardWin) boardWin.close(); } catch (e) {}
-      boardOpen = false; paintBoardBtn(); $('menuNote').textContent = 'Game board closed. Click again to reopen it.'; return;
+      boardOpen = false; paintBoardBtn(); $('menuNote').textContent = 'Welcome screen hidden. Click again to show it.'; return;
     }
     const url = location.pathname + '?board=1&fresh=' + Date.now();
     let left = 60, top = 60, w = 1280, h = 720, onTv = false;
