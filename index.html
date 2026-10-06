@@ -276,7 +276,7 @@
   <div id="musicHome">
   <details open id="musicBlock">
     <summary>🎵 Music, sounds, TV &amp; win video</summary>
-    <div class="note" style="margin:6px 0">Pick songs from your laptop — set them up once and they stay saved on this laptop. Each can play for up to 3 minutes and fades out at the end. Without a song, a built-in sound plays. The numbers follow the order of a game.</div>
+    <div class="note" style="margin:6px 0">Add as many songs as you like to each slot and pick which one to use for this crowd — they stay saved on this laptop. Each can play for up to 3 minutes and fades out at the end. Without a song, a built-in sound plays. The numbers follow the order of a game.</div>
     <div id="musicOrder"></div>
   <h3>📺 TV window &amp; sound checks</h3>
   <div class="btns"><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
@@ -356,7 +356,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 77';
+  const GAME_VERSION = '2026-10-03 · build 78';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -889,7 +889,28 @@ Nevada | 4`;
   // reveal's strike sound; nothing plays if no loser song has been added.
   const LOSE_DELAY = 4000;   // after a Fast Money loss, the loser song and the "So Close" picture both wait this long
   const fmLoseSound = () => { if (S && S.fm) S.fm.loseAt = Date.now(); setTimeout(() => { if (S && S.fm && S.phase === 'fmResult' && !S.fm.won && !playMusic('fmlose', true)) sSadTrombone(); }, LOSE_DELAY); };   // no song loaded → built-in sad trombone
-  if (!isBoard) ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'title', 'fmlose'].forEach(k => mdb('readonly', st => st.get(k)).then(r => { if (r && r.blob) { Object.assign(mus[k], { blob: r.blob, name: r.name, start: r.start || 0, len: r.len || mus[k].len }); refreshMusicUI(); if (k === 'pre') { try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); } } }));
+  // ---- Song library: every slot can hold many songs; the one picked in the setup menu is the one used. ----
+  // IndexedDB: 'musidx' = { <slot>: { items: [{id, name, start, len, size}], sel: id|null }, migrated: true }; each file is 'm:<slot>:<id>' = { blob, name }.
+  const MUS_KEYS = ['win', 'game', 'fm', 'aww', 'clap', 'cheer', 'r1', 'r2', 'r3', 'r4', 'r5', 'pre', 'title', 'fmlose'];
+  let musIdxCache = null;
+  async function musIdx() {
+    if (musIdxCache) return musIdxCache;
+    const x = (await mdb('readonly', st => st.get('musidx'))) || {};
+    MUS_KEYS.forEach(k => { x[k] = x[k] || { items: [], sel: null }; });
+    if (!x.migrated) {   // one-time: bring in the single songs saved by earlier builds
+      for (const k of MUS_KEYS) { const r = await mdb('readonly', st => st.get(k));
+        if (r && r.blob) { const id = k + Date.now(); await mdb('readwrite', st => st.put({ blob: r.blob, name: r.name }, 'm:' + k + ':' + id)); x[k].items.push({ id, name: r.name, start: r.start || 0, len: r.len || DEF_LEN[k], size: r.blob.size }); x[k].sel = id; await mdb('readwrite', st => st.delete(k)); } }
+      x.migrated = true; await mdb('readwrite', st => st.put(x, 'musidx'));
+    }
+    return (musIdxCache = x);
+  }
+  const musSave = () => mdb('readwrite', st => st.put(musIdxCache, 'musidx'));
+  async function applyMusSel(k) {   // copy the selected song into mus[k] (the object the rest of the game plays from)
+    const x = await musIdx(), it = x[k].items.find(i => i.id === x[k].sel), m = mus[k];
+    if (it) { const r = await mdb('readonly', st => st.get('m:' + k + ':' + it.id)); if (r && r.blob) { Object.assign(m, { blob: r.blob, name: it.name, start: it.start || 0, len: it.len || DEF_LEN[k], buf: null }); return; } }
+    Object.assign(m, { blob: null, buf: null, name: '' });
+  }
+  if (!isBoard) (async () => { for (const k of MUS_KEYS) await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); })();
   // "Wah wah wah waaah": four falling brassy notes, the last one sliding down.
   function sSadTrombone() {
     try { getAC(); const t0 = ac.currentTime + .05; [[311, .55, 0], [294, .55, .6], [277, .55, 1.2], [247, 1.5, 1.8]].forEach(([f, d, w], i) => {
@@ -1605,23 +1626,36 @@ Nevada | 4`;
   function refreshMusicUI() {
     updatePreStatus();
     SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
-      if (m.nameEl) m.nameEl.textContent = m.blob ? '🎵 ' + m.name : bundled[k] ? '🎵 Comes with the game' : 'No file chosen';
       $('musicNote' + x).textContent = m.blob ? '🎵 Using: ' + m.name + ' — plays ' + m.len + ' seconds starting at ' + m.start + 's.' : (bundled[k] ? '🎵 Using the recording that comes with the game.' : ['aww', 'clap', 'cheer'].includes(k) ? 'No recording added — the built-in crowd sound plays instead.' : 'No song added yet — a built-in fanfare plays instead.');
       $('musicStart' + x).value = m.start; $('musicLen' + x).value = m.len; });
+    try { fillAllSongSel(); } catch (e) {}
   }
+  // One pick-list per slot: "— default —" or any song you've added. Adding several songs is fine; the selected one is used.
+  function fillSongSel(k, x) {
+    const sel = $('songSel' + x); if (!sel || !musIdxCache) return; const d = musIdxCache[k], fmtS = n => (n / 1048576).toFixed(1) + ' MB';
+    sel.innerHTML = '<option value="">— ' + (bundled[k] ? 'Comes with the game' : ['aww', 'clap', 'cheer'].includes(k) ? 'Built-in crowd sound' : 'Built-in sound') + ' —</option>' + d.items.map(it => '<option value="' + it.id + '">🎵 ' + String(it.name).replace(/&/g, '&amp;').replace(/</g, '&lt;') + ' (' + fmtS(it.size || 0) + ')</option>').join('');
+    sel.value = d.sel && d.items.some(it => it.id === d.sel) ? d.sel : '';
+  }
+  function fillAllSongSel() { SLOT_DEFS.forEach(([k, x]) => fillSongSel(k, x)); }
   SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
-    // Browsers never refill a file box, so hide it and show our own field with the saved song's name instead.
-    const nat = $('musicFile' + x); nat.style.display = 'none';
-    const pick = document.createElement('div'); pick.className = 'fpick'; pick.innerHTML = '<button type="button" class="mb">Choose file…</button><span class="fname"></span>';
-    nat.parentNode.insertBefore(pick, nat.nextSibling); pick.querySelector('button').onclick = () => nat.click(); m.nameEl = pick.querySelector('.fname');
-    const save = () => mdb('readwrite', st => st.put({ blob: m.blob, name: m.name, start: m.start, len: m.len }, k));
-    $('musicFile' + x).onchange = async () => { const f = $('musicFile' + x).files[0]; if (!f) return; m.blob = f; m.name = f.name; m.buf = null; await decodeMusic();
-      if (!m.buf) { m.blob = null; $('musicNote' + x).textContent = 'Sorry, that file couldn’t be played. Try an mp3 or m4a.'; return; } await save(); refreshMusicUI(); if (k === 'pre') startPrelude(); };
-    $('musicStart' + x).onchange = $('musicLen' + x).onchange = () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(180, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k])); if (m.blob) save(); refreshMusicUI(); };
+    const nat = $('musicFile' + x); nat.style.display = 'none'; nat.multiple = true;
+    const pick = document.createElement('div'); pick.className = 'fpick'; pick.innerHTML = '<select id="songSel' + x + '" style="flex:1;min-width:0;font-family:var(--font);font-size:15px;border:0;background:transparent;font-weight:700"></select><button type="button" class="mb">➕ Add song(s)</button>';
+    nat.parentNode.insertBefore(pick, nat.nextSibling); pick.querySelector('button').onclick = () => nat.click();
+    const sel = pick.querySelector('select');
+    sel.onchange = async () => { const d = (await musIdx())[k]; d.sel = sel.value || null; await musSave(); stopMusic(); await applyMusSel(k); refreshMusicUI(); fillSongSel(k, x); await decodeMusic(); if (k === 'pre') startPrelude(); };
+    nat.onchange = async () => { const files = Array.from(nat.files); nat.value = ''; if (!files.length) return; const note = $('musicNote' + x), d = (await musIdx())[k]; let bad = 0, added = 0;
+      for (const f of files) { let good = true; try { const ab = await f.arrayBuffer(); await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { good = false; }
+        if (!good) { bad++; continue; } const id = k + Date.now() + Math.floor(Math.random() * 1000);
+        await mdb('readwrite', st => st.put({ blob: f, name: f.name }, 'm:' + k + ':' + id)); d.items.push({ id, name: f.name, start: 0, len: DEF_LEN[k], size: f.size }); d.sel = id; added++; }
+      await musSave(); await applyMusSel(k); await decodeMusic(); refreshMusicUI(); fillSongSel(k, x); if (bad) note.textContent = 'Sorry, ' + bad + ' file' + (bad > 1 ? 's' : '') + ' couldn’t be played (try mp3 or m4a). ' + (added ? added + ' added.' : ''); if (k === 'pre' && added) startPrelude(); };
+    $('musicStart' + x).onchange = $('musicLen' + x).onchange = async () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(180, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k]));
+      const d = (await musIdx())[k], it = d.items.find(i => i.id === d.sel); if (it) { it.start = m.start; it.len = m.len; await musSave(); } refreshMusicUI(); };
     $('musicTest' + x).onclick = async () => { await decodeMusic(); if (k === 'pre') { startPrelude(true); return; } if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
     $('musicStop' + x).onclick = () => { stopMusic(); stopReact(); };
-    $('musicRemove' + x).onclick = () => { stopMusic(); Object.assign(m, { blob: null, buf: null, name: '' }); mdb('readwrite', st => st.delete(k)); refreshMusicUI(); };
+    $('musicRemove' + x).onclick = async () => { const d = (await musIdx())[k], id = d.sel; if (!id) { $('musicNote' + x).textContent = 'Pick the song to remove from the list first.'; return; }
+      stopMusic(); await mdb('readwrite', st => st.delete('m:' + k + ':' + id)); d.items = d.items.filter(i => i.id !== id); d.sel = null; await musSave(); await applyMusSel(k); refreshMusicUI(); fillSongSel(k, x); };
   });
+  musIdx().then(fillAllSongSel);
   $('testDing').onclick = () => { sDing(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
   $('testBuzz').onclick = () => { sBuzz(); setTimeout(() => { $('latNote').textContent = latencyText(); }, 200); };
   $('keepAwake').onchange = () => { try { localStorage.setItem('feud.keepawake', $('keepAwake').checked ? '1' : '0'); } catch (e) {} if ($('keepAwake').checked) { getAC(); startKeepAlive(); } else stopKeepAlive(); };
