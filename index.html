@@ -266,7 +266,7 @@
     <div><label for="fmt">Fast Money target</label><input id="fmt" type="number" inputmode="numeric"></div>
   </div>
   <div class="row">
-    <div><label for="setSel">Which game's questions?</label><select id="setSel" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:9px;width:100%"></select><div class="note" id="setNote" style="display:none;color:#b00020;font-weight:800;margin-top:4px">👆 Pick a game from the list first.</div></div>
+    <div><label for="setSel">Which game's questions?</label><input id="setSearch" type="search" placeholder="🔍 Search your games by name…" autocomplete="off" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px 10px;width:100%;margin-bottom:6px"><select id="setSel" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:9px;width:100%"></select><div class="note" id="setNote" style="display:none;color:#b00020;font-weight:800;margin-top:4px">👆 Pick a game from the list first.</div></div>
     <div class="note" style="align-self:end">After you start a game, the next one defaults to the next set — so Game 2 is ready to go with no re-entering. Add more games in ✏️ Edit questions.</div>
   </div>
   <div class="row">
@@ -353,8 +353,9 @@
 <!-- Questions editor -->
 <div class="modal" id="qed"><div class="card">
   <h2>✏️ Your Questions</h2>
-  <div class="note">One question per block. Start with <b>Q:</b>, then one answer per line as <b>Answer | points</b>, best answer first. Leave off the points and they're assigned automatically by order. Up to 8 answers per question. Blank lines between questions are fine.</div>
+  <div class="note">One question per block. Start with <b>Q:</b>, then one answer per line as <b>Answer | points</b>, best answer first. Leave off the points and they're assigned automatically by order. Up to 10 answers per question. Blank lines between questions are fine.</div>
   <div class="btns" id="setTabs"></div>
+  <label for="gName">Game name — shows in the game list (for example “Church 1” or “Ward party”)</label><input id="gName" type="text" placeholder="Game name" autocomplete="off">
   <h3>Main-round questions (<span id="cMain">0</span>)</h3>
   <textarea id="qMain" style="min-height:240px"></textarea>
   <h3>Fast Money questions — the first 5 are used (<span id="cFast">0</span>)</h3>
@@ -375,7 +376,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 97';
+  const GAME_VERSION = '2026-10-03 · build 98';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1653,10 +1654,11 @@ Nevada | 4`;
   const closeSetup = () => { inGame = false; stopMusic(true); show('setup', false); };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
   function fillSetSel(sel) {
-    const a = loadSets(), box = $('setSel'); box.innerHTML = '';
+    const a = loadSets(), box = $('setSel'), q = (($('setSearch') && $('setSearch').value) || '').trim().toLowerCase(); box.innerHTML = '';
     if (sel < 0) { const o = document.createElement('option'); o.value = ''; o.textContent = '— Choose a game —'; box.appendChild(o); }   // nothing is pre-selected
-    a.forEach((g, i) => { const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money'; box.appendChild(o); });
+    a.forEach((g, i) => { if (q && !String(g.name).toLowerCase().includes(q) && i !== sel) return; const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money'; box.appendChild(o); });
     box.value = sel < 0 ? '' : String(Math.min(sel, a.length - 1));
+    if (box.selectedIndex < 0) box.selectedIndex = 0;
   }
   function openSetup(fromGame) {
     stopMusic(!!fromGame);   // opening Menu mid-celebration leaves the winner song going; a real new game stops it
@@ -1666,11 +1668,11 @@ Nevada | 4`;
       // the same screen, filled with the game that is running right now
       $('n0').value = S.teams[0].name; $('n1').value = S.teams[1].name; $('p0').value = S.teams[0].players.join('\n'); $('p1').value = S.teams[1].players.join('\n');
       $('tgt').value = S.target; $('fmt').value = S.fmTarget; $('mults').value = (S.mults && S.mults.length ? S.mults : [1, 1, 2, 3]).join(',');
-      fillSetSel(S.setIdx || 0); $('setSel').disabled = true;
+      $('setSearch').value = ''; $('setSearch').disabled = true; fillSetSel(S.setIdx || 0); $('setSel').disabled = true;
       $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score;
       $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true;
     } else {
-      $('mults').value = c.m || '1,1,2,3'; fillSetSel(-1); $('setSel').disabled = false; $('setNote').style.display = 'none';
+      $('mults').value = c.m || '1,1,2,3'; $('setSearch').value = ''; $('setSearch').disabled = false; fillSetSel(-1); $('setSel').disabled = false; $('setNote').style.display = 'none';
       $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
     }
     $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText();
@@ -1699,6 +1701,11 @@ Nevada | 4`;
     if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { show('setup', false); commit(); }
   };
   $('setSel').onchange = () => { $('setNote').style.display = 'none'; };
+  $('setSearch').oninput = () => {   // type part of a game's name to narrow the list; a single match is picked for you
+    const cur = $('setSel').value; fillSetSel(cur === '' ? -1 : +cur);
+    const real = [...$('setSel').options].filter(o => o.value !== ''); if (real.length === 1) $('setSel').value = real[0].value; else if (cur === '' || !real.some(o => o.value === cur)) $('setSel').value = '';
+    $('setNote').style.display = 'none';
+  };
   // Team names, players, targets and multipliers save as you type (for the next new game). Not while the menu is open mid-game — those changes use "Save changes & back to the game".
   const autoSaveCfg = () => { if (inGame) return; const c = load(CK, {}); c.n = [$('n0').value.trim(), $('n1').value.trim()]; c.p = [$('p0').value, $('p1').value]; c.tgt = +$('tgt').value || c.tgt || 300; c.fmt = +$('fmt').value || c.fmt || 200; c.m = $('mults').value.trim(); store(CK, c); };
   ['n0', 'n1', 'p0', 'p1', 'tgt', 'fmt', 'mults'].forEach(id => $(id).addEventListener('input', autoSaveCfg));
@@ -1717,8 +1724,8 @@ Nevada | 4`;
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   // Editor with one tab per game; each game has its own main-round and Fast Money questions.
   let edSets = [], edIdx = 0;
-  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; } }
-  function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
+  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); } }
+  function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
   function drawTabs() {
     const box = $('setTabs'); box.innerHTML = '';
     edSets.forEach((g, i) => { const t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' gold' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
@@ -1727,8 +1734,9 @@ Nevada | 4`;
   function openEditor() { edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast })); edIdx = 0; edLoad(); show('qed', true); }
   function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
   $('qMain').oninput = $('qFast').oninput = count;
+  $('gName').oninput = () => { const g = edSets[edIdx]; if (g) { g.name = $('gName').value; drawTabs(); } };   // rename the game; the tab label follows as you type
   $('qSample').onclick = () => { const alt = edIdx % 2 === 1; $('qMain').value = alt ? SAMPLE2_MAIN : SAMPLE_MAIN; $('qFast').value = alt ? SAMPLE2_FAST : SAMPLE_FAST; count(); $('qMsg').textContent = 'Starter questions loaded into ' + edSets[edIdx].name + ' — tap Save to keep them.'; };
-  $('qDel').onclick = () => { if (edSets.length < 2) return; edSets.splice(edIdx, 1); edSets.forEach((g, i) => { g.name = 'Game ' + (i + 1); }); edIdx = Math.min(edIdx, edSets.length - 1); edLoad(); $('qMsg').textContent = 'Game removed — tap Save to keep the change.'; };
+  $('qDel').onclick = () => { if (edSets.length < 2) return; edSets.splice(edIdx, 1); edSets.forEach((g, i) => { if (/^Game \d+$/.test(g.name)) g.name = 'Game ' + (i + 1); }); edIdx = Math.min(edIdx, edSets.length - 1); edLoad(); $('qMsg').textContent = 'Game removed — tap Save to keep the change.'; };
   $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel($('setSel').value === '' ? -1 : (+$('setSel').value || 0)); if (S && S.qs) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor;
@@ -1765,7 +1773,7 @@ Nevada | 4`;
     if (Date.now() - readyArm > 8000) { readyArm = Date.now(); $('readyBtn').textContent = '⚠ Click again to confirm'; note.style.display = 'block'; note.textContent = 'This adds three new games at the top. Your ' + cur.length + ' current game' + (cur.length > 1 ? 's' : '') + ' will become Game 4' + (cur.length > 1 ? ' to Game ' + (cur.length + 3) : '') + ' (nothing is deleted).'; setTimeout(() => { if (Date.now() - readyArm >= 7900) { $('readyBtn').textContent = '📥 Add ready-made Games 1–3'; } }, 8100); return; }
     readyArm = 0; $('readyBtn').textContent = '📥 Add ready-made Games 1–3';
     const sets = READY.map(g => ({ name: '', main: g.main, fast: g.fast })).concat(cur.map(g => ({ name: '', main: g.main, fast: g.fast })));
-    sets.forEach((g, i) => { g.name = 'Game ' + (i + 1); });
+    sets.forEach((g, i) => { g.name = i < READY.length ? 'Game ' + (i + 1) : (cur[i - READY.length].name && !/^Game \d+$/.test(cur[i - READY.length].name) ? cur[i - READY.length].name : 'Game ' + (i + 1)); });
     store(QK2, { sets }); const c = load(CK, null); if (c) { c.set = 0; c.nextSet = 1; store(CK, c); }
     fillSetSel(-1); note.style.display = 'block'; note.textContent = '✅ Done. Games 1–3 are in, and your earlier games are now Games 4–' + sets.length + '. Pick the game you want from the list.';
   };
