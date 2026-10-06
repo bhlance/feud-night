@@ -370,7 +370,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 90';
+  const GAME_VERSION = '2026-10-03 · build 93';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1108,7 +1108,7 @@ Nevada | 4`;
   const vStem = w => { w = w.replace(/'/g, ''); if (w.length > 4 && w.endsWith('ly')) w = w.slice(0, -2); if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) w = w.slice(0, -1); if (w.length > 4 && w.endsWith('ed')) w = w.slice(0, -2); return w; };
   const vWords = t => String(t || '').toLowerCase().replace(/[^a-z0-9'\s]/g, ' ').split(/\s+/).filter(Boolean);
   // Marks which words are the MC reading a question (true = question word), for a list of words.
-  function voiceDropMask(w) {
+  function voiceDropMask(w, minN) {
     const f = S && S.fm, drop = new Array(w.length).fill(false); if (!f || !f.qs || w.length < 3) return drop;
     const qv = new Set(); f.qs.forEach(q => vWords(q.text).forEach(x => { const st = vStem(x); if (!V_NEUTRAL.has(x) && !V_NEUTRAL.has(st)) qv.add(st); }));
     const st = w.map(vStem), isQ = i => qv.has(st[i]), isN = i => V_NEUTRAL.has(w[i]) || V_NEUTRAL.has(st[i]);
@@ -1116,7 +1116,7 @@ Nevada | 4`;
       if (!(isQ(i) || isN(i))) { i++; continue; }
       let j = i; while (j < w.length && (isQ(j) || isN(j))) j++;
       let a = i, b = j - 1; while (a <= b && !isQ(a)) a++; while (b >= a && !isQ(b)) b--;   // a run starts and ends on a real question word
-      if (a <= b) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= 2) for (let k = a; k <= b; k++) drop[k] = true; }
+      if (a <= b) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= (minN || 2)) for (let k = a; k <= b; k++) drop[k] = true; }
       i = j;
     }
     voiceFindSpans(w, st).forEach(sp => { for (let k = sp.s; k <= sp.e; k++) drop[k] = true; });
@@ -1132,11 +1132,25 @@ Nevada | 4`;
       for (let i = 0; i < w.length; i++) { if (V_NEUTRAL.has(w[i])) continue; const idx = []; for (let k = i; k < w.length && idx.length < L + 3; k++) if (!V_NEUTRAL.has(w[k])) idx.push(k); const W = idx.map(k => st[k]);
         const m = qt.length, n = W.length, t = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
         for (let a = 1; a <= m; a++) for (let b = 1; b <= n; b++) t[a][b] = eq(qt[a - 1], W[b - 1]) ? t[a - 1][b - 1] + 1 : Math.max(t[a - 1][b], t[a][b - 1]);
-        const score = t[m][n]; if (score < Math.max(3, Math.ceil(L * 0.6))) continue;
+        const score = t[m][n]; if (score < Math.max(3, Math.ceil(L * 0.5))) continue;
         let a = m, b = n, first = -1, last = -1; while (a > 0 && b > 0) { if (eq(qt[a - 1], W[b - 1]) && t[a][b] === t[a - 1][b - 1] + 1) { if (last < 0) last = b - 1; first = b - 1; a--; b--; } else if (t[a - 1][b] >= t[a][b - 1]) a--; else b--; }
-        if (first >= 0) cand.push({ s: idx[first], e: idx[last], q: qi, score: score / L }); } });
+        if (first >= 0 && (last - first + 1) - score <= (L <= 6 ? 1 : 2)) cand.push({ s: idx[first], e: idx[last], q: qi, score: score / L }); } });   // a real read has few foreign words in the middle
     cand.sort((x, y) => y.score - x.score || x.s - y.s);   // best matches first; keep ones that don't overlap an already-kept one
     cand.forEach(c => { if (!spans.some(k => c.s <= k.e && c.e >= k.s)) spans.push(c); });
+    // Question reads the strict match missed (the recognizer dropped the start, say): find runs of question words and name the question by the words only it uses.
+    const own = f.qs.map(q => new Set(vWords(q.text).map(vStem).filter(x => !V_NEUTRAL.has(x)))), uniq = own.map((set, qi) => new Set([...set].filter(x => own.every((o, oi) => oi === qi || !o.has(x)))));
+    const allQ = new Set(); own.forEach(set => set.forEach(x => allQ.add(x)));
+    const isQ = i => allQ.has(st[i]), isN = i => V_NEUTRAL.has(w[i]) || V_NEUTRAL.has(st[i]);
+    for (let i = 0; i < w.length;) {
+      if (!(isQ(i) || isN(i))) { i++; continue; }
+      let j = i; while (j < w.length && (isQ(j) || isN(j))) j++;
+      let a = i, b = j - 1; while (a <= b && !isQ(a)) a++; while (b >= a && !isQ(b)) b--;
+      if (a <= b && !spans.some(k => a <= k.e && b >= k.s)) {
+        const hits = uniq.map(u => { const seen = new Set(); for (let k = a; k <= b; k++) if (u.has(st[k])) seen.add(st[k]); return seen.size; });
+        const best = Math.max(...hits), qi = hits.indexOf(best); if (best >= 2 && hits.filter(h => h === best).length === 1) spans.push({ s: a, e: b, q: qi, score: 0 });
+      }
+      i = j;
+    }
     return spans.sort((x, y) => x.s - y.s);
   }
   function voiceStripQuestions(t) {
@@ -1148,7 +1162,7 @@ Nevada | 4`;
   // Returns { questionIndex: answerText } or null when the MC's voice wasn't picked up at all.
   function voiceParse(all) {
     const w = all || voiceAll(), st = w.map(vStem), spans = voiceFindSpans(w, st); if (!spans.length) return null;
-    const drop = voiceDropMask(w), out = {};
+    const drop = voiceDropMask(w, 3), out = {};   // (only long runs of question words are thrown away here — a short coincidence like "eat lunch" stays)
     const take = (from, to) => { const r = []; for (let i = from; i < to; i++) { if (drop[i] || V_FILLER.has(w[i])) continue; r.push(w[i]); }
       while (r.length && V_NEUTRAL.has(r[0])) r.shift(); while (r.length && V_NEUTRAL.has(r[r.length - 1])) r.pop(); return r.join(' '); };
     const lead = take(0, spans[0].s); if (lead && spans[0].q !== 0) out[0] = lead;   // spoken before any question was heard: the answer to the question read before the clock
@@ -1192,7 +1206,7 @@ Nevada | 4`;
   }
   function voiceApply() {   // question-aware mode: each ticked question gets the answer heard right after that question was read
     const f = S && S.fm; if (!f) return false; const parsed = voiceParse(); if (!parsed) return false; f.draft = f.draft || [[], []];
-    Object.keys(parsed).forEach(q => { if ((f.chk && f.chk[q]) || S.phase === 'fmEntry') { if (f.draft[f.pl - 1][q] !== parsed[q]) { f.draft[f.pl - 1][q] = parsed[q]; voicePush(+q, parsed[q]); } } });
+    f.qs.forEach((_, q) => { if ((f.chk && f.chk[q]) || S.phase === 'fmEntry') { const v = parsed[q] || ''; if ((f.draft[f.pl - 1][q] || '') !== v) { f.draft[f.pl - 1][q] = v; voicePush(q, v); } } });   // always what the transcript says now (no stale words)
     return true;
   }
   function voiceAssign(q, text) { const f = S && S.fm; if (!f || !text) return; f.draft = f.draft || [[], []]; f.draft[f.pl - 1][q] = text; }
