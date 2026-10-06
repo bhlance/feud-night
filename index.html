@@ -370,7 +370,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 93';
+  const GAME_VERSION = '2026-10-03 · build 94';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1110,16 +1110,18 @@ Nevada | 4`;
   // Marks which words are the MC reading a question (true = question word), for a list of words.
   function voiceDropMask(w, minN) {
     const f = S && S.fm, drop = new Array(w.length).fill(false); if (!f || !f.qs || w.length < 3) return drop;
-    const qv = new Set(); f.qs.forEach(q => vWords(q.text).forEach(x => { const st = vStem(x); if (!V_NEUTRAL.has(x) && !V_NEUTRAL.has(st)) qv.add(st); }));
-    const st = w.map(vStem), isQ = i => qv.has(st[i]), isN = i => V_NEUTRAL.has(w[i]) || V_NEUTRAL.has(st[i]);
+    const st = w.map(vStem), spans = voiceFindSpans(w, st);
+    spans.forEach(sp => { for (let k = sp.s; k <= sp.e; k++) drop[k] = true; });   // the exact stretches where a question was read
+    // leftover runs of question words that no question could be matched to (and that don't touch a matched read) are thrown away too
+    const qv = new Set(); f.qs.forEach(q => vWords(q.text).forEach(x => { const t = vStem(x); if (!V_NEUTRAL.has(x) && !V_NEUTRAL.has(t)) qv.add(t); }));
+    const isQ = i => qv.has(st[i]), isN = i => V_NEUTRAL.has(w[i]) || V_NEUTRAL.has(st[i]);
     for (let i = 0; i < w.length;) {
       if (!(isQ(i) || isN(i))) { i++; continue; }
       let j = i; while (j < w.length && (isQ(j) || isN(j))) j++;
-      let a = i, b = j - 1; while (a <= b && !isQ(a)) a++; while (b >= a && !isQ(b)) b--;   // a run starts and ends on a real question word
-      if (a <= b) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= (minN || 2)) for (let k = a; k <= b; k++) drop[k] = true; }
+      let a = i, b = j - 1; while (a <= b && !isQ(a)) a++; while (b >= a && !isQ(b)) b--;
+      if (a <= b && !spans.some(k => a <= k.e + 1 && b >= k.s - 1)) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= (minN || 2)) for (let k = a; k <= b; k++) drop[k] = true; }
       i = j;
     }
-    voiceFindSpans(w, st).forEach(sp => { for (let k = sp.s; k <= sp.e; k++) drop[k] = true; });
     return drop;
   }
   // Line each question up against the words (tolerating a mis-heard word here and there). Returns [{s, e, q}]: the stretch where the MC read question q.
