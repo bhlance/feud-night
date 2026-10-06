@@ -356,7 +356,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 79';
+  const GAME_VERSION = '2026-10-03 · build 80';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1416,7 +1416,7 @@ Nevada | 4`;
   function buildFmForm() {
     const f = S.fm, w = f.pl - 1, rows = $('fmFormRows'); fmFormFor = f.pl;
     $('fmFormTitle').textContent = 'Fast Money — ' + fmPos(f.pl) + ' answers';
-    $('fmPrev').checked = !!boardOpen; rows.innerHTML = '';
+    $('fmPrev').checked = true; rows.innerHTML = '';   // "Show the answer lists" is on by default
     f.qs.forEach((q, i) => {
       const d = document.createElement('div'); d.className = 'fmrow'; d.innerHTML = '<label></label><input type="text" autocomplete="off" autocapitalize="off"><div class="pv"></div><div class="ans"></div>';
       d.querySelector('label').textContent = 'Q' + (i + 1) + ': ' + q.text;
