@@ -163,6 +163,10 @@
   .modal input, .modal textarea { font-family: var(--font); font-size: 17px; border: 2px solid #c9d2f5; border-radius: 12px; padding: 9px; width: 100%; user-select: text; -webkit-user-select: text; }
   .modal textarea { min-height: 120px; resize: vertical; }
   .modal .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  #setup .card { width: min(1200px, 100%); }   /* wider menu so each song row fits on one line */
+  #musicOrder > .row { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end; }
+  #musicOrder .row .row { grid-template-columns: 1fr 1fr; align-items: end; }
+  #musicOrder label { white-space: nowrap; }
   .modal .btns { display: flex; gap: 10px; flex-wrap: wrap; }
   .modal .note { font-size: 13px; color: #55608f; line-height: 1.4; }
   .mb { border: 0; border-radius: 99px; padding: 11px 22px; font-family: var(--font); font-weight: 900; font-size: 16px; background: #e6eaff; color: var(--ink); cursor: pointer; }
@@ -328,7 +332,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 69';
+  const GAME_VERSION = '2026-10-03 · build 70';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1512,7 +1516,7 @@ Nevada | 4`;
   const SLOT_DEFS = [['win', ''], ['game', 'Game'], ['fm', 'Fm'], ['aww', 'Aww'], ['clap', 'Clap'], ['cheer', 'Cheer'], ['r1', 'R1'], ['r2', 'R2'], ['r3', 'R3'], ['r4', 'R4'], ['r5', 'R5'], ['pre', 'Pre'], ['title', 'Title'], ['fmlose', 'FmLose']], DEF_LEN = { win: 10, game: 20, fm: 30, aww: 3, clap: 4, cheer: 5, r1: 10, r2: 10, r3: 10, r4: 10, r5: 10, pre: 180, title: 180, fmlose: 30 };
   (function injectMusicUI() {
     const sec = (title, x, len) => '<h3>' + title + '</h3><div class="row"><div><label for="musicFile' + x + '">Song or recording (mp3, m4a, wav)</label><input id="musicFile' + x + '" type="file" accept="audio/*"></div>'
-      + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds, up to 180)</label><input id="musicLen' + x + '" type="number" min="1" max="180" value="' + len + '" inputmode="numeric"></div></div></div>'
+      + '<div class="row" style="gap:10px"><div><label for="musicStart' + x + '">Start at (seconds in)</label><input id="musicStart' + x + '" type="number" min="0" value="0" inputmode="numeric"></div><div><label for="musicLen' + x + '">Play for (seconds, max 180)</label><input id="musicLen' + x + '" type="number" min="1" max="180" value="' + len + '" inputmode="numeric"></div></div></div>'
       + '<div class="btns"><button class="mb" id="musicTest' + x + '">▶ Test</button><button class="mb" id="musicStop' + x + '">■ Stop</button><button class="mb" id="musicRemove' + x + '">Remove</button></div><div class="note" id="musicNote' + x + '"></div>';
     const reactIntro = '<div style="margin-top:14px;padding:10px 12px;background:#eef1ff;border-radius:12px"><div style="font-weight:800">👥 Fast Money audience reactions (played as each score is revealed)</div>'
       + '<label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="reactOn" style="width:auto"> Play audience reactions</label>'
