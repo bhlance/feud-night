@@ -369,7 +369,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 85';
+  const GAME_VERSION = '2026-10-03 · build 86';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1100,14 +1100,26 @@ Nevada | 4`;
   // When the MC taps a question's tile, whatever the contestant just said becomes that question's typed answer.
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   const voice = { on: false, rec: null, utts: [], base: 0, used: -1, map: {}, msg: '', state: '' };
-  // If the contestant's mic also picks up the MC reading a question, any run of 4+ words that matches the question text is thrown away,
-  // so the MC's voice doesn't end up as an answer.
+  // If the contestant's mic also picks up the MC reading a question (even when the computer mishears a word), the question words are thrown away
+  // and only the contestant's answer is kept. A "question run" is a stretch of words made of words from the questions (plus little words like
+  // a / the / you / to) that contains at least two real question words.
+  const V_NEUTRAL = new Set('a an the of to in on at is are be you your youre where that and or for with it its this these those when who what which'.split(' '));
+  const vStem = w => { w = w.replace(/'/g, ''); if (w.length > 4 && w.endsWith('ly')) w = w.slice(0, -2); if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) w = w.slice(0, -1); if (w.length > 4 && w.endsWith('ed')) w = w.slice(0, -2); return w; };
   const vWords = t => String(t || '').toLowerCase().replace(/[^a-z0-9'\s]/g, ' ').split(/\s+/).filter(Boolean);
   function voiceStripQuestions(t) {
-    const f = S && S.fm; if (!f || !f.qs) return t; const w = vWords(t); if (w.length < 4) return t;
-    const grams = new Set(); f.qs.forEach(q => { const qw = vWords(q.text); for (let j = 0; j + 4 <= qw.length; j++) grams.add(qw.slice(j, j + 4).join(' ')); });
-    const drop = new Array(w.length).fill(false); for (let i = 0; i + 4 <= w.length; i++) if (grams.has(w.slice(i, i + 4).join(' '))) for (let k = i; k < i + 4; k++) drop[k] = true;
-    return w.filter((_, i) => !drop[i]).join(' ');
+    const f = S && S.fm; if (!f || !f.qs) return t; const w = vWords(t); if (w.length < 3) return t;
+    const qv = new Set(); f.qs.forEach(q => vWords(q.text).forEach(x => { const st = vStem(x); if (!V_NEUTRAL.has(x) && !V_NEUTRAL.has(st)) qv.add(st); }));
+    const st = w.map(vStem), isQ = i => qv.has(st[i]), isN = i => V_NEUTRAL.has(w[i]) || V_NEUTRAL.has(st[i]);
+    const drop = new Array(w.length).fill(false);
+    for (let i = 0; i < w.length;) {
+      if (!(isQ(i) || isN(i))) { i++; continue; }
+      let j = i; while (j < w.length && (isQ(j) || isN(j))) j++;
+      let a = i, b = j - 1; while (a <= b && !isQ(a)) a++; while (b >= a && !isQ(b)) b--;   // a run starts and ends on a real question word
+      if (a <= b) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= 2) for (let k = a; k <= b; k++) drop[k] = true; }
+      i = j;
+    }
+    const r = w.filter((_, i) => !drop[i]); while (r.length && V_NEUTRAL.has(r[0])) r.shift(); while (r.length && V_NEUTRAL.has(r[r.length - 1])) r.pop();   // no leftover "a" / "the" at the ends
+    return r.join(' ');
   }
   const voiceClean = t => voiceStripQuestions(String(t || '')).replace(/\b(pass|passed|next|skip|um|uh|uhh|umm)\b/gi, ' ').replace(/\s+/g, ' ').trim();
   function voiceShow() { const el = document.getElementById('voiceLive'); if (el) el.textContent = voiceLine(); }
