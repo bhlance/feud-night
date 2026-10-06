@@ -369,7 +369,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 84';
+  const GAME_VERSION = '2026-10-03 · build 85';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1099,7 +1099,7 @@ Nevada | 4`;
   // ---- Voice entry (MC window only): the browser's speech recognition listens to the microphone chosen in the Mac's Sound settings.
   // When the MC taps a question's tile, whatever the contestant just said becomes that question's typed answer.
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const voice = { on: false, rec: null, utts: [], base: 0, used: -1, map: {}, msg: '' };
+  const voice = { on: false, rec: null, utts: [], base: 0, used: -1, map: {}, msg: '', state: '' };
   // If the contestant's mic also picks up the MC reading a question, any run of 4+ words that matches the question text is thrown away,
   // so the MC's voice doesn't end up as an answer.
   const vWords = t => String(t || '').toLowerCase().replace(/[^a-z0-9'\s]/g, ' ').split(/\s+/).filter(Boolean);
@@ -1116,17 +1116,20 @@ Nevada | 4`;
     if (voice.msg) return '🎤 ' + voice.msg;
     if (!voice.on) return '';
     let last = ''; for (let i = voice.utts.length - 1; i > voice.used; i--) { const c = voiceClean(voice.utts[i]); if (c) { last = c; break; } }
-    return '🎤 Listening… ' + (last ? 'just heard: “' + last + '”' : '(say the answers — tap each question’s tile after they answer)');
+    return '🎤 Listening (' + (voice.state || 'starting') + ')… ' + (last ? 'just heard: “' + last + '”' : '(say the answers — tap each question’s tile after they answer)');
   }
   function voiceAssign(q, text) { const f = S && S.fm; if (!f || !text) return; f.draft = f.draft || [[], []]; f.draft[f.pl - 1][q] = text; }
   function voiceStart() {
     if (isBoard || !SpeechRec || voice.on) return; voice.msg = '';
     try {
       const rec = new SpeechRec(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; voice.rec = rec; voice.on = true;
-      rec.onstart = () => { voice.base = voice.utts.length; };
+      rec.onstart = () => { voice.base = voice.utts.length; voice.state = 'starting'; voiceShow(); };
+      rec.onaudiostart = () => { voice.state = 'mic on'; voiceShow(); };
+      rec.onspeechstart = () => { voice.state = 'hearing you'; voiceShow(); };
       rec.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) { const idx = voice.base + i, t = e.results[i][0].transcript.trim(); voice.utts[idx] = t;
           if (voice.map[idx] != null) { const c = voiceClean(t); if (c) voiceAssign(voice.map[idx], c); } } voiceShow(); };
-      rec.onerror = e => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; voice.msg = e.error === 'not-allowed' ? 'The microphone is blocked. Allow it for this page in Safari (Safari > Settings > Websites > Microphone), then tap Listen again.' : 'Speech recognition is off. Turn on Dictation in System Settings > Keyboard, then tap Listen again.'; voiceShow(); render(); } };
+      rec.onerror = e => { if (e.error && e.error !== 'no-speech' && e.error !== 'aborted') { voice.state = 'problem: ' + e.error; voiceShow(); }
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { voice.on = false; voice.msg = e.error === 'not-allowed' ? 'The microphone is blocked. Allow it for this page in Safari (Safari > Settings > Websites > Microphone), then tap Listen again.' : 'Speech recognition is off. Turn on Dictation in System Settings > Keyboard, then tap Listen again.'; voiceShow(); render(); } };
       rec.onend = () => { if (voice.on) setTimeout(() => { try { rec.start(); } catch (e) {} }, 200); };
       rec.start();
     } catch (e) { voice.on = false; voice.msg = 'Couldn’t start the microphone.'; }
@@ -1505,7 +1508,8 @@ Nevada | 4`;
 
   // ---------------- wiring ----------------
   let lastPD = 0;   // act on the press itself (no waiting for the finger/mouse to lift); keep click for keyboard use
-  $('ctl').addEventListener('pointerdown', e => { const el = e.target.closest('[data-act]'); if (el && !el.disabled) { lastPD = Date.now(); doAct(el.dataset.act, el.dataset.v); } });
+  // (Listen and Mic check wait for the real click: Safari only lets a page open the microphone from a click, not from the press itself.)
+  $('ctl').addEventListener('pointerdown', e => { const el = e.target.closest('[data-act]'); if (el && !el.disabled && el.dataset.act !== 'voice' && el.dataset.act !== 'mic') { lastPD = Date.now(); doAct(el.dataset.act, el.dataset.v); } });
   $('ctl').addEventListener('input', e => { const id = e.target.id; if (!S || (id !== 'fmN1' && id !== 'fmN2')) return; const i = id === 'fmN1' ? 0 : 1; S.fmNames = S.fmNames || ['', '']; S.fmNames[i] = e.target.value; if (S.fm) { S.fm.names = S.fm.names || ['', '']; S.fm.names[i] = e.target.value; } store(LS, S); });
   $('fm').addEventListener('pointerdown', e => { const el = e.target.closest('[data-act="fmtick"]'); if (el && !isBoard) { e.preventDefault(); lastPD = Date.now(); doAct('fmtick', el.dataset.v); } });
   $('fm').addEventListener('click', e => { const el = e.target.closest('[data-act="fmtick"]'); if (el && !isBoard && Date.now() - lastPD > 700) doAct('fmtick', el.dataset.v); });
