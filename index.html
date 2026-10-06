@@ -310,13 +310,13 @@
   <img id="vidPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   <video id="vidPrev" controls muted playsinline style="display:none;max-width:100%;max-height:30vh;background:#000;border-radius:10px"></video>
   </div>
-  <h3>📺 Welcome Screen</h3>
-  <div class="note">Add as many pictures as you like and pick which one to use. Images only (JPG, PNG or WebP).</div>
+  <div id="wtBlock">
   <h4 style="margin:12px 0 4px">Welcome Screen Picture (shown after 📺 Show Welcome Screen, before the game starts)</h4>
   <label for="wtSel" style="font-weight:800">Use this one:</label><select id="wtSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
   <div class="btns"><button class="mb" id="wtPick">➕ Add picture(s)…</button><input type="file" multiple id="wtFile" accept="image/*" style="display:none"><button class="mb" id="wtPrevBtn">▶ Preview</button><button class="mb" id="wtRemove">Remove the selected one</button></div>
   <div class="note" id="wtNote"></div>
   <video id="wtPrev" controls muted playsinline style="display:none"></video><img id="wtPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
+  </div>
   <div id="tiBlock">
   <h4 style="margin:12px 0 4px">Game Board Picture — shown on the TV when you click 🎬 Show Game Board</h4>
   <label for="tiSel" style="font-weight:800">Use this one:</label><select id="tiSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
@@ -390,7 +390,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 107';
+  const GAME_VERSION = '2026-10-03 · build 108';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -944,7 +944,21 @@ Nevada | 4`;
     if (it) { const r = await mdb('readonly', st => st.get('m:' + k + ':' + it.id)); if (r && r.blob) { Object.assign(m, { blob: r.blob, name: it.name, start: it.start || 0, len: it.len || DEF_LEN[k], buf: null }); return; } }
     Object.assign(m, { blob: null, buf: null, name: '' });
   }
-  if (!isBoard) (async () => { for (const k of MUS_KEYS) await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); })();
+  async function setStartingSongsOnce() {   // for now: Game Board Music = Family Feud Theme Music, Welcome Music = Any Dream Will Do (they were each saved in the other slot)
+    const x = await musIdx(); if (x.setSongs3) return;
+    const find = (slot, re) => { const it = x[slot].items.find(i => re.test(i.name)); return it ? { slot, it } : null; };
+    const fam = find('title', /family feud theme/i) || find('pre', /family feud theme/i), any = find('pre', /any dream/i) || find('title', /any dream/i);
+    const give = async (src, toSlot) => {
+      const have = x[toSlot].items.find(i => i.name === src.it.name); if (have) return have;
+      const r = await mdb('readonly', st => st.get('m:' + src.slot + ':' + src.it.id)); if (!r || !r.blob) return null;
+      const id = toSlot + Date.now() + Math.floor(Math.random() * 1000); await mdb('readwrite', st => st.put({ blob: r.blob, name: src.it.name }, 'm:' + toSlot + ':' + id));
+      const ni = { id, name: src.it.name, start: src.it.start || 0, len: src.it.len || DEF_LEN[toSlot], size: src.it.size }; x[toSlot].items.push(ni); return ni;
+    };
+    if (fam) { const it = await give(fam, 'pre'); if (it) x.pre.sel = it.id; }
+    if (any) { const it = await give(any, 'title'); if (it) x.title.sel = it.id; }
+    if (fam || any) { x.setSongs3 = true; await musSave(); }
+  }
+  if (!isBoard) (async () => { try { await setStartingSongsOnce(); } catch (e) {} for (const k of MUS_KEYS) await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); try { getAC(); } catch (e) {} decodeMusic().then(() => startPrelude()); })();
   // "Wah wah wah waaah": four falling brassy notes, the last one sliding down.
   function sSadTrombone() {
     try { getAC(); const t0 = ac.currentTime + .05; [[311, .55, 0], [294, .55, .6], [277, .55, 1.2], [247, 1.5, 1.8]].forEach(([f, d, w], i) => {
@@ -1849,12 +1863,13 @@ Nevada | 4`;
       + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
       + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
     $('musicOrder').innerHTML =
-        sec('🎬 Game Board Music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + '<div id="tiSlot"></div>' + sec('🎬 Welcome Music — plays on repeat while the Game Board picture is on the TV, until you click Start new game', 'Title', 180) + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
+        sec('🎬 Game Board Music — plays while you set up the game and repeats until you click Start new game', 'Pre', 180) + '<div id="tiSlot"></div>' + sec('🎬 Welcome Music — plays on repeat while the Game Board picture is on the TV, until you click Start new game', 'Title', 180) + '<div id="wtSlot"></div>' + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
       + sec('6 · Round 6 Winner Song — also used for any later round', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + '<h3>8 · Fast Money audience sounds — played as each score is revealed</h3>' + reactIntro + sec('Disappointed “aww” — low scores', 'Aww', 3, 'h4') + sec('Generous applause — middle scores', 'Clap', 4, 'h4') + sec('Loud cheering — high scores', 'Cheer', 5, 'h4')
       + sec('9 · Fast Money winner song and video or image — the song plays and repeats the moment the total reaches the target; the video appears 5 seconds later', 'Fm', 30) + '<div id="vidSlot"></div>'
       + sec('10 · Fast Money loser song and video or image — the song plays and repeats when Fast Money ends below the target (until you start a new game)', 'FmLose', 30) + '<div id="loseSlot"></div>';
+    if ($('wtSlot') && $('wtBlock')) $('wtSlot').appendChild($('wtBlock'));   // the Welcome Screen Picture picker sits right under Welcome Music
     if ($('tiSlot') && $('tiBlock')) $('tiSlot').appendChild($('tiBlock'));   // the Game Board Picture picker sits right under Game Board Music
     if ($('loseSlot') && $('loseMediaBlock')) $('loseSlot').appendChild($('loseMediaBlock'));
     if ($('vidSlot') && $('winVidBlock')) $('vidSlot').appendChild($('winVidBlock'));   // the win video lives under the Fast Money winner song
