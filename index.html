@@ -257,7 +257,7 @@
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show Preview Board</button><div class="note" style="flex:1;min-width:200px">Puts the preview board picture on the TV screen — choose which one under “Preview Game Picture” in the panel below. It also plays the Preview Game Music on repeat until you hide it or click Start new game, which goes straight to the first face-off.</div></div>
   <h2>🎤 Feud Night — Game Setup</h2>
   <div id="inGameBanner" style="display:none;background:#fff4d6;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px">🎮 A game is in progress. Change anything below, then tap <b>Save changes &amp; back to the game</b> — scores and progress are kept. (Which game's questions is fixed for this game; use ✏️ Edit questions to change the questions themselves.)</div>
-  <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Preview Game Music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause Preview Game Music</button></div>
+  <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Welcome Music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause Preview Game Music</button></div>
   <div class="row">
     <div><label for="n0">Team 1 name</label><input id="n0" maxlength="24"><label for="p0">Team 1 players (one per line or commas)</label><textarea id="p0" placeholder="Optional — used to announce face-off players"></textarea></div>
     <div><label for="n1">Team 2 name</label><input id="n1" maxlength="24"><label for="p1">Team 2 players (one per line or commas)</label><textarea id="p1" placeholder="Optional — used to announce face-off players"></textarea></div>
@@ -406,7 +406,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 120';
+  const GAME_VERSION = '2026-10-03 · build 121';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -858,7 +858,7 @@ Nevada | 4`;
   // Browsers only allow sound after the first click/tap on the page, so it begins on that first touch.
   function startPrelude(force) {
     if (isBoard) return;
-    const m = mus.pre, buf = effBuf('pre'); if (!buf) return;
+    const m = mus.title, buf = effBuf('title'); if (!buf) return;   // the music on the setup page is the Welcome Music
     if (!force && (!$('setup') || $('setup').style.display !== 'flex')) return;
     if (nowPlaying && (nowPlaying.prelude || nowPlaying.title || nowPlaying.welcome) && !force) return;
     try { getAC(); stopMusic(); const t = ac.currentTime, a = Math.min(m.start || 0, Math.max(0, buf.duration - 1)), b = Math.min(buf.duration, a + Math.max(1, Math.min(180, m.len || 180))), src = ac.createBufferSource(), g = ac.createGain();
@@ -869,8 +869,8 @@ Nevada | 4`;
   const preActive = () => !!(nowPlaying && nowPlaying.prelude);
   function stopPrelude() { if (preActive()) { stopMusic(); updatePreStatus(); } }
   function updatePreStatus() {
-    const msg = document.getElementById('preMsg'); if (msg) msg.textContent = (ac && ac.state !== 'running') ? '🔈 Click or tap anywhere on this page to start the Preview Game Music' : '🎬 Preview Game Music repeats until you start the game';
-     const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('pre'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause Preview Game Music' : '▶ Play Preview Game Music'; }
+    const msg = document.getElementById('preMsg'); if (msg) msg.textContent = (ac && ac.state !== 'running') ? '🔈 Click or tap anywhere on this page to start the Welcome Music' : '🎬 Welcome Music repeats until you start the game';
+     const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('title'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause Welcome Music' : '▶ Play Welcome Music'; }
   // loop = true repeats the chosen stretch of the song (start .. start + "Play for") until stopMusic() is called.
   function playMusic(slot, loop) {
     const m = mus[slot], buf = effBuf(slot); if (isBoard || !m || !buf) return false;
@@ -1952,7 +1952,7 @@ Nevada | 4`;
       + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
       + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
     $('musicOrder').innerHTML =
-        sec('🎬 Preview Game Music — plays on repeat when you click 🎬 Show Preview Board (and while you set up the game)', 'Pre', 180) + '<div id="tiSlot"></div>' + sec('🎬 Welcome Music — starts the moment you click 📺 Show Welcome Screen and repeats until you hide it or click Start new game', 'Title', 180) + '<div id="wtSlot"></div>' + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
+        sec('🎬 Preview Game Music — plays on repeat when you click 🎬 Show Preview Board', 'Pre', 180) + '<div id="tiSlot"></div>' + sec('🎬 Welcome Music — plays on the setup page (click anywhere to start it) and the moment you click 📺 Show Welcome Screen; repeats until you hide it or start the game', 'Title', 180) + '<div id="wtSlot"></div>' + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
       + sec('6 · Round 6 Winner Song — also used for any later round', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + '<h3>8 · Fast Money audience sounds — played as each score is revealed</h3>' + reactIntro + sec('Disappointed “aww” — low scores', 'Aww', 3, 'h4') + sec('Generous applause — middle scores', 'Clap', 4, 'h4') + sec('Loud cheering — high scores', 'Cheer', 5, 'h4')
@@ -2020,16 +2020,16 @@ Nevada | 4`;
             if (have) d.sel = have.id;
             else { const r = await mdb('readonly', st => st.get('m:' + src + ':' + id));
               if (r && r.blob) { const nid = k + Date.now() + Math.floor(Math.random() * 1000); await mdb('readwrite', st => st.put({ blob: r.blob, name: it.name }, 'm:' + k + ':' + nid)); d.items.push({ id: nid, name: it.name, start: it.start || 0, len: DEF_LEN[k], size: it.size }); d.sel = nid; } } } } }
-      await musSave(); stopMusic(); await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); await decodeMusic(); if (k === 'pre') startPrelude();
+      await musSave(); stopMusic(); await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); await decodeMusic(); if (k === 'title') startPrelude();
     };
     nat.onchange = async () => { const files = Array.from(nat.files); nat.value = ''; if (!files.length) return; const note = $('musicNote' + x), d = (await musIdx())[k]; let bad = 0, added = 0;
       for (const f of files) { let good = true; try { const ab = await f.arrayBuffer(); await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { good = false; }
         if (!good) { bad++; continue; } const id = k + Date.now() + Math.floor(Math.random() * 1000);
         await mdb('readwrite', st => st.put({ blob: f, name: f.name }, 'm:' + k + ':' + id)); d.items.push({ id, name: f.name, start: 0, len: DEF_LEN[k], size: f.size }); d.sel = id; added++; }
-      await musSave(); await applyMusSel(k); await decodeMusic(); refreshMusicUI(); fillAllSongSel(); if (bad) note.textContent = 'Sorry, ' + bad + ' file' + (bad > 1 ? 's' : '') + ' couldn’t be played (try mp3 or m4a). ' + (added ? added + ' added.' : ''); if (k === 'pre' && added) startPrelude(); };
+      await musSave(); await applyMusSel(k); await decodeMusic(); refreshMusicUI(); fillAllSongSel(); if (bad) note.textContent = 'Sorry, ' + bad + ' file' + (bad > 1 ? 's' : '') + ' couldn’t be played (try mp3 or m4a). ' + (added ? added + ' added.' : ''); if (k === 'title' && added) startPrelude(); };
     $('musicStart' + x).onchange = $('musicLen' + x).onchange = async () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(180, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k]));
       const d = (await musIdx())[k], it = d.items.find(i => i.id === d.sel); if (it) { it.start = m.start; it.len = m.len; await musSave(); } refreshMusicUI(); };
-    $('musicTest' + x).onclick = async () => { await decodeMusic(); if (k === 'pre') { startPrelude(true); return; } if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
+    $('musicTest' + x).onclick = async () => { await decodeMusic(); if (k === 'title') { startPrelude(true); return; } if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
     $('musicStop' + x).onclick = () => { stopMusic(); stopReact(); };
     $('musicRemove' + x).onclick = async () => { const d = (await musIdx())[k], id = d.sel; if (!id) { $('musicNote' + x).textContent = 'Pick the song to remove from the list first.'; return; }
       stopMusic(); await mdb('readwrite', st => st.delete('m:' + k + ':' + id)); d.items = d.items.filter(i => i.id !== id); d.sel = null; await musSave(); await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); };
@@ -2056,7 +2056,7 @@ Nevada | 4`;
   // If the browser can see a second screen (Chrome/Edge will ask permission), it opens right on that screen.
   let boardWin = null;
   // Show Welcome Screen -> Welcome Music starts right away and repeats until the welcome screen is hidden or the game starts.
-  function startWelcome() { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (effBuf('title') && playMusic('title', true) && nowPlaying) nowPlaying.welcome = true; }); }
+  function startWelcome() { try { getAC(); } catch (e) {} if (nowPlaying && nowPlaying.prelude) { nowPlaying.welcome = true; return; } decodeMusic().then(() => { if (effBuf('title') && playMusic('title', true) && nowPlaying) nowPlaying.welcome = true; }); }
   function stopWelcome() { if (nowPlaying && nowPlaying.welcome) stopMusic(); }
   let welcomeOn = false;   // host side: is the welcome screen laid over the TV right now?
   function paintBoardBtn() { $('openBoard').textContent = welcomeOn ? '📺 Hide Welcome Screen' : '📺 Show Welcome Screen'; }
