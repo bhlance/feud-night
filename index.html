@@ -219,7 +219,7 @@
   body.board.fmmode #fm .who { font-size: clamp(22px, 5.8vh, 76px); }
   body.board #timer { font-size: clamp(90px, 30vh, 340px); }
   .wait { font-size: 6.6vh; }
-  #wait img { height: 34vh !important; }
+  #waitImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
 </style>
 </head>
 <body>
@@ -242,18 +242,18 @@
 <button id="peekBtn">👁 Hold to peek</button>
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
-<div id="titleScr"><img id="titleImg" src="title.jpg?v=2" alt="" onerror="this.style.display='none';document.getElementById('titleFb').style.display='block'"><div id="titleFb"><img src="logo-white.png?v=4" alt="">FHE FEUD</div></div>
+<div id="titleScr"><img id="titleImg" src="title.jpg?v=3" alt="" onerror="this.style.display='none';document.getElementById('titleFb').style.display='block'"><div id="titleFb">FHE FEUD</div></div>
 <video id="winVid" muted loop playsinline></video>
 <img id="winImg" alt="">
 <div id="soClose"><img alt=""><video id="soVid" muted loop playsinline style="display:none"></video></div>
 <div id="winFlash"><div><span id="winFlashText"></span><div id="winFlashSub"></div></div></div>
 <div id="flash"><div class="xs"></div></div>
-<div class="wait" id="wait"><div><span style="font-size:.7em;font-weight:600;opacity:.8">Waiting for the host…</span></div></div>
+<div class="wait" id="wait"><img id="waitImg" alt=""><div style="position:relative;z-index:1"><span style="font-size:.7em;font-weight:600;opacity:.8">Waiting for the host…</span></div></div>
 
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="mb gold" id="openBoard" style="font-size:19px;padding:13px 26px">📺 Open board window</button><div class="note" id="menuNote" style="flex:1;min-width:200px">Opens the TV view in its own window — drag it onto the TV, then double-click it (or press F) for full screen.</div></div>
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show title screen on TV</button><div class="note" style="flex:1;min-width:200px">Puts the FHE FEUD picture on the TV and plays the title music on repeat. It stays up until you click Start new game, which goes straight to the first face-off.</div></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="mb gold" id="openBoard" style="font-size:19px;padding:13px 26px">📺 Open Game Board</button><div class="note" id="menuNote" style="flex:1;min-width:200px">Opens the TV view in its own window — drag it onto the TV, then double-click it (or press F) for full screen.</div></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show TV Screen</button><div class="note" style="flex:1;min-width:200px">Puts the title picture on the TV (choose which one under “TV screens” below) and plays the title music on repeat. It stays up until you click Start new game, which goes straight to the first face-off.</div></div>
   <h2>🎤 Feud Night — Game Setup</h2>
   <div id="inGameBanner" style="display:none;background:#fff4d6;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px">🎮 A game is in progress. Change anything below, then tap <b>Save changes &amp; back to the game</b> — scores and progress are kept. (Which game's questions is fixed for this game; use ✏️ Edit questions to change the questions themselves.)</div>
   <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Prelude music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause prelude music</button></div>
@@ -291,7 +291,7 @@
   <div class="btns"><button class="mb" id="micTestBtn">🎤 Mic check</button><button class="mb" id="testDing">🔔 Test correct ding</button><button class="mb" id="testBuzz">🔊 Test strike buzzer</button></div>
   <label style="display:flex;gap:10px;align-items:center;font-weight:700;margin-top:6px"><input type="checkbox" id="keepAwake" style="width:auto"> Keep the audio output awake (makes sounds start faster on a TV)</label>
   <div class="note" id="latNote"></div>
-  <div class="note">Tip for a TV: click <b>📺 Open board window</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
+  <div class="note">Tip for a TV: click <b>📺 Open Game Board</b> (further down this screen) — it opens as its own window (on your second screen if your browser allows it); otherwise drag it onto the TV. The board window shows only what the audience should see, and your window keeps the answers private. On a single mirrored screen, print the cheat sheet instead and just tap the numbered tiles.</div>
   <div id="loseMediaBlock">
   <h4 style="margin:10px 0 4px">😬 Loser video or image</h4>
   <div class="note">When Fast Money ends below the target, the TV shows the video or image you pick below (about half the screen), 4 seconds later, with the loser song, until you click New game. A video plays silently and repeats. <b>Nothing added = no picture</b>, just the loser song. Video: MP4 (H.264). Image: JPG, PNG or WebP.</div>
@@ -310,6 +310,18 @@
   <img id="vidPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   <video id="vidPrev" controls muted playsinline style="display:none;max-width:100%;max-height:30vh;background:#000;border-radius:10px"></video>
   </div>
+  <h3>📺 TV screens</h3>
+  <div class="note">Pictures for the TV window. Add as many as you like and pick which one to use. Images only (JPG, PNG or WebP).</div>
+  <h4 style="margin:12px 0 4px">Title screen picture (🎬 Show TV Screen)</h4>
+  <label for="tiSel" style="font-weight:800">Use this one:</label><select id="tiSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
+  <div class="btns"><button class="mb" id="tiPick">➕ Add picture(s)…</button><input type="file" multiple id="tiFile" accept="image/*" style="display:none"><button class="mb" id="tiPrevBtn">▶ Preview</button><button class="mb" id="tiRemove">Remove the selected one</button></div>
+  <div class="note" id="tiNote"></div>
+  <video id="tiPrev" controls muted playsinline style="display:none"></video><img id="tiPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
+  <h4 style="margin:12px 0 4px">Game board waiting screen (shown after 📺 Open Game Board, before the game starts)</h4>
+  <label for="wtSel" style="font-weight:800">Use this one:</label><select id="wtSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
+  <div class="btns"><button class="mb" id="wtPick">➕ Add picture(s)…</button><input type="file" multiple id="wtFile" accept="image/*" style="display:none"><button class="mb" id="wtPrevBtn">▶ Preview</button><button class="mb" id="wtRemove">Remove the selected one</button></div>
+  <div class="note" id="wtNote"></div>
+  <video id="wtPrev" controls muted playsinline style="display:none"></video><img id="wtPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   </details>
   </div>
   <div class="btns" id="setupBtns" style="position:sticky;bottom:-2.4vh;background:#fff;padding:10px 0;border-top:2px solid #eef1ff;z-index:2">
@@ -376,7 +388,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 105';
+  const GAME_VERSION = '2026-10-03 · build 106';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1383,7 +1395,7 @@ Nevada | 4`;
   // Win / loser media library: several videos or images can be saved; the setup menu picks which one is used.
   // Index record 'mediaidx' = { win: {items:[{id,name,type,size}], sel}, lose: {...} }; each file is its own record 'win:<id>' / 'lose:<id>'.
   async function mediaIdx() {
-    const x = (await mdb('readonly', st => st.get('mediaidx'))) || {}; x.win = x.win || { items: [], sel: null }; x.lose = x.lose || { items: [], sel: null };
+    const x = (await mdb('readonly', st => st.get('mediaidx'))) || {}; x.win = x.win || { items: [], sel: null }; x.lose = x.lose || { items: [], sel: null }; x.title = x.title || { items: [], sel: null }; x.wait = x.wait || { items: [], sel: null };
     if (!x.migrated && !isBoard) {   // one-time: bring in the single files saved by earlier builds
       for (const [slot, key] of [['win', 'winvideo'], ['lose', 'losemedia']]) { const old = await mdb('readonly', st => st.get(key));
         if (old && old.blob) { const id = slot + Date.now(), type = old.type || old.blob.type || ''; await mdb('readwrite', st => st.put({ blob: old.blob, name: old.name, type }, slot + ':' + id)); x[slot].items.push({ id, name: old.name, type, size: old.blob.size }); x[slot].sel = id; await mdb('readwrite', st => st.delete(key)); } }
@@ -1420,7 +1432,7 @@ Nevada | 4`;
   }
   let soTimer = 0;
   function render() {
-    if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; return; }
+    if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; paintWait(); return; }
     $('wait').style.display = 'none'; if (isBoard) document.title = 'FHE FEUD';
     paintWinVideo();
     const soWait = S.fm && S.fm.loseAt ? S.fm.loseAt + LOSE_DELAY - Date.now() : 0; clearTimeout(soTimer); if (isBoard && soWait > 0) soTimer = setTimeout(render, soWait + 30);
@@ -1641,8 +1653,12 @@ Nevada | 4`;
   if (bc) bc.onmessage = e => {
     const m = e.data || {};
     if (isBoard && m.t === 'state') { S = m.S; render(); }
-    if (!isBoard && m.t === 'hello') { boardOpen = true; if (S) bc.postMessage({ t: 'state', S }); if (titleOn) bc.postMessage({ t: 'title', on: true }); render(); }
+    if (!isBoard && m.t === 'hello') { boardOpen = true; try { paintBoardBtn(); } catch (e) {} if (S) bc.postMessage({ t: 'state', S }); if (titleOn) bc.postMessage({ t: 'title', on: true }); render(); }
     if (isBoard && m.t === 'title') { titleOn = !!m.on; paintTitle(); }
+    if (isBoard && m.t === 'ti') { tiMedia.tried = false; if (titleOn) paintTitle(); }
+    if (isBoard && m.t === 'wi') { wtMedia.tried = false; if (!S) paintWait(); }
+    if (isBoard && m.t === 'closeboard') { try { window.close(); } catch (e) {} }
+    if (!isBoard && m.t === 'bye') { boardOpen = false; try { paintBoardBtn(); } catch (e) {} }
     if (isBoard && m.t === 'vid') { winVid.tried = false; if (S) paintWinVideo(); }
     if (isBoard && m.t === 'lm') { loseMedia.tried = false; if (S) render(); }
   };
@@ -1686,13 +1702,24 @@ Nevada | 4`;
     const card = $('setup').querySelector('.card'); if (card) card.scrollTop = 0;
   }
   // Title screen: the MC clicks a button, the TV shows the FHE FEUD picture, the title music repeats until the game starts.
-  function paintTitle() { $('titleScr').style.display = titleOn ? 'flex' : 'none'; }
+  const tiMedia = { url: null, tried: false }, wtMedia = { url: null, tried: false };
+  function loadSlotImg(slot, st) { return mediaSelected(slot, '__none').then(r => { st.tried = true; if (st.url) { try { URL.revokeObjectURL(st.url); } catch (e) {} } st.url = r && r.blob ? URL.createObjectURL(r.blob) : null; }); }
+  function paintTitle() {
+    $('titleScr').style.display = titleOn ? 'flex' : 'none'; if (!titleOn) return;
+    if (!tiMedia.tried) { loadSlotImg('title', tiMedia).then(paintTitle); return; }
+    const im = $('titleImg'), want = tiMedia.url || 'title.jpg?v=3'; im.style.display = ''; $('titleFb').style.display = 'none'; if (im.getAttribute('src') !== want) im.src = want;
+  }
+  function paintWait() {   // the picture chosen for the game board's waiting screen (none = just the words)
+    if (!isBoard) return; const im = $('waitImg'); if (!im) return;
+    if (!wtMedia.tried) { loadSlotImg('wait', wtMedia).then(paintWait); return; }
+    if (wtMedia.url) { if (im.getAttribute('src') !== wtMedia.url) im.src = wtMedia.url; im.style.display = 'block'; } else im.style.display = 'none';
+  }
   function setTitle(on) {
     if (isBoard) return; on = !!on; if (on === titleOn) return; titleOn = on;
     if (bc) bc.postMessage({ t: 'title', on });
     if (on) { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (titleOn && effBuf('title') && playMusic('title', true) && nowPlaying) nowPlaying.title = true; }); }
     else if (nowPlaying && nowPlaying.title) stopMusic();
-    $('titleBtn').textContent = on ? '🎬 Hide title screen' : '🎬 Show title screen on TV';
+    $('titleBtn').textContent = on ? '🎬 Hide TV Screen' : '🎬 Show TV Screen';
   }
   const doStart = () => {
     if ($('setSel').value === '') { $('setNote').style.display = 'block'; return; }   // no game picked yet
@@ -1742,12 +1769,12 @@ Nevada | 4`;
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor;
   // Win / loser video-or-image libraries (setup menu): add several, pick which one is used. Saved in this browser (IndexedDB); the TV window reads them from there.
-  function mediaUI(slot, p, none, msg) {
+  function mediaUI(slot, p, none, msg, noneLabel) {
     const note = $(p + 'Note'), sel = $(p + 'Sel'), prevV = $(p + 'Prev'), prevI = $(p + 'PrevImg'); let prevUrl = null;
     const mb = n => (n / 1048576).toFixed(1) + ' MB', esc = x => String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'), imgT = t => /^image\//.test(t || '');
     const hidePrev = () => { prevV.style.display = 'none'; try { prevV.pause(); } catch (e) {} prevI.style.display = 'none'; };
     const save = x => mdb('readwrite', st => st.put(x, 'mediaidx'));
-    const refresh = async () => { const x = await mediaIdx(), d = x[slot]; sel.innerHTML = '<option value="">— None —</option>' + d.items.map(it => '<option value="' + it.id + '">' + (imgT(it.type) ? '🖼 ' : '🎬 ') + esc(it.name) + ' (' + mb(it.size) + ')</option>').join(''); sel.value = d.sel && d.items.some(it => it.id === d.sel) ? d.sel : '';
+    const refresh = async () => { const x = await mediaIdx(), d = x[slot]; sel.innerHTML = '<option value="">' + (noneLabel || '— None —') + '</option>' + d.items.map(it => '<option value="' + it.id + '">' + (imgT(it.type) ? '🖼 ' : '🎬 ') + esc(it.name) + ' (' + mb(it.size) + ')</option>').join(''); sel.value = d.sel && d.items.some(it => it.id === d.sel) ? d.sel : '';
       note.textContent = sel.value ? '✅ In use: ' + d.items.find(it => it.id === sel.value).name + (d.items.length > 1 ? ' (' + d.items.length + ' saved)' : '') : (d.items.length ? d.items.length + ' saved — pick one above to use it.' : none); };
     $(p + 'Pick').onclick = () => $(p + 'File').click();
     $(p + 'File').onchange = async () => { const files = Array.from($(p + 'File').files); $(p + 'File').value = ''; if (!files.length) return;
@@ -1765,6 +1792,8 @@ Nevada | 4`;
   }
   mediaUI('win', 'vid', 'Nothing added yet — the name and WIN keep flashing instead.', 'vid');
   mediaUI('lose', 'lm', 'Nothing added — only the loser song plays.', 'lm');
+  mediaUI('title', 'ti', 'Using the built-in “The Feud” picture.', 'ti', '— Built-in “The Feud” picture —');
+  mediaUI('wait', 'wt', 'No picture — the waiting screen just says “Waiting for the host…”.', 'wi', '— No picture —');
   // Extra game sets (Kids Under 10, Adult, Adult R, Adult X). Each button ADDS its three games to the end of your list, or REPLACES them if
   // games with those names are already there (so a newer version of the questions can be loaded over an older one). Nothing else is touched.
   const KIDS = [{"name": "Kids Under 10-1", "main": "Q: Name something you take to school.\nBackpack | 28\nLunch | 20\nPencil | 14\nHomework | 10\nWater bottle | 8\nNotebook | 6\nJacket | 5\nLibrary book | 4\nShow-and-tell | 3\nEraser | 2\n\nQ: Name an animal you want to have as a pet.\nDog | 30\nCat | 26\nFish | 14\nHamster | 10\nBird | 8\nRabbit | 7\nTurtle | 5\n\nQ: Name something you do at a birthday party.\nEat cake | 28\nOpen presents | 20\nSing \"Happy Birthday\" | 16\nPlay games | 12\nBlow out candles | 9\nPop balloons | 5\nHit a piñata | 4\nWear party hats | 3\nGet a goodie bag | 3\n\nQ: Name your favorite fruit.\nApple | 28\nBanana | 22\nStrawberry | 18\nGrapes | 14\nOrange | 12\nWatermelon | 6\n\nQ: Name something you see at a playground.\nSwings | 28\nSlide | 26\nMonkey bars | 16\nSandbox | 12\nSeesaw | 8\nMerry-go-round | 6\nA bee | 4\n\nQ: Name something you wear when it's snowing.\nCoat | 30\nBoots | 26\nMittens | 20\nHat | 14\nEarmuffs | 10", "fast": "Q: Name a zoo animal.\nLion | 26\nElephant | 24\nGiraffe | 18\nMonkey | 14\nTiger | 8\nZebra | 6\nPenguin | 4\n\nQ: Name a day of the week.\nSaturday | 30\nFriday | 24\nSunday | 16\nMonday | 12\nWednesday | 8\nTuesday | 6\nThursday | 4\n\nQ: Name a pizza topping.\nPepperoni | 34\nCheese | 22\nSausage | 14\nMushrooms | 12\nOlives | 8\nPineapple | 6\nOnions | 4\n\nQ: Name something with wheels.\nCar | 30\nBike | 24\nSkateboard | 14\nBus | 12\nWagon | 8\nScooter | 6\nRoller skates | 6\n\nQ: Name a type of weather.\nRain | 30\nSnow | 24\nSunny | 18\nWind | 12\nCloudy | 8\nThunderstorm | 5\nFog | 3"}, {"name": "Kids Under 10-2", "main": "Q: Name a holiday that kids love.\nChristmas | 30\nHalloween | 24\nEaster | 14\nThanksgiving | 10\nYour birthday | 8\nFourth of July | 6\nValentine's Day | 4\nThe last day of school | 4\n\nQ: Name something you do to get ready for school in the morning.\nBrush your teeth | 30\nGet dressed | 26\nEat breakfast | 22\nBrush your hair | 12\nPack your backpack | 10\n\nQ: Name something kids have a hard time waiting for.\nChristmas morning | 26\nTheir birthday | 18\nDinner | 14\nDessert | 10\nSummer vacation | 9\nGetting there on a road trip | 7\nTheir turn in a game | 6\nOpening a present | 5\nThe ice cream truck | 3\nRecess | 2\n\nQ: Name something you eat with your hands.\nPizza | 28\nSandwich | 22\nFrench fries | 18\nChicken nuggets | 14\nPopcorn | 10\nCookies | 8\n\nQ: Name a superhero.\nSpider-Man | 28\nBatman | 24\nSuperman | 20\nIron Man | 8\nWonder Woman | 7\nCaptain America | 5\nThe Hulk | 4\nMom | 4\n\nQ: Name an animal you'd find on a farm.\nCow | 30\nPig | 26\nChicken | 20\nHorse | 14\nSheep | 10", "fast": "Q: Name a cartoon character.\nMickey Mouse | 28\nSpongeBob | 26\nBugs Bunny | 14\nMario | 12\nElsa | 10\nDonald Duck | 6\nScooby-Doo | 4\n\nQ: Name a vegetable kids don't like.\nBroccoli | 32\nBrussels sprouts | 20\nSpinach | 16\nPeas | 12\nCauliflower | 8\nLima beans | 6\nAsparagus | 6\n\nQ: Name something in a classroom.\nDesk | 28\nTeacher | 20\nWhiteboard | 16\nBooks | 14\nChair | 10\nGlobe | 6\nPencil sharpener | 6\n\nQ: Name a flavor of ice cream.\nChocolate | 32\nVanilla | 28\nStrawberry | 16\nMint chocolate chip | 10\nCookie dough | 8\nRocky road | 4\nCookies and cream | 2\n\nQ: Name something you do in the summer.\nSwim | 30\nPlay outside | 22\nGo camping | 14\nRide bikes | 12\nEat popsicles | 8\nGo on vacation | 8\nPlay in the sprinklers | 6"}, {"name": "Kids Under 10-3", "main": "Q: Name a sport that kids play.\nSoccer | 26\nBasketball | 20\nBaseball | 14\nFootball | 10\nSwimming | 8\nGymnastics | 6\nTennis | 5\nDodgeball | 5\nVolleyball | 3\nTag | 3\n\nQ: Name something you take to the beach.\nTowel | 28\nSunscreen | 20\nBucket and shovel | 16\nSunglasses | 12\nSwimsuit | 10\nBeach ball | 8\nUmbrella | 6\n\nQ: Name something cold.\nIce | 28\nSnow | 22\nIce cream | 18\nFreezer | 10\nPopsicle | 8\nWinter | 5\nA penguin | 4\nThe refrigerator | 3\nYour nose in winter | 2\n\nQ: Name a color of the rainbow.\nRed | 26\nBlue | 22\nYellow | 18\nGreen | 14\nOrange | 10\nPurple | 8\nIndigo | 2\n\nQ: Name something that is very loud.\nFireworks | 26\nThunder | 20\nA train | 12\nA fire truck | 12\nAn airplane | 10\nDrums | 8\nA lawn mower | 8\nA little brother/sister | 4\n\nQ: Name something you do on a rainy day.\nWatch a movie | 30\nPlay board games | 24\nRead a book | 20\nPlay video games | 14\nJump in puddles | 12", "fast": "Q: Name a fairy tale character.\nCinderella | 28\nSnow White | 22\nLittle Red Riding Hood | 14\nGoldilocks | 12\nRapunzel | 10\nThe Big Bad Wolf | 8\nPinocchio | 6\n\nQ: Name a drink kids like.\nJuice | 28\nMilk | 26\nWater | 18\nLemonade | 12\nHot chocolate | 8\nSoda | 4\nA smoothie | 4\n\nQ: Name a musical instrument.\nPiano | 32\nGuitar | 24\nDrums | 16\nViolin | 10\nTrumpet | 8\nFlute | 6\nRecorder | 4\n\nQ: Name something you put in a lunchbox.\nSandwich | 32\nApple | 18\nChips | 14\nJuice box | 12\nCookie | 10\nCrackers | 8\nYogurt | 6\n\nQ: Name something that flies.\nBird | 32\nAirplane | 26\nButterfly | 14\nHelicopter | 10\nKite | 8\nBee | 6\nBalloon | 4"}];
@@ -1882,7 +1911,13 @@ Nevada | 4`;
   $('autoX').onchange = () => { if (S) { S.auto = $('autoX').checked; commit(); } };
   // Opens the audience board in its own WINDOW (not a tab) so it can be dragged to the TV.
   // If the browser can see a second screen (Chrome/Edge will ask permission), it opens right on that screen.
+  let boardWin = null;
+  function paintBoardBtn() { $('openBoard').textContent = boardOpen ? '📺 Close Game Board' : '📺 Open Game Board'; }
   $('openBoard').onclick = async () => {
+    if (boardOpen) {   // the same button closes the TV window
+      if (bc) bc.postMessage({ t: 'closeboard' }); try { if (boardWin) boardWin.close(); } catch (e) {}
+      boardOpen = false; paintBoardBtn(); $('menuNote').textContent = 'Game board closed. Click again to reopen it.'; return;
+    }
     const url = location.pathname + '?board=1&fresh=' + Date.now();
     let left = 60, top = 60, w = 1280, h = 720, onTv = false;
     try {
@@ -1895,10 +1930,12 @@ Nevada | 4`;
     const feat = 'popup=yes,noopener=no,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',resizable=yes';
     const win = window.open(url, 'feudboard', feat);
     if (!win) { $('menuNote').textContent = 'Your browser blocked the pop-up window. Allow pop-ups for this page (look for an icon in the address bar), then tap this button again.'; return; }
+    boardWin = win;
     $('menuNote').textContent = onTv ? 'Board window opened on your second screen. Double-click it (or press F) to make it full screen.' : 'Board window opened. Drag it onto the TV, then double-click it (or press F) for full screen.';
   };
 
   if (isBoard) {
+    addEventListener('pagehide', () => { try { bc.postMessage({ t: 'bye' }); } catch (e) {} });   // lets the host window know the board was closed
     const fs = () => { try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen(); } catch (e) {} };
     document.addEventListener('dblclick', fs);
     document.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') fs(); });
