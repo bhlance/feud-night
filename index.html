@@ -84,6 +84,8 @@
   #winFlash { position: fixed; inset: 0; z-index: 54; display: none; align-items: center; justify-content: center; text-align: center; padding: 0 3vw; pointer-events: none; font-family: var(--big); color: #fff; line-height: 1.05; text-transform: uppercase; letter-spacing: .02em; text-shadow: 0 0 2vh #ffc93c, 0 0 5vh #ff8a3c, 0 .8vh 0 rgba(0,0,0,.55); animation: winBlink 1s steps(1) infinite; }
   #soClose { position: fixed; inset: 0; z-index: 60; display: none; background: #000; align-items: center; justify-content: center; pointer-events: none; animation: scIn .6s ease-out; }
   #soClose img, #soClose video { width: 100vw; height: 100vh; object-fit: contain; }
+  #soClose.small { background: transparent; }   /* an uploaded loser video/image: same size as the winner's (about half the screen, centered) */
+  #soClose.small img, #soClose.small video { width: 70vw; height: 70vh; }
   @keyframes scIn { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
   #titleScr { position: fixed; inset: 0; z-index: 58; display: none; background: #000; align-items: center; justify-content: center; text-align: center; color: #fff; font-family: var(--big); animation: scIn .6s ease-out; }
   #titleScr img { width: 100vw; height: 100vh; object-fit: contain; }
@@ -352,7 +354,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 74';
+  const GAME_VERSION = '2026-10-03 · build 75';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1197,6 +1199,7 @@ Nevada | 4`;
   function loadLoseMedia() { return mdb('readonly', st => st.get('losemedia')).then(r => { loseMedia.tried = true; if (loseMedia.url) { try { URL.revokeObjectURL(loseMedia.url); } catch (e) {} loseMedia.url = null; } if (r && r.blob) { loseMedia.url = URL.createObjectURL(r.blob); loseMedia.kind = isImg(r) ? 'img' : 'video'; } }); }
   function paintLoseMedia() {
     const box = $('soClose'), im = box.querySelector('img'), v = $('soVid'); if (!im.dataset.def) im.dataset.def = im.getAttribute('src');
+    box.classList.toggle('small', !!loseMedia.url);
     if (loseMedia.url && loseMedia.kind === 'video') { if (v.getAttribute('src') !== loseMedia.url) v.src = loseMedia.url; v.style.display = 'block'; im.style.display = 'none'; v.muted = true; const pr = v.play(); if (pr && pr.catch) pr.catch(() => {}); }
     else { try { v.pause(); } catch (e) {} v.style.display = 'none'; im.style.display = ''; const want = loseMedia.url ? loseMedia.url : im.dataset.def; if (im.getAttribute('src') !== want) im.src = want; }
   }
