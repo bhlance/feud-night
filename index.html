@@ -71,6 +71,9 @@
   .xbox.on { color: var(--red); text-shadow: 0 0 2vh rgba(229,39,58,.8); }
 
   /* ---- controls (MC only) ---- */
+  .fmctl { display: flex; gap: 1.4vw; width: 100%; align-items: flex-start; }
+  .fmctl .fl { flex: 1 1 44%; min-width: 0; } .fmctl .fr { flex: 1 1 56%; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 1vh 1vw; align-content: flex-start; } .fmctl .brk { flex-basis: 100%; height: 0; }
+  #ctl.fmbar { height: 19vh; align-items: flex-start; overflow: hidden; }   /* Fast Money: the bottom panel is always the same height, so nothing moves when the clock starts */
   #ctl { background: rgba(0,0,0,.35); border-radius: 1.6vh; padding: 1vh 1.4vw 3.2vh; display: flex; align-items: center; gap: 1.4vw; flex-wrap: wrap; min-height: 9vh; }
   #ctl .say { flex: 1 1 28vw; font-size: clamp(13px, 2.2vh, 22px); font-weight: 700; line-height: 1.25; }
   #ctl .say b { color: var(--gold); }
@@ -370,7 +373,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 95';
+  const GAME_VERSION = '2026-10-03 · build 96';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1452,6 +1455,7 @@ Nevada | 4`;
     if (!isBoard) {
       if (S.phase === 'fmEntry') { if (fmFormFor !== S.fm.pl) buildFmForm(); show('fmForm', true); } else { fmFormFor = 0; show('fmForm', false); }
       $('ctl').innerHTML = controls();
+      $('ctl').classList.toggle('fmbar', S.phase === 'fm');
     }
   }
   // Shrinks the results table only as much as needed so every row, the total and the verdict stay on screen.
@@ -1546,8 +1550,12 @@ Nevada | 4`;
     if (p === 'gameOver') return say('<b>' + tn(S.champ) + '</b> wins with ' + S.teams[S.champ].score + '! Pick two players for Fast Money and type their names below (Player 2 must be out of earshot).' + nameFields()) + b('fmgo', '⚡ Start Fast Money', 'go') + b('newgame', 'New game', 'ghost') + un;
     if (p === 'fm') {
       const f = S.fm;
-      if (!f.running) return say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in. They can\'t repeat ' + fmPos(1) + ' answers!' : fmWho(2) + ' should be out of earshot.') + ' All the questions are on your screen. Read the first one, <b>then</b> start the clock. Someone writes down the answers as they\'re given — you\'ll type them in afterward.' + nameFields()) + (f.pl === 2 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + b('mic', '🎤 Mic check', 'ghost') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + b('fmbegin', '▶ Start the clock', 'go') + un;
-      return say('<b>' + fmWho(f.pl) + ' is answering.</b> Tap a question\'s tile when they\'ve answered it (you get a ✔). If they pass, leave it and move on — you can come back to it and tap it later. The turn ends when the clock runs out.') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + b('fmdone', '✔ Done — end their turn now', 'gold') + un;
+      // Same layout before and after the clock starts: instructions on the left, buttons on the right (top row, then Start/Done + Undo underneath) — nothing shifts.
+      if (!f.running) return '<div class="fmctl"><div class="fl">' + say('<b>Fast Money — ' + fmWho(f.pl) + '</b> (' + f.secs + ' seconds). ' + (f.pl === 2 ? 'Bring ' + fmWho(2) + ' in — they can\'t repeat ' + fmPos(1) + ' answers. ' : fmWho(2) + ' should be out of earshot. ') + 'Read the first question, <b>then</b> start the clock.' + nameFields()) + '</div><div class="fr">'
+        + (f.pl === 2 ? b('fmrecap', f.recap ? '🙈 Hide ' + fmPos(1) + ' answers from the TV' : '📺 Show ' + fmPos(1) + ' answers on the TV', 'gold') : '') + b('mic', '🎤 Mic check', 'ghost') + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold')
+        + '<span class="brk"></span>' + b('fmbegin', '▶ Start the clock', 'go') + un + '</div></div>';
+      return '<div class="fmctl"><div class="fl">' + say('<b>' + fmWho(f.pl) + ' is answering.</b> Tap a question\'s tile when they\'ve answered it (you get a ✔). If they pass, leave it and tap it later if they come back. The clock ends the turn.') + '</div><div class="fr">'
+        + b('voice', voice.on ? '🎤 Listening — tap to stop' : '🎤 Listen', voice.on ? 'go' : 'gold') + '<span class="brk"></span>' + b('fmdone', '✔ Done — end their turn now', 'gold') + un + '</div></div>';
     }
     if (p === 'fmEntry') { const f = S.fm; return say('<b>' + fmWho(f.pl) + ' is done.</b> Type in the answers that were written down (in the window on your screen), then score them and start the reveal.') + un; }
     if (p === 'fmReveal') { const f = S.fm, who = f.pl - 1, r = f.rev[who];
