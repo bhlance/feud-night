@@ -391,7 +391,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 112';
+  const GAME_VERSION = '2026-10-03 · build 113';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1898,10 +1898,13 @@ Nevada | 4`;
     try { fillAllSongSel(); } catch (e) {}
   }
   // One pick-list per slot: "— default —" or any song you've added. Adding several songs is fine; the selected one is used.
+  // Every song saved anywhere in the game is offered in every music field (each song once, alphabetical). Picking one that is saved under another field copies it into this one.
   function fillSongSel(k, x) {
-    const sel = $('songSel' + x); if (!sel || !musIdxCache) return; const d = musIdxCache[k], fmtS = n => (n / 1048576).toFixed(1) + ' MB';
-    sel.innerHTML = '<option value="">— ' + (bundled[k] ? 'Comes with the game' : ['aww', 'clap', 'cheer'].includes(k) ? 'Built-in crowd sound' : 'Built-in sound') + ' —</option>' + d.items.slice().sort((x, y) => String(x.name).localeCompare(String(y.name), undefined, { numeric: true, sensitivity: 'base' })).map(it => '<option value="' + it.id + '">🎵 ' + String(it.name).replace(/&/g, '&amp;').replace(/</g, '&lt;') + ' (' + fmtS(it.size || 0) + ')</option>').join('');
-    sel.value = d.sel && d.items.some(it => it.id === d.sel) ? d.sel : '';
+    const sel = $('songSel' + x); if (!sel || !musIdxCache) return; const d = musIdxCache[k], key = it => it.name + '|' + (it.size || 0), seen = new Map();
+    [k].concat(MUS_KEYS.filter(z => z !== k)).forEach(z => musIdxCache[z].items.forEach(it => { const kk = key(it); if (!seen.has(kk)) seen.set(kk, { slot: z, it }); }));
+    const list = [...seen.values()].sort((a, b) => String(a.it.name).localeCompare(String(b.it.name), undefined, { numeric: true, sensitivity: 'base' }));
+    sel.innerHTML = '<option value="">— ' + (bundled[k] ? 'Comes with the game' : ['aww', 'clap', 'cheer'].includes(k) ? 'Built-in crowd sound' : 'Built-in sound') + ' —</option>' + list.map(e => '<option value="' + e.slot + ':' + e.it.id + '">🎵 ' + String(e.it.name).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>').join('');
+    const cur = d.sel && d.items.find(it => it.id === d.sel), hit = cur && seen.get(key(cur)); sel.value = hit ? hit.slot + ':' + hit.it.id : '';
   }
   function fillAllSongSel() { SLOT_DEFS.forEach(([k, x]) => fillSongSel(k, x)); }
   SLOT_DEFS.forEach(([k, x]) => { const m = mus[k];
@@ -1909,18 +1912,29 @@ Nevada | 4`;
     const pick = document.createElement('div'); pick.className = 'fpick'; pick.innerHTML = '<select id="songSel' + x + '" style="flex:1;min-width:0;font-family:var(--font);font-size:15px;border:0;background:transparent;font-weight:700"></select><button type="button" class="mb">➕ Add song(s)</button>';
     nat.parentNode.insertBefore(pick, nat.nextSibling); pick.querySelector('button').onclick = () => nat.click();
     const sel = pick.querySelector('select');
-    sel.onchange = async () => { const d = (await musIdx())[k]; d.sel = sel.value || null; await musSave(); stopMusic(); await applyMusSel(k); refreshMusicUI(); fillSongSel(k, x); await decodeMusic(); if (k === 'pre') startPrelude(); };
+    sel.onchange = async () => {
+      const all = await musIdx(), d = all[k], v = sel.value;
+      if (!v) d.sel = null;
+      else { const c = v.indexOf(':'), src = v.slice(0, c), id = v.slice(c + 1);
+        if (src === k) d.sel = id;
+        else { const it = all[src].items.find(i => i.id === id);
+          if (it) { const have = d.items.find(i => i.name === it.name && (i.size || 0) === (it.size || 0));
+            if (have) d.sel = have.id;
+            else { const r = await mdb('readonly', st => st.get('m:' + src + ':' + id));
+              if (r && r.blob) { const nid = k + Date.now() + Math.floor(Math.random() * 1000); await mdb('readwrite', st => st.put({ blob: r.blob, name: it.name }, 'm:' + k + ':' + nid)); d.items.push({ id: nid, name: it.name, start: it.start || 0, len: DEF_LEN[k], size: it.size }); d.sel = nid; } } } } }
+      await musSave(); stopMusic(); await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); await decodeMusic(); if (k === 'pre') startPrelude();
+    };
     nat.onchange = async () => { const files = Array.from(nat.files); nat.value = ''; if (!files.length) return; const note = $('musicNote' + x), d = (await musIdx())[k]; let bad = 0, added = 0;
       for (const f of files) { let good = true; try { const ab = await f.arrayBuffer(); await new Promise((ok, no) => getAC().decodeAudioData(ab, ok, no)); } catch (e) { good = false; }
         if (!good) { bad++; continue; } const id = k + Date.now() + Math.floor(Math.random() * 1000);
         await mdb('readwrite', st => st.put({ blob: f, name: f.name }, 'm:' + k + ':' + id)); d.items.push({ id, name: f.name, start: 0, len: DEF_LEN[k], size: f.size }); d.sel = id; added++; }
-      await musSave(); await applyMusSel(k); await decodeMusic(); refreshMusicUI(); fillSongSel(k, x); if (bad) note.textContent = 'Sorry, ' + bad + ' file' + (bad > 1 ? 's' : '') + ' couldn’t be played (try mp3 or m4a). ' + (added ? added + ' added.' : ''); if (k === 'pre' && added) startPrelude(); };
+      await musSave(); await applyMusSel(k); await decodeMusic(); refreshMusicUI(); fillAllSongSel(); if (bad) note.textContent = 'Sorry, ' + bad + ' file' + (bad > 1 ? 's' : '') + ' couldn’t be played (try mp3 or m4a). ' + (added ? added + ' added.' : ''); if (k === 'pre' && added) startPrelude(); };
     $('musicStart' + x).onchange = $('musicLen' + x).onchange = async () => { m.start = Math.max(0, +$('musicStart' + x).value || 0); m.len = Math.min(180, Math.max(1, +$('musicLen' + x).value || DEF_LEN[k]));
       const d = (await musIdx())[k], it = d.items.find(i => i.id === d.sel); if (it) { it.start = m.start; it.len = m.len; await musSave(); } refreshMusicUI(); };
     $('musicTest' + x).onclick = async () => { await decodeMusic(); if (k === 'pre') { startPrelude(true); return; } if (['aww', 'clap', 'cheer'].includes(k)) { playReact(k, 0); return; } if (!playMusic(k)) $('musicNote' + x).textContent = m.blob ? 'Couldn’t play it — click once on the page and try again.' : 'Add a song first.'; };
     $('musicStop' + x).onclick = () => { stopMusic(); stopReact(); };
     $('musicRemove' + x).onclick = async () => { const d = (await musIdx())[k], id = d.sel; if (!id) { $('musicNote' + x).textContent = 'Pick the song to remove from the list first.'; return; }
-      stopMusic(); await mdb('readwrite', st => st.delete('m:' + k + ':' + id)); d.items = d.items.filter(i => i.id !== id); d.sel = null; await musSave(); await applyMusSel(k); refreshMusicUI(); fillSongSel(k, x); };
+      stopMusic(); await mdb('readwrite', st => st.delete('m:' + k + ':' + id)); d.items = d.items.filter(i => i.id !== id); d.sel = null; await musSave(); await applyMusSel(k); refreshMusicUI(); fillAllSongSel(); };
   });
   musIdx().then(fillAllSongSel);
   // Microphone check: shows which microphone the Mac is using (the one voice entry listens to) and a live level bar.
