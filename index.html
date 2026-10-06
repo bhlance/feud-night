@@ -391,7 +391,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 110';
+  const GAME_VERSION = '2026-10-03 · build 111';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1689,7 +1689,7 @@ Nevada | 4`;
   function fillSetSel(sel) {
     const a = loadSets(), box = $('setSel'), dl = $('setList'); box.innerHTML = ''; dl.innerHTML = '';
     if (sel < 0) { const o = document.createElement('option'); o.value = ''; o.textContent = '— Choose a game —'; box.appendChild(o); }   // nothing is pre-selected
-    a.forEach((g, i) => { const info = parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money';
+    a.map((g, i) => i).sort((x, y) => String(a[x].name).localeCompare(String(a[y].name), undefined, { numeric: true, sensitivity: 'base' })).forEach(i => { const g = a[i], info = parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money';   // alphabetical (Game 2 before Game 10); each entry keeps its real position as its value
       const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + info; box.appendChild(o);
       const d = document.createElement('option'); d.value = g.name; d.label = info; dl.appendChild(d); });
     box.value = sel < 0 ? '' : String(Math.min(sel, a.length - 1)); if (box.selectedIndex < 0) box.selectedIndex = 0;
