@@ -370,7 +370,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'Family Home Evening'; }   // holding page; becomes 'FHE FEUD' once a game is on screen
-  const GAME_VERSION = '2026-10-03 · build 89';
+  const GAME_VERSION = '2026-10-03 · build 90';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1030,7 +1030,7 @@ Nevada | 4`;
     else if (a === 'champ') act(() => { const w = +v; S.champ = w; S.phase = 'gameOver'; gameWinSound(); fireworks(0, S.teams[w].name, true); });   // tied after the last question: the MC picks who goes to Fast Money
     else if (a === 'fmgo') act(() => { stopMusic(); fmSetup(); });
     else if (a === 'fmtick') act(() => { const f = S.fm; f.chk = f.chk || []; f.chk[+v] = !f.chk[+v]; f.draft = f.draft || [[], []];
-      if (f.chk[+v]) { if (voice.on) { const c = voiceTake(+v); if (c) f.draft[f.pl - 1][+v] = c; } } else if (voice.on) f.draft[f.pl - 1][+v] = ''; })   // tick a question once it has been answered (leave it unticked if they pass)
+      if (voice.on) { voice.marks.push({ pos: voiceAll().length, q: +v + 1 }); if (f.chk[+v]) { if (!voiceApply()) { const c = voiceTake(+v); if (c) f.draft[f.pl - 1][+v] = c; } } else f.draft[f.pl - 1][+v] = ''; } })   // tick a question once it has been answered (leave it unticked if they pass)
     else if (a === 'mic') micCheckOpen();
     else if (a === 'voice') { if (voice.on) voiceStop(); else voiceStart(); render(); }
     else if (a === 'fmdone') act(() => { fmFinishPlayer(); })   // end their turn early   // show the first question on the TV; the clock waits until it's been read
@@ -1119,23 +1119,41 @@ Nevada | 4`;
       if (a <= b) { let n = 0; for (let k = a; k <= b; k++) if (isQ(k)) n++; if (n >= 2) for (let k = a; k <= b; k++) drop[k] = true; }
       i = j;
     }
-    // Second pass: line each question up against the words (tolerating a mis-heard word here and there) and mark the whole stretch.
+    voiceFindSpans(w, st).forEach(sp => { for (let k = sp.s; k <= sp.e; k++) drop[k] = true; });
+    return drop;
+  }
+  // Line each question up against the words (tolerating a mis-heard word here and there). Returns [{s, e, q}]: the stretch where the MC read question q.
+  function voiceFindSpans(w, st) {
+    const f = S && S.fm, spans = []; if (!f || !f.qs || w.length < 3) return spans; st = st || w.map(vStem);
     const lev = (x, y) => { const d = Array.from({ length: x.length + 1 }, (_, i) => [i]); for (let j = 1; j <= y.length; j++) d[0][j] = j; for (let i = 1; i <= x.length; i++) for (let j = 1; j <= y.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (x[i - 1] === y[j - 1] ? 0 : 1)); return d[x.length][y.length]; };
     const eq = (x, y) => x === y || (x.length >= 4 && y.length >= 4 && lev(x, y) <= 1);
-    f.qs.forEach(q => { const qt = vWords(q.text).map(vStem).filter(x => !V_NEUTRAL.has(x)), L = qt.length; if (L < 3) return;
-      for (let i = 0; i < w.length; i++) { const W = st.slice(i, i + L + 3).filter((_, k) => !V_NEUTRAL.has(w[i + k])), idx = []; for (let k = i; k < Math.min(w.length, i + L + 3); k++) if (!V_NEUTRAL.has(w[k])) idx.push(k);
-        // LCS between question words and the window
+    const cand = [];
+    f.qs.forEach((q, qi) => { const qt = vWords(q.text).map(vStem).filter(x => !V_NEUTRAL.has(x)), L = qt.length; if (L < 3) return;
+      for (let i = 0; i < w.length; i++) { if (V_NEUTRAL.has(w[i])) continue; const idx = []; for (let k = i; k < w.length && idx.length < L + 3; k++) if (!V_NEUTRAL.has(w[k])) idx.push(k); const W = idx.map(k => st[k]);
         const m = qt.length, n = W.length, t = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
         for (let a = 1; a <= m; a++) for (let b = 1; b <= n; b++) t[a][b] = eq(qt[a - 1], W[b - 1]) ? t[a - 1][b - 1] + 1 : Math.max(t[a - 1][b], t[a][b - 1]);
-        if (t[m][n] >= Math.max(3, Math.ceil(L * 0.6))) { // find first/last matched window positions
-          let a = m, b = n, first = -1, last = -1; while (a > 0 && b > 0) { if (eq(qt[a - 1], W[b - 1]) && t[a][b] === t[a - 1][b - 1] + 1) { if (last < 0) last = b - 1; first = b - 1; a--; b--; } else if (t[a - 1][b] >= t[a][b - 1]) a--; else b--; }
-          if (first >= 0) { for (let k = idx[first]; k <= idx[last]; k++) drop[k] = true; i = idx[last]; } } } });
-    return drop;
+        const score = t[m][n]; if (score < Math.max(3, Math.ceil(L * 0.6))) continue;
+        let a = m, b = n, first = -1, last = -1; while (a > 0 && b > 0) { if (eq(qt[a - 1], W[b - 1]) && t[a][b] === t[a - 1][b - 1] + 1) { if (last < 0) last = b - 1; first = b - 1; a--; b--; } else if (t[a - 1][b] >= t[a][b - 1]) a--; else b--; }
+        if (first >= 0) cand.push({ s: idx[first], e: idx[last], q: qi, score: score / L }); } });
+    cand.sort((x, y) => y.score - x.score || x.s - y.s);   // best matches first; keep ones that don't overlap an already-kept one
+    cand.forEach(c => { if (!spans.some(k => c.s <= k.e && c.e >= k.s)) spans.push(c); });
+    return spans.sort((x, y) => x.s - y.s);
   }
   function voiceStripQuestions(t) {
     const w = vWords(t), drop = voiceDropMask(w), r = w.filter((_, i) => !drop[i]);
     while (r.length && V_NEUTRAL.has(r[0])) r.shift(); while (r.length && V_NEUTRAL.has(r[r.length - 1])) r.pop();   // no leftover "a" / "the" at the ends
     return r.join(' ');
+  }
+  // Reads the whole transcript as: [MC reads question k] [contestant answers] [MC reads question m] [answer] … — each answer belongs to the question just before it.
+  // Returns { questionIndex: answerText } or null when the MC's voice wasn't picked up at all.
+  function voiceParse(all) {
+    const w = all || voiceAll(), st = w.map(vStem), spans = voiceFindSpans(w, st); if (!spans.length) return null;
+    const drop = voiceDropMask(w), out = {};
+    const take = (from, to) => { const r = []; for (let i = from; i < to; i++) { if (drop[i] || V_FILLER.has(w[i])) continue; r.push(w[i]); }
+      while (r.length && V_NEUTRAL.has(r[0])) r.shift(); while (r.length && V_NEUTRAL.has(r[r.length - 1])) r.pop(); return r.join(' '); };
+    const lead = take(0, spans[0].s); if (lead && spans[0].q !== 0) out[0] = lead;   // spoken before any question was heard: the answer to the question read before the clock
+    spans.forEach((sp, k) => { const t = take(sp.e + 1, k + 1 < spans.length ? spans[k + 1].s : w.length); if (t && out[sp.q] == null) out[sp.q] = t; });
+    return out;
   }
   // The next answer after position `from`: skips the MC's question words and "pass"/"um", then takes words until the next question starts.
   // `end` is where that answer stopped, so the next tap picks up right after it (works even when speech runs together).
@@ -1154,29 +1172,40 @@ Nevada | 4`;
   function voiceShow() { const el = document.getElementById('voiceLive'); if (el) el.textContent = voiceLine(); }
   const voiceAll = () => voice.utts.reduce((a, t) => a.concat(vWords(t)), []);   // every word heard so far, in order (fast speech can run several phrases together, so words — not phrases — are tracked)
   function voiceLogText() {
-    const all = voiceAll(); let log = ''; const marks = voice.marks.slice();
-    all.forEach((w, i) => { marks.filter(m => m.pos === i && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; }); log += ' ' + w; }); marks.filter(m => m.pos >= all.length && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; });
+    const all = voiceAll(), spans = voiceFindSpans(all); let log = ''; const marks = voice.marks.slice();
+    for (let i = 0; i < all.length; i++) { marks.filter(m => m.pos === i).forEach(m => { log += m.q ? ' ⟦tap Q' + m.q + '⟧' : ' ⟦clock⟧'; }); const sp = spans.find(x => x.s === i); if (sp) { log += ' «Q' + (sp.q + 1) + ' read»'; i = sp.e; continue; } log += ' ' + all[i]; }
+    marks.filter(m => m.pos >= all.length).forEach(m => { log += m.q ? ' ⟦tap Q' + m.q + '⟧' : ' ⟦clock⟧'; });
     return log.trim();
   }
   function voiceLine() {
     if (!SpeechRec) return '🎤 Voice entry needs Safari or Chrome on a Mac/PC.';
     if (voice.msg) return '🎤 ' + voice.msg;
     if (!voice.on) return '';
-    const all = voiceAll(), ch = voiceChunk(all, Math.min(voice.used, all.length));
-    let log = '', pos = 0; const marks = voice.marks.slice();
-    all.forEach((w, i) => { marks.filter(m => m.pos === i && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; }); log += ' ' + w; }); marks.filter(m => m.pos >= all.length && m.q > 0).forEach(m => { log += ' ⟦Q' + m.q + '⟧'; });
-    return '🎤 Listening (' + (voice.state || 'starting') + ')… ' + (ch.text ? 'next answer: “' + ch.text + '”' : '(say the answers — tap each question’s tile after they answer)') + (log.trim() ? '\n' + log.trim().slice(-240) : '');
+    const parsed = voiceParse(), log = voiceLogText(); let found = '';
+    if (parsed) found = Object.keys(parsed).map(q => 'Q' + (+q + 1) + ' → “' + parsed[q] + '”').join('   ');
+    else { const all = voiceAll(), ch = voiceChunk(all, Math.min(voice.used, all.length)); if (ch.text) found = 'next answer: “' + ch.text + '”'; }
+    return '🎤 Listening (' + (voice.state || 'starting') + ')… ' + (found || '(say the answers — tap each question’s tile after they answer)') + (log ? '\n' + log.slice(-260) : '');
+  }
+  function voicePush(q, text) {   // if the answer page is already open, fill the box too
+    const f = S && S.fm; if (!f || S.phase !== 'fmEntry' || fmFormFor !== f.pl) return; const inp = $('fmFormRows').querySelectorAll('input')[q];
+    if (inp && inp.value !== text && (!inp.value || inp.dataset.voice === inp.value)) { inp.value = text; inp.dataset.voice = text; inp.dispatchEvent(new Event('input')); }
+  }
+  function voiceApply() {   // question-aware mode: each ticked question gets the answer heard right after that question was read
+    const f = S && S.fm; if (!f) return false; const parsed = voiceParse(); if (!parsed) return false; f.draft = f.draft || [[], []];
+    Object.keys(parsed).forEach(q => { if ((f.chk && f.chk[q]) || S.phase === 'fmEntry') { if (f.draft[f.pl - 1][q] !== parsed[q]) { f.draft[f.pl - 1][q] = parsed[q]; voicePush(+q, parsed[q]); } } });
+    return true;
   }
   function voiceAssign(q, text) { const f = S && S.fm; if (!f || !text) return; f.draft = f.draft || [[], []]; f.draft[f.pl - 1][q] = text; }
   function voiceStart() {
-    if (isBoard || !SpeechRec || voice.on) return; voice.msg = '';
+    if (isBoard || !SpeechRec || voice.on) return; voice.msg = ''; voice.utts = []; voice.base = 0; voice.used = 0; voice.open = null; voice.marks = [];   // each Listen starts a fresh transcript
     try {
       const rec = new SpeechRec(); rec.continuous = true; rec.interimResults = true; rec.lang = 'en-US'; voice.rec = rec; voice.on = true;
       rec.onstart = () => { voice.base = voice.utts.length; voice.state = 'starting'; voiceShow(); };
       rec.onaudiostart = () => { voice.state = 'mic on'; voiceShow(); };
       rec.onspeechstart = () => { voice.state = 'hearing you'; voiceShow(); };
       rec.onresult = e => { for (let i = e.resultIndex; i < e.results.length; i++) voice.utts[voice.base + i] = e.results[i][0].transcript.trim();
-        const o = voice.open;   // words that arrive just after a tap (the recognizer lags a moment) still belong to that question
+        const parsed = voiceApply();   // question-aware mode (when the MC's voice is heard too); otherwise the tap-by-tap mode below
+        const o = parsed ? null : voice.open;   // words that arrive just after a tap (the recognizer lags a moment) still belong to that question
         if (o) { if (Date.now() < o.until) { const all = voiceAll(), ch = voiceChunk(all, o.start); if (ch.text) { voiceAssign(o.q, ch.text); voice.used = ch.end; o.until = Math.max(o.until, Date.now() + 900); } } else voice.open = null; }
         voiceShow(); };
       rec.onerror = e => { if (e.error && e.error !== 'no-speech' && e.error !== 'aborted') { voice.state = 'problem: ' + e.error; voiceShow(); }
@@ -1191,12 +1220,10 @@ Nevada | 4`;
     const all = voiceAll(), start = Math.min(voice.used, all.length), ch = voiceChunk(all, start);
     if (ch.text) voice.used = ch.end;
     voice.open = { q, start, until: Date.now() + (ch.text ? 1500 : 4500) };
-    voice.marks.push({ pos: all.length, q: q + 1 });
     return ch.text;
   }
   function fmFinishPlayer() {
-    if (voice.on) { S.fm.vlog = S.fm.vlog || {}; S.fm.vlog[S.fm.pl] = voiceLogText(); }   // what the microphone heard, shown on the answer page
-    voiceStop();
+    if (voice.on) { voiceApply(); S.fm.vlog = S.fm.vlog || {}; S.fm.vlog[S.fm.pl] = voiceLogText(); const pl = S.fm.pl; setTimeout(() => { if (S && S.fm) { voiceApply(); S.fm.vlog[pl] = voiceLogText(); } voiceStop(); }, 1500); }   // keep listening a moment so the last words land; the log is shown on the answer page
     const f = S.fm; f.running = false;
     S.phase = 'fmEntry';   // type in what they said, then reveal their answers one at a time
   }
