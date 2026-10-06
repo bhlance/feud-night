@@ -254,10 +254,10 @@
 <!-- Setup -->
 <div class="modal" id="setup"><div class="card">
   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button class="mb gold" id="openBoard" style="font-size:19px;padding:13px 26px">📺 Show Welcome Screen</button><div class="note" id="menuNote" style="flex:1;min-width:200px">Opens the TV view in its own window and starts the Welcome Music — drag the window onto the TV, then double-click it (or press F) for full screen.</div></div>
-  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show Game Board</button><div class="note" style="flex:1;min-width:200px">Puts the Game Board picture on the TV (choose which one under “Game Board Picture” in the panel below) and plays the Game Board Music on repeat. It stays up until you click Start new game, which goes straight to the first face-off.</div></div>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:10px"><button class="mb gold" id="titleBtn" style="font-size:17px;padding:11px 22px">🎬 Show Preview Board</button><div class="note" style="flex:1;min-width:200px">Puts the preview board picture on the TV screen — choose which one under “Preview Game Picture” in the panel below. It also plays the Preview Game Music on repeat until you hide it or click Start new game, which goes straight to the first face-off.</div></div>
   <h2>🎤 Feud Night — Game Setup</h2>
   <div id="inGameBanner" style="display:none;background:#fff4d6;border-radius:12px;padding:8px 12px;font-weight:700;font-size:14px">🎮 A game is in progress. Change anything below, then tap <b>Save changes &amp; back to the game</b> — scores and progress are kept. (Which game's questions is fixed for this game; use ✏️ Edit questions to change the questions themselves.)</div>
-  <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Game Board Music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause Game Board Music</button></div>
+  <div id="preStatus" style="display:none;align-items:center;gap:10px;background:#eef1ff;border-radius:12px;padding:6px 10px;font-weight:700;font-size:14px"><span id="preMsg">🎬 Preview Game Music repeats until you start the game</span><button type="button" class="mb" id="preToggle" style="padding:5px 12px;font-size:13px">⏸ Pause Preview Game Music</button></div>
   <div class="row">
     <div><label for="n0">Team 1 name</label><input id="n0" maxlength="24"><label for="p0">Team 1 players (one per line or commas)</label><textarea id="p0" placeholder="Optional — used to announce face-off players"></textarea></div>
     <div><label for="n1">Team 2 name</label><input id="n1" maxlength="24"><label for="p1">Team 2 players (one per line or commas)</label><textarea id="p1" placeholder="Optional — used to announce face-off players"></textarea></div>
@@ -319,7 +319,7 @@
   <video id="wtPrev" controls muted playsinline style="display:none"></video><img id="wtPrevImg" alt="" style="display:none;max-width:100%;max-height:30vh;border-radius:10px">
   </div>
   <div id="tiBlock">
-  <h4 style="margin:12px 0 4px">Game Board Picture — shown on the TV when you click 🎬 Show Game Board</h4>
+  <h4 style="margin:12px 0 4px">Preview Game Picture — shown on the TV when you click 🎬 Show Preview Board</h4>
   <label for="tiSel" style="font-weight:800">Use this one:</label><select id="tiSel" style="font-family:var(--font);font-size:16px;border:2px solid #c9d2f5;border-radius:12px;padding:8px;width:100%;max-width:640px"></select>
   <div class="btns"><button class="mb" id="tiPick">➕ Add picture(s)…</button><input type="file" multiple id="tiFile" accept="image/*" style="display:none"><button class="mb" id="tiPrevBtn">▶ Preview</button><button class="mb" id="tiRename">✏️ Rename the selected one</button><button class="mb" id="tiRemove">Remove the selected one</button></div>
   <div class="note" id="tiNote"></div>
@@ -402,7 +402,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 117';
+  const GAME_VERSION = '2026-10-03 · build 118';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -865,8 +865,8 @@ Nevada | 4`;
   const preActive = () => !!(nowPlaying && nowPlaying.prelude);
   function stopPrelude() { if (preActive()) { stopMusic(); updatePreStatus(); } }
   function updatePreStatus() {
-    const msg = document.getElementById('preMsg'); if (msg) msg.textContent = (ac && ac.state !== 'running') ? '🔈 Click or tap anywhere on this page to start the Game Board Music' : '🎬 Game Board Music repeats until you start the game';
-     const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('pre'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause Game Board Music' : '▶ Play Game Board Music'; }
+    const msg = document.getElementById('preMsg'); if (msg) msg.textContent = (ac && ac.state !== 'running') ? '🔈 Click or tap anywhere on this page to start the Preview Game Music' : '🎬 Preview Game Music repeats until you start the game';
+     const el = document.getElementById('preStatus'); if (!el) return; const has = !!effBuf('pre'); el.style.display = has ? 'flex' : 'none'; const b = document.getElementById('preToggle'); if (b) b.textContent = preActive() ? '⏸ Pause Preview Game Music' : '▶ Play Preview Game Music'; }
   // loop = true repeats the chosen stretch of the song (start .. start + "Play for") until stopMusic() is called.
   function playMusic(slot, loop) {
     const m = mus[slot], buf = effBuf(slot); if (isBoard || !m || !buf) return false;
@@ -956,7 +956,7 @@ Nevada | 4`;
     if (it) { const r = await mdb('readonly', st => st.get('m:' + k + ':' + it.id)); if (r && r.blob) { Object.assign(m, { blob: r.blob, name: it.name, start: it.start || 0, len: it.len || DEF_LEN[k], buf: null }); return; } }
     Object.assign(m, { blob: null, buf: null, name: '' });
   }
-  async function setStartingSongsOnce() {   // for now: Game Board Music = Family Feud Theme Music, Welcome Music = Any Dream Will Do (they were each saved in the other slot)
+  async function setStartingSongsOnce() {   // for now: Preview Game Music = Family Feud Theme Music, Welcome Music = Any Dream Will Do (they were each saved in the other slot)
     const x = await musIdx(); if (x.setSongs4) return;
     const find = (slot, re) => { const it = x[slot].items.find(i => re.test(i.name)); return it ? { slot, it } : null; };
     const fam = find('title', /family feud theme/i) || find('pre', /family feud theme/i), any = find('pre', /any dream/i) || find('title', /any dream/i);
@@ -1747,16 +1747,16 @@ Nevada | 4`;
   function setTitle(on) {
     if (isBoard) return; on = !!on; if (on === titleOn) return; titleOn = on;
     if (bc) bc.postMessage({ t: 'title', on });
-    if (on) { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (titleOn && effBuf('pre') && playMusic('pre', true) && nowPlaying) nowPlaying.title = true; }); }   // Show Game Board -> Game Board Music
+    if (on) { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (titleOn && effBuf('pre') && playMusic('pre', true) && nowPlaying) nowPlaying.title = true; }); }   // Show Preview Board -> Preview Game Music
     else if (nowPlaying && nowPlaying.title) stopMusic();
-    $('titleBtn').textContent = on ? '🎬 Hide Game Board' : '🎬 Show Game Board';
+    $('titleBtn').textContent = on ? '🎬 Hide Preview Board' : '🎬 Show Preview Board';
   }
   const doStart = () => {
     if ($('setSel').value === '') { $('setNote').style.display = 'block'; return; }   // no game picked yet
     const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, m: $('mults').value.trim() || '1,1,2,3', set: +$('setSel').value || 0 };
     c.nextSet = Math.min(c.set + 1, Math.max(0, loadSets().length - 1));
     store(CK, c);
-    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { show('setup', false); commit(); }
+    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { if (!boardOpen) openBoardWindow(); show('setup', false); commit(); }   // starting a game also opens the TV window if it isn't open
   };
   $('setSel').onchange = () => { $('setNote').style.display = 'none'; };
   // One field for choosing a game: open the list with the arrow, or start typing a name. Click the field and the whole list shows again.
@@ -1776,7 +1776,7 @@ Nevada | 4`;
   const autoSaveCfg = () => { if (inGame) return; const c = load(CK, {}); c.n = [$('n0').value.trim(), $('n1').value.trim()]; c.p = [$('p0').value, $('p1').value]; c.tgt = +$('tgt').value || c.tgt || 300; c.fmt = +$('fmt').value || c.fmt || 200; c.m = $('mults').value.trim(); store(CK, c); };
   ['n0', 'n1', 'p0', 'p1', 'tgt', 'fmt', 'mults'].forEach(id => $(id).addEventListener('input', autoSaveCfg));
   $('startBtn').onclick = () => { if (inGame) show('newConf', true); else doStart(); };
-  $('titleBtn').onclick = () => setTitle(!titleOn);
+  $('titleBtn').onclick = () => { if (!titleOn && !boardOpen) openBoardWindow(); setTitle(!titleOn); };   // showing the preview board also opens the TV window if needed
   $('newConfNo').onclick = () => show('newConf', false);
   $('newConfYes').onclick = () => { show('newConf', false); inGame = false; doStart(); };
   // Save changes made on the setup screen to the game that is running (names, players, targets, multipliers, scores) and go back to it
@@ -1935,14 +1935,14 @@ Nevada | 4`;
       + '<div class="row"><div><label for="reactLo">“Aww” for scores of this many points or fewer</label><input id="reactLo" type="number" min="0" value="10" inputmode="numeric"></div><div><label for="reactHi">Loud cheering for scores of this many points or more</label><input id="reactHi" type="number" min="1" value="30" inputmode="numeric"></div></div>'
       + '<div class="note">Anything in between gets applause. Zero-point answers get the strike buzzer and then the “aww”. Without a recording, a built-in computer-made crowd sound plays.</div></div>';
     $('musicOrder').innerHTML =
-        sec('🎬 Game Board Music — plays on repeat when you click 🎬 Show Game Board (and while you set up the game)', 'Pre', 180) + '<div id="tiSlot"></div>' + sec('🎬 Welcome Music — starts the moment you click 📺 Show Welcome Screen and repeats until you hide it or click Start new game', 'Title', 180) + '<div id="wtSlot"></div>' + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
+        sec('🎬 Preview Game Music — plays on repeat when you click 🎬 Show Preview Board (and while you set up the game)', 'Pre', 180) + '<div id="tiSlot"></div>' + sec('🎬 Welcome Music — starts the moment you click 📺 Show Welcome Screen and repeats until you hide it or click Start new game', 'Title', 180) + '<div id="wtSlot"></div>' + sec('1 · Round 1 winner song', 'R1', 10) + sec('2 · Round 2 winner song', 'R2', 10) + sec('3 · Round 3 winner song', 'R3', 10) + sec('4 · Round 4 winner song', 'R4', 10) + sec('5 · Round 5 Winner Song', 'R5', 10)
       + sec('6 · Round 6 Winner Song — also used for any later round', '', 10)
       + sec('7 · Game winner song — plays the moment a team reaches the target score (instead of that round’s song)', 'Game', 20)
       + '<h3>8 · Fast Money audience sounds — played as each score is revealed</h3>' + reactIntro + sec('Disappointed “aww” — low scores', 'Aww', 3, 'h4') + sec('Generous applause — middle scores', 'Clap', 4, 'h4') + sec('Loud cheering — high scores', 'Cheer', 5, 'h4')
       + sec('9 · Fast Money winner song and video or image — the song plays and repeats the moment the total reaches the target; the video appears 5 seconds later', 'Fm', 30) + '<div id="vidSlot"></div>'
       + sec('10 · Fast Money loser song and video or image — the song plays and repeats when Fast Money ends below the target (until you start a new game)', 'FmLose', 30) + '<div id="loseSlot"></div>';
     if ($('wtSlot') && $('wtBlock')) $('wtSlot').appendChild($('wtBlock'));   // the Welcome Screen Picture picker sits right under Welcome Music
-    if ($('tiSlot') && $('tiBlock')) $('tiSlot').appendChild($('tiBlock'));   // the Game Board Picture picker sits right under Game Board Music
+    if ($('tiSlot') && $('tiBlock')) $('tiSlot').appendChild($('tiBlock'));   // the Preview Game Picture picker sits right under Preview Game Music
     if ($('loseSlot') && $('loseMediaBlock')) $('loseSlot').appendChild($('loseMediaBlock'));
     if ($('vidSlot') && $('winVidBlock')) $('vidSlot').appendChild($('winVidBlock'));   // the win video lives under the Fast Money winner song
     const c = reactCfg(); $('reactOn').checked = c.on; $('reactLo').value = c.lo; $('reactHi').value = c.hi;
@@ -2042,12 +2042,7 @@ Nevada | 4`;
   function startWelcome() { try { getAC(); } catch (e) {} decodeMusic().then(() => { if (effBuf('title') && playMusic('title', true) && nowPlaying) nowPlaying.welcome = true; }); }
   function stopWelcome() { if (nowPlaying && nowPlaying.welcome) stopMusic(); }
   function paintBoardBtn() { $('openBoard').textContent = boardOpen ? '📺 Hide Welcome Screen' : '📺 Show Welcome Screen'; }
-  $('openBoard').onclick = async () => {
-    if (!boardOpen) startWelcome();   // music starts the moment you click (before the window finishes opening)
-    if (boardOpen) {   // the same button closes the TV window
-      if (bc) bc.postMessage({ t: 'closeboard' }); try { if (boardWin) boardWin.close(); } catch (e) {}
-      boardOpen = false; paintBoardBtn(); stopWelcome(); $('menuNote').textContent = 'Welcome screen hidden. Click again to show it.'; return;
-    }
+  async function openBoardWindow() {   // opens the TV window (a second screen if the browser can see one); returns true if it opened
     const url = location.pathname + '?board=1&fresh=' + Date.now();
     let left = 60, top = 60, w = 1280, h = 720, onTv = false;
     try {
@@ -2059,9 +2054,18 @@ Nevada | 4`;
     } catch (e) {}
     const feat = 'popup=yes,noopener=no,width=' + w + ',height=' + h + ',left=' + left + ',top=' + top + ',resizable=yes';
     const win = window.open(url, 'feudboard', feat);
-    if (!win) { stopWelcome(); $('menuNote').textContent = 'Your browser blocked the pop-up window. Allow pop-ups for this page (look for an icon in the address bar), then tap this button again.'; return; }
+    if (!win) { stopWelcome(); $('menuNote').textContent = 'Your browser blocked the pop-up window. Allow pop-ups for this page (look for an icon in the address bar), then tap the button again.'; return false; }
     boardWin = win;
-    $('menuNote').textContent = onTv ? 'Board window opened on your second screen. Double-click it (or press F) to make it full screen.' : 'Board window opened. Drag it onto the TV, then double-click it (or press F) for full screen.';
+    $('menuNote').textContent = onTv ? 'TV window opened on your second screen. Double-click it (or press F) to make it full screen.' : 'TV window opened. Drag it onto the TV, then double-click it (or press F) for full screen.';
+    return true;
+  }
+  $('openBoard').onclick = async () => {
+    if (boardOpen) {   // the same button closes the TV window
+      if (bc) bc.postMessage({ t: 'closeboard' }); try { if (boardWin) boardWin.close(); } catch (e) {}
+      boardOpen = false; paintBoardBtn(); stopWelcome(); $('menuNote').textContent = 'Welcome screen hidden. Click again to show it.'; return;
+    }
+    startWelcome();   // music starts the moment you click (before the window finishes opening)
+    await openBoardWindow();
   };
 
   if (isBoard) {
