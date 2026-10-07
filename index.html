@@ -401,20 +401,9 @@
   <div class="note">One question per block. Start with <b>Q:</b>, then one answer per line as <b>Answer | points</b>, best answer first. Leave off the points and they're assigned automatically by order. Up to 10 answers per question. Blank lines between questions are fine.</div>
   <div class="btns" id="setTabs"></div>
   <label for="gName">Game name — shows in the game list (for example “Church 1” or “Ward party”)</label><input id="gName" type="text" placeholder="Game name" autocomplete="off">
-  <div class="row" style="align-items:end"><div><label for="gCat">Category — which random-game bank these questions belong to</label><select id="gCat" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:10px;width:100%"></select></div>
-  <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="gBank" style="width:auto"> Include in the random question bank</label></div>
-  <h3>Main-round questions (<span id="cMain">0</span>)</h3>
-  <textarea id="qMain" style="min-height:240px"></textarea>
-  <h3>Fast Money questions — a game you built uses the first 5; random games draw from all of them (<span id="cFast">0</span>)</h3>
-  <textarea id="qFast" style="min-height:200px"></textarea>
-  <div class="btns">
-    <button class="mb go" id="qSave">Save</button>
-    <button class="mb" id="qSample">Load starter questions</button>
-    <button class="mb bad" id="qDel">🗑 Delete this game</button>
-    <button class="mb" id="qCancel">Cancel</button>
-  </div>
-  <div class="note" id="qMsg"></div>
-</div></div>
+  <label>Categories — the random banks these questions belong to (tick as many as fit)</label><div id="gCats" style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0"></div>
+  <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="gBank" style="width:auto"> Include this game in the random question banks</label>
+  <div class="note" id="bankSum"></div>
 
 
 
@@ -423,7 +412,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 123';
+  const GAME_VERSION = '2026-10-03 · build 124';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -738,13 +727,16 @@ Nevada | 4`;
   }
   const setFor = i => { const a = loadSets(); return a[i] || a[0]; };
   // ---------- question bank: random games draw from every set in a category ----------
-  const CATS = ['Kids', 'Adult', 'Adult R', 'Adult X', 'Empty Nesters'];
-  const deriveCat = n => { n = String(n || ''); if (/^kids/i.test(n)) return 'Kids'; if (/^adult[\s-]*r\b/i.test(n)) return 'Adult R'; if (/^adult[\s-]*x\b/i.test(n)) return 'Adult X'; if (/^adult/i.test(n) || /^game\s*[123]$/i.test(n)) return 'Adult'; return 'Empty Nesters'; };
-  const catOf = g => (g && g.cat && CATS.includes(g.cat)) ? g.cat : deriveCat(g && g.name);
+  const CATS = ['Kids', 'Adult', 'Adult R', 'Adult X', 'Empty Nesters', 'Church'];
+  const deriveCats = n => { n = String(n || ''); if (/^kids/i.test(n)) return ['Kids']; if (/^adult[\s-]*r\b/i.test(n)) return ['Adult R']; if (/^adult[\s-]*x\b/i.test(n)) return ['Adult X']; if (/^adult/i.test(n) || /^game\s*[123]$/i.test(n)) return ['Adult']; if (/^church/i.test(n)) return ['Empty Nesters', 'Church']; return ['Empty Nesters']; };
+  const catsOf = g => { const a = g && Array.isArray(g.cats) ? g.cats.filter(c => CATS.includes(c)) : (g && g.cat && CATS.includes(g.cat) ? [g.cat] : []); return a.length ? a : deriveCats(g && g.name); };
+  const sameCats = (a, b) => a.length === b.length && a.every(x => b.includes(x));
   const qKey = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const BX = 'feud.bankx.v1';   // questions kept in the banks after the game they came from was deleted
   function bankPool(cat, kind) {
-    const seen = new Set(), out = [];
-    loadSets().forEach(g => { if (g.bank === false || catOf(g) !== cat) return; parseQs(g[kind]).forEach(q => { const k = qKey(q.text); if (!seen.has(k)) { seen.add(k); out.push(q); } }); });
+    const seen = new Set(), out = [], add = text => parseQs(text).forEach(q => { const k = qKey(q.text); if (!seen.has(k)) { seen.add(k); out.push(q); } });
+    loadSets().forEach(g => { if (g.bank !== false && catsOf(g).includes(cat)) add(g[kind]); });
+    load(BX, []).forEach(e => { if (e.kind === kind && e.cats.includes(cat)) add(e.text); });
     return out;
   }
   const UK = 'feud.used.v1';
@@ -1899,8 +1891,8 @@ Nevada | 4`;
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   // Editor with one tab per game; each game has its own main-round and Fast Money questions.
   let edSets = [], edIdx = 0;
-  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); const c = $('gCat').value; if (c === deriveCat(g.name)) delete g.cat; else g.cat = c; g.bank = $('gBank').checked; } }
-  function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; $('gCat').value = catOf(g); $('gBank').checked = g.bank !== false; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
+  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); const c = CATS.filter(x => $('gc_' + x).checked); delete g.cat; if (!c.length || sameCats(c, deriveCats(g.name))) delete g.cats; else g.cats = c; g.bank = $('gBank').checked; } }
+  function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; setCatBoxes(catsOf(g)); bankSummary(); $('gBank').checked = g.bank !== false; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
   function drawTabs() {
     const box = $('setTabs'); box.innerHTML = '';
     // tabs in alphabetical order (numbers sort naturally: Game 2 before Game 10); the game being edited is highlighted in yellow
@@ -1908,14 +1900,19 @@ Nevada | 4`;
       const g = edSets[i], t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' tabsel' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
     const add = document.createElement('button'); add.className = 'mb go'; add.textContent = '＋ Add a game'; add.onclick = () => { edCommit(); edSets.push({ name: 'Game ' + (edSets.length + 1), main: '', fast: '' }); edIdx = edSets.length - 1; edLoad(); }; box.appendChild(add);
   }
-  $('gCat').innerHTML = CATS.map(c => '<option>' + c + '</option>').join('');
-  function openEditor() { edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast, cat: g.cat, bank: g.bank })); edIdx = 0; edLoad(); show('qed', true); }
+  $('gCats').innerHTML = CATS.map(c => '<label style="display:flex;gap:6px;align-items:center;font-weight:700;margin:0"><input type="checkbox" id="gc_' + c + '" style="width:auto"> ' + c + '</label>').join('');
+  const setCatBoxes = a => CATS.forEach(c => { $('gc_' + c).checked = a.includes(c); });
+  function bankSummary() { $('bankSum').textContent = '📚 In the banks now (round questions / Fast Money): ' + CATS.map(c => c + ' ' + bankPool(c, 'main').length + '/' + bankPool(c, 'fast').length).join(' · ') + '. Saved games feed the banks; questions from a game you delete stay in the banks.'; }
+  CATS.forEach(c => $('gc_' + c).onchange = () => { const g = edSets[edIdx]; if (g) { edCommit(); } });
+  $('gBank').onchange = () => { const g = edSets[edIdx]; if (g) edCommit(); };
+  let edOrphans = [];
+  function openEditor() { edOrphans = []; edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast, cats: g.cats, cat: g.cat, bank: g.bank })); edIdx = 0; edLoad(); show('qed', true); }
   function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
   $('qMain').oninput = $('qFast').oninput = count;
-  $('gName').oninput = () => { const g = edSets[edIdx]; if (g) { g.name = $('gName').value; if (!g.cat) $('gCat').value = deriveCat(g.name); drawTabs(); } };   // rename the game; the tab label follows as you type
+  $('gName').oninput = () => { const g = edSets[edIdx]; if (g) { g.name = $('gName').value; if (!g.cats) setCatBoxes(deriveCats(g.name)); drawTabs(); } };   // rename the game; the tab label follows as you type
   $('qSample').onclick = () => { const alt = edIdx % 2 === 1; $('qMain').value = alt ? SAMPLE2_MAIN : SAMPLE_MAIN; $('qFast').value = alt ? SAMPLE2_FAST : SAMPLE_FAST; count(); $('qMsg').textContent = 'Starter questions loaded into ' + edSets[edIdx].name + ' — tap Save to keep them.'; };
-  $('qDel').onclick = () => { if (edSets.length < 2) return; edSets.splice(edIdx, 1); edSets.forEach((g, i) => { if (/^Game \d+$/.test(g.name)) g.name = 'Game ' + (i + 1); }); edIdx = Math.min(edIdx, edSets.length - 1); edLoad(); $('qMsg').textContent = 'Game removed — tap Save to keep the change.'; };
-  $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel(selArg()); if (S && S.qs && !S.bank) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
+  $('qDel').onclick = () => { if (edSets.length < 2) return; edCommit(); const dg = edSets[edIdx]; if (dg.bank !== false) { const cs = catsOf(dg); ['main', 'fast'].forEach(kind => parseQs(dg[kind]).forEach(q => edOrphans.push({ kind, cats: cs, text: qToText(q) }))); } edSets.splice(edIdx, 1); edSets.forEach((g, i) => { if (/^Game \d+$/.test(g.name)) g.name = 'Game ' + (i + 1); }); edIdx = Math.min(edIdx, edSets.length - 1); edLoad(); $('qMsg').textContent = 'Game removed — tap Save to keep the change.'; };
+  $('qSave').onclick = () => { edCommit(); if (edOrphans.length) { store(BX, load(BX, []).concat(edOrphans)); edOrphans = []; } store(QK2, { sets: edSets }); show('qed', false); fillSetSel(selArg()); if (S && S.qs && !S.bank) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor;
   // Win / loser video-or-image libraries (setup menu): add several, pick which one is used. Saved in this browser (IndexedDB); the TV window reads them from there.
