@@ -373,7 +373,7 @@
 <div class="modal" id="bankEd" style="z-index:92"><div class="card">
   <h2>📚 Question banks</h2>
   <div class="note">Add, fix or remove the questions that live in a bank. Same format as a game: <b>Q:</b>, then one answer per line as <b>Answer | points</b>. You can add just one question, or as many as you like, in either box, and you can leave either box empty. This box holds the questions that are in the bank on their own. Questions that are still inside a game in your list are edited in that game.</div>
-  <label for="beCat">Category</label><select id="beCat" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;line-height:normal"></select>
+  <label for="beCat">Category</label><select id="beCat" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"></select>
   <div class="note" id="beInfo"></div>
   <h3>Round questions (<span id="beCm">0</span>)</h3><textarea id="beMain" style="min-height:240px"></textarea>
   <h3>Fast Money questions (<span id="beCf">0</span>)</h3><textarea id="beFast" style="min-height:200px"></textarea>
@@ -438,7 +438,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 126';
+  const GAME_VERSION = '2026-10-03 · build 127';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
