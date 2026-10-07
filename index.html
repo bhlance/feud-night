@@ -372,14 +372,26 @@
 </div></div>
 <div class="modal" id="bankEd" style="z-index:92"><div class="card">
   <h2>📚 Question banks</h2>
-  <div class="note">Add, fix or remove the questions that live in a bank. Same format as a game: <b>Q:</b>, then one answer per line as <b>Answer | points</b>. You can add just one question, or as many as you like, in either box, and you can leave either box empty. This box holds the questions that are in the bank on their own. Questions that are still inside a game in your list are edited in that game.</div>
-  <label for="beCat">Category</label><select id="beCat" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"></select>
-  <div class="btns" style="margin:6px 0"><button class="mb" id="beRen">✏️ Rename this category</button><button class="mb bad" id="beDel">🗑 Delete this category</button></div>
-  <div class="note" id="beInfo"></div>
-  <h3>Round questions (<span id="beCm">0</span>)</h3><textarea id="beMain" style="min-height:240px"></textarea>
-  <h3>Fast Money questions (<span id="beCf">0</span>)</h3><textarea id="beFast" style="min-height:200px"></textarea>
-  <div class="btns"><button class="mb" id="beNewCat">＋ New category</button><button class="mb go" id="beSave">Save</button><button class="mb" id="beCancel">Cancel</button></div>
+  <div class="note">Every question in the banks is listed here with the categories it belongs to. Tick a category on a question to add it there, or untick it to take it out. Changes save as you click.</div>
+  <div class="row">
+    <div><label for="beCat">Category</label><select id="beCat" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"></select></div>
+    <div><label for="beKind">Show</label><select id="beKind" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"><option value="">Round and Fast Money questions</option><option value="main">Round questions only</option><option value="fast">Fast Money questions only</option></select></div>
+  </div>
+  <label for="beSearch">Search</label><input id="beSearch" type="text" placeholder="Type part of a question or an answer…" autocomplete="off">
+  <div class="btns" style="margin:6px 0"><button class="mb go" id="beAdd">＋ Add a question</button><button class="mb" id="beNewCat">＋ New category</button><button class="mb" id="beRen">✏️ Rename this category</button><button class="mb bad" id="beDel">🗑 Delete this category</button></div>
   <div class="note" id="beMsg"></div>
+  <div class="note" id="beInfo"></div>
+  <div id="beList"></div>
+  <div class="btns"><button class="mb go" id="beDone">Done</button></div>
+</div></div>
+<div class="modal" id="addQ" style="z-index:94"><div class="card">
+  <h2>＋ Add questions to the banks</h2>
+  <div class="note">Add one question or as many as you like. Start each question with <b>Q:</b>, then one answer per line as <b>Answer | points</b>, best answer first. Leave off the points and they are filled in by order. Put a blank line between questions.</div>
+  <label for="aqKind">These are</label><select id="aqKind" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"><option value="main">Round questions</option><option value="fast">Fast Money questions</option></select>
+  <label>Put them in these categories (tick every one that fits)</label><div id="aqCats" style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0"></div>
+  <textarea id="aqText" style="min-height:260px" placeholder="Q: Name something you find in a kitchen&#10;Fridge | 30&#10;Stove | 25&#10;Sink | 20&#10;Toaster | 15&#10;Microwave | 10"></textarea>
+  <div class="btns"><button class="mb go" id="aqAdd">Add to the banks</button><button class="mb" id="aqNewCat">＋ New category</button><button class="mb" id="aqClose">Close</button></div>
+  <div class="note" id="aqMsg"></div>
 </div></div>
 <div class="modal" id="drawModal" style="z-index:95"><div class="card">
   <h2>🎲 Questions for this game</h2>
@@ -413,15 +425,13 @@
   <div class="btns" id="setTabs"></div>
   <div id="edFields">
   <label for="gName">Game name — shows in the game list (for example “Church 1” or “Ward party”)</label><input id="gName" type="text" placeholder="Game name" autocomplete="off">
-  <label>Categories — the random banks these questions belong to (tick as many as fit)</label><div id="gCats" style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0"></div>
-  <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="gBank" style="width:auto"> Include this game in the random question banks</label>
-  <div class="note" id="bankSum"></div>
+  <div class="note">A game you build here is hand-built and plays exactly as written. To add questions to the random banks, use <b>＋ Add a question</b> or <b>📚 Question banks…</b>.</div>
   <h3>Main-round questions (<span id="cMain">0</span>)</h3>
   <textarea id="qMain" style="min-height:240px"></textarea>
   <h3>Fast Money questions — a game you built uses the first 5; random games draw from all of them (<span id="cFast">0</span>)</h3>
   <textarea id="qFast" style="min-height:200px"></textarea>
   </div>
-  <div class="note" id="noGames" style="display:none">You have no specific games. The random banks work without them. Tap <b>＋ Add a game</b> if you want to build a custom game.</div>
+  <div class="note" id="noGames" style="display:none">You have no specific games. The random banks work without them. Tap <b>＋ Add a game</b> to build a custom game, or <b>＋ Add a question</b> to add to the banks.</div>
   <div class="btns">
     <button class="mb go" id="qSave">Save</button>
     <button class="mb bad" id="qDel">🗑 Delete this game</button>
@@ -438,7 +448,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 130';
+  const GAME_VERSION = '2026-10-03 · build 131';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -764,7 +774,7 @@ Nevada | 4`;
   const catFix = c => { let n = 0; while (CAT_ALIAS[c] && n++ < 10) c = CAT_ALIAS[c]; return c; };
   const catOrder = () => CATS.map((c, i) => i).sort((x, y) => CATS[x].localeCompare(CATS[y], undefined, { numeric: true, sensitivity: 'base' }));   // alphabetical
   const catsSorted = () => catOrder().map(i => CATS[i]);
-  const escH = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const escH = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   function addCategory(name) {   // returns the category's exact name, or null if it can't be added
     name = String(name || '').trim().replace(/\s+/g, ' '); if (!name || name.length > 30) return null;
     const have = CATS.find(c => c.toLowerCase() === name.toLowerCase()); if (have) return have;
@@ -775,24 +785,26 @@ Nevada | 4`;
   const catsOf = g => { if (g && Array.isArray(g.cats)) return g.cats.map(catFix).filter((c, i, a) => CATS.includes(c) && a.indexOf(c) === i); if (g && g.cat && CATS.includes(catFix(g.cat))) return [catFix(g.cat)]; return deriveCatsLive(g && g.name); };
   const sameCats = (a, b) => a.length === b.length && a.every(x => b.includes(x));
   const qKey = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-  const BX = 'feud.bankx.v1';   // bank-only questions (not inside any game): { category: { main: text, fast: text } }
-  function loadBX() {
-    let b = load(BX, {});
-    if (!Array.isArray(b)) { let ch = false; Object.keys(b).forEach(k => { const f = catFix(k); if (f !== k) { b[f] = b[f] || { main: '', fast: '' }; ['main', 'fast'].forEach(x => { b[f][x] = [b[f][x], b[k][x]].filter(Boolean).join('\n\n'); }); delete b[k]; ch = true; } }); if (ch) store(BX, b); }   // renamed categories
-    if (Array.isArray(b)) { const o = {}; b.forEach(e => e.cats.forEach(c => { o[c] = o[c] || { main: '', fast: '' }; o[c][e.kind] += (o[c][e.kind] ? '\n\n' : '') + e.text; })); b = o; }   // older list format
-    return b;
+  const BX = 'feud.bankx.v1';   // older bank-only store { category: { main, fast } } — only read once, to move it into the bank below
+  function loadBX() { const b = load(BX, {}); return b && !Array.isArray(b) ? b : {}; }
+  // The question bank: one list of questions, each with the categories it belongs to. Random games draw from here.
+  const QBK = 'feud.qbank.v1';
+  let QBc = null;
+  function migrateQB() {   // first run: move every question from your games (and the older bank-only store) into the bank
+    const qb = { v: 1, items: [] };
+    const put = (kind, text, cats) => parseQs(text).forEach(q => { const key = qKey(q.text), ex = qb.items.find(i => i.k === kind && i.y === key); if (ex) cats.forEach(c => { if (!ex.c.includes(c)) ex.c.push(c); }); else qb.items.push({ k: kind, t: qToText(q), y: key, c: cats.slice() }); });
+    loadSets().forEach(g => { if (g.bank === false) return; const cs = catsOf(g); ['main', 'fast'].forEach(k => put(k, g[k], cs)); });
+    const bx = loadBX(); Object.keys(bx).forEach(c => { const cc = catFix(c); if (CATS.includes(cc)) ['main', 'fast'].forEach(k => put(k, (bx[c] || {})[k] || '', [cc])); });
+    store(QBK, qb); return qb;
   }
-  function addToBX(items) {   // items: [{ kind, cats, text }] — add questions to the bank-only store, skipping ones already there
-    const b = loadBX();
-    items.forEach(e => e.cats.forEach(c => { b[c] = b[c] || { main: '', fast: '' }; const have = new Set(parseQs(b[c][e.kind]).map(q => qKey(q.text))), q = parseQs(e.text)[0]; if (q && !have.has(qKey(q.text))) b[c][e.kind] += (b[c][e.kind] ? '\n\n' : '') + e.text; }));
-    store(BX, b);
+  function getQB() { if (!QBc) { const v = load(QBK, null); QBc = v && Array.isArray(v.items) ? v : migrateQB(); } return QBc; }
+  const saveQB = () => store(QBK, getQB());
+  function addQs(kind, text, cats) {   // add questions; one already in the bank just gets the extra categories
+    const qb = getQB(); let added = 0, dup = 0;
+    parseQs(text).forEach(q => { const key = qKey(q.text), ex = qb.items.find(i => i.k === kind && i.y === key); if (ex) { cats.forEach(c => { if (!ex.c.includes(c)) ex.c.push(c); }); dup++; } else { qb.items.push({ k: kind, t: qToText(q), y: key, c: cats.slice() }); added++; } });
+    saveQB(); return { added, dup };
   }
-  function bankPool(cat, kind) {
-    const seen = new Set(), out = [], add = text => parseQs(text).forEach(q => { const k = qKey(q.text); if (!seen.has(k)) { seen.add(k); out.push(q); } });
-    loadSets().forEach(g => { if (g.bank !== false && catsOf(g).includes(cat)) add(g[kind]); });
-    const bx = loadBX(); if (bx[cat] && bx[cat][kind]) add(bx[cat][kind]);
-    return out;
-  }
+  function bankPool(cat, kind) { const out = []; getQB().items.forEach(i => { if (i.k === kind && i.c.includes(cat)) { const q = parseQs(i.t)[0]; if (q) out.push(q); } }); return out; }
   const UK = 'feud.used.v1';
   const usedKeys = (cat, kind) => (load(UK, {})[cat + '|' + kind] || []);
   function markUsed(cat, kind, text) { const u = load(UK, {}), k = cat + '|' + kind, a = u[k] || [], q = qKey(text); if (!a.includes(q)) { a.push(q); u[k] = a; store(UK, u); } }
@@ -1946,74 +1958,106 @@ Nevada | 4`;
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   // Editor with one tab per game; each game has its own main-round and Fast Money questions.
   let edSets = [], edIdx = 0;
-  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); const c = CATS.filter((x, i) => $('gc_' + i).checked); delete g.cat; if (sameCats(c, deriveCatsLive(g.name))) delete g.cats; else g.cats = c; g.bank = $('gBank').checked; } }
-  function edLoad() { const g = edSets[edIdx]; $('edFields').style.display = g ? 'block' : 'none'; $('noGames').style.display = g ? 'none' : 'block'; if (!g) { drawTabs(); $('qDel').style.display = 'none'; bankSummary(); $('qMsg').textContent = ''; return; } $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; setCatBoxes(catsOf(g)); bankSummary(); $('gBank').checked = g.bank !== false; count(); drawTabs(); $('qDel').style.display = 'inline-block'; $('qMsg').textContent = ''; }
+  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); } }
+  function edLoad() { const g = edSets[edIdx]; $('edFields').style.display = g ? 'block' : 'none'; $('noGames').style.display = g ? 'none' : 'block'; if (!g) { drawTabs(); $('qDel').style.display = 'none'; $('qMsg').textContent = ''; return; } $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; count(); drawTabs(); $('qDel').style.display = 'inline-block'; $('qMsg').textContent = ''; }
   function drawTabs() {
     const box = $('setTabs'); box.innerHTML = '';
     // tabs in alphabetical order (numbers sort naturally: Game 2 before Game 10); the game being edited is highlighted in yellow
     edSets.map((g, i) => i).sort((x, y) => String(edSets[x].name).localeCompare(String(edSets[y].name), undefined, { numeric: true, sensitivity: 'base' })).forEach(i => {
       const g = edSets[i], t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' tabsel' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
     const add = document.createElement('button'); add.className = 'mb go'; add.textContent = '＋ Add a game'; add.onclick = () => { edCommit(); edSets.push({ name: 'Custom game ' + (edSets.length + 1), main: '', fast: '' }); edIdx = edSets.length - 1; edLoad(); }; box.appendChild(add);
+    const addq = document.createElement('button'); addq.className = 'mb go'; addq.textContent = '＋ Add a question'; addq.onclick = () => openAddQ(); box.appendChild(addq);
   }
-  function buildCatBoxes() {
-    $('gCats').innerHTML = catOrder().map(i => { const c = CATS[i]; return '<label style="display:flex;gap:6px;align-items:center;font-weight:700;margin:0"><input type="checkbox" id="gc_' + i + '" style="width:auto"> ' + escH(c) + '</label>'; }).join('') + '<button class="mb" id="gcNew" type="button">＋ New category</button>';
-    $('gcNew').onclick = async () => { const nm = addCategory(await askName('Name the new category (for example Teens, Holidays, Date Night)', '')); if (!nm) return; edCommit(); const g = edSets[edIdx]; if (g) g.cats = catsOf(g).concat(nm).filter((c, i, a) => a.indexOf(c) === i); buildCatBoxes(); buildBankCat(); if (g) setCatBoxes(catsOf(g)); bankSummary(); fillSetSel(selArg()); $('qMsg').textContent = 'Category "' + nm + '" added' + (g ? ' and ticked for this game.' : '.'); };
+  // ---------- Question banks window ----------
+  const catBoxStyle = 'display:flex;gap:6px;align-items:center;font-weight:700;margin:0';
+  const itemQ = it => parseQs(it.t)[0];
+  const refreshAfterBank = () => { fillSetSel(selArg()); };
+  function buildBankCat() {
+    const cur = $('beCat').value;
+    $('beCat').innerHTML = '<option value="">Select Category…</option><option value="__none">(No category)</option>' + catsSorted().map(c => '<option value="' + escH(c) + '">' + escH(c) + '</option>').join('');
+    $('beCat').value = cur; if ($('beCat').selectedIndex < 0) $('beCat').value = '';
   }
-  const setCatBoxes = a => CATS.forEach((c, i) => { const b = $('gc_' + i); if (b) b.checked = a.includes(c); });
-  function bankSummary() { $('bankSum').textContent = '📚 In the banks now (round questions / Fast Money): ' + catsSorted().map(c => c + ' ' + bankPool(c, 'main').length + '/' + bankPool(c, 'fast').length).join(' · ') + '. Saved games feed the banks; questions from a game you delete stay in the banks.'; }
-  let edOrphans = [];
-  function flushOrphans() { if (edOrphans.length) { addToBX(edOrphans); edOrphans = []; } }
-  // Bank editor: the questions that live in a bank on their own
-  let beTmp = {}, beCur = catsSorted()[0];
-  const buildBankCat = () => { const cur = $('beCat').value; $('beCat').innerHTML = catsSorted().map(c => '<option>' + escH(c) + '</option>').join(''); if (CATS.includes(cur)) $('beCat').value = cur; };
-  buildCatBoxes(); buildBankCat();
-  const beCount = () => { $('beCm').textContent = parseQs($('beMain').value).length; $('beCf').textContent = parseQs($('beFast').value).length; };
-  function beStash() { beTmp[beCur] = { main: $('beMain').value, fast: $('beFast').value }; }
-  function beShow(c) {
-    beCur = c; $('beCat').value = c; const x = beTmp[c] || { main: '', fast: '' }; $('beMain').value = x.main || ''; $('beFast').value = x.fast || ''; beCount();
-    const g = { main: 0, fast: 0 }; loadSets().forEach(gm => { if (gm.bank !== false && catsOf(gm).includes(c)) { g.main += parseQs(gm.main).length; g.fast += parseQs(gm.fast).length; } });
-    $('beInfo').textContent = 'Also in the ' + c + ' bank from games still in your list: ' + g.main + ' round questions, ' + g.fast + ' Fast Money (edit those in their game).'; $('beMsg').textContent = '';
+  function beRender() {
+    const qb = getQB(), cat = $('beCat').value, kind = $('beKind').value, term = $('beSearch').value.trim().toLowerCase();
+    const list = qb.items.filter(it => (!kind || it.k === kind) && (cat === '' || (cat === '__none' ? it.c.length === 0 : it.c.includes(cat))) && (!term || it.t.toLowerCase().includes(term)));
+    list.sort((a, b) => a.k !== b.k ? (a.k === 'main' ? -1 : 1) : itemQ(a).text.localeCompare(itemQ(b).text));
+    const box = $('beList'), MAX = 100; box.innerHTML = ''; list.slice(0, MAX).forEach(it => box.appendChild(beCard(it)));
+    $('beInfo').textContent = list.length + (list.length === 1 ? ' question shown' : ' questions shown') + (list.length > MAX ? ' (the first ' + MAX + ' — narrow it with the category or the search)' : '') + '. The banks hold ' + qb.items.filter(i => i.k === 'main').length + ' round and ' + qb.items.filter(i => i.k === 'fast').length + ' Fast Money questions in all.';
   }
-  $('qBankBtn').onclick = () => { edCommit(); flushOrphans(); beTmp = JSON.parse(JSON.stringify(loadBX())); beShow(catsSorted()[0]); show('bankEd', true); };
-  $('beCat').onchange = () => { beStash(); beShow($('beCat').value); };
-  const afterCatChange = (cur, msg) => { buildCatBoxes(); buildBankCat(); const g = edSets[edIdx]; if (g) setCatBoxes(catsOf(g)); bankSummary(); fillSetSel(selArg()); beShow(cur); $('beMsg').textContent = msg; };
+  function beCard(it) {
+    const q = itemQ(it), d = document.createElement('div'); d.style.cssText = 'border:2px solid #e3e8fb;border-radius:12px;padding:10px;margin:8px 0';
+    const head = document.createElement('div'); head.innerHTML = '<b style="color:#0b2a8a">' + (it.k === 'main' ? 'Round' : 'Fast Money') + '</b> · <b>' + escH(q.text) + '</b>';
+    const ans = document.createElement('div'); ans.className = 'note'; ans.textContent = q.answers.map(a => a.text + ' (' + a.pts + ')').join(' · ');
+    const cats = document.createElement('div'); cats.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px 16px;margin:6px 0';
+    catsSorted().forEach(c => { const l = document.createElement('label'); l.style.cssText = catBoxStyle; const cb = document.createElement('input'); cb.type = 'checkbox'; cb.style.width = 'auto'; cb.checked = it.c.includes(c);
+      cb.onchange = () => { if (cb.checked) { if (!it.c.includes(c)) it.c.push(c); } else it.c = it.c.filter(x => x !== c); saveQB(); refreshAfterBank(); };
+      l.appendChild(cb); l.appendChild(document.createTextNode(' ' + c)); cats.appendChild(l); });
+    const btns = document.createElement('div'); btns.className = 'btns';
+    const ed = document.createElement('button'); ed.className = 'mb'; ed.textContent = '✏️ Edit this question';
+    const rm = document.createElement('button'); rm.className = 'mb bad'; rm.textContent = '🗑 Remove'; let arm = 0;
+    rm.onclick = () => { if (Date.now() - arm > 5000) { arm = Date.now(); rm.textContent = '⚠ Click again to remove'; setTimeout(() => { if (Date.now() - arm >= 4900) rm.textContent = '🗑 Remove'; }, 5100); return; }
+      const qb = getQB(); qb.items = qb.items.filter(x => x !== it); saveQB(); beRender(); refreshAfterBank(); };
+    ed.onclick = () => {
+      d.innerHTML = ''; const ta = document.createElement('textarea'); ta.style.minHeight = '150px'; ta.value = it.t; const msg = document.createElement('div'); msg.className = 'note';
+      const b2 = document.createElement('div'); b2.className = 'btns'; const sv = document.createElement('button'); sv.className = 'mb go'; sv.textContent = 'Save this question'; const cn = document.createElement('button'); cn.className = 'mb'; cn.textContent = 'Cancel';
+      sv.onclick = () => { const q2 = parseQs(ta.value)[0]; if (!q2) { msg.textContent = 'I could not read that. Start with Q: then one answer per line.'; return; } const key = qKey(q2.text);
+        if (getQB().items.some(x => x !== it && x.k === it.k && x.y === key)) { msg.textContent = 'A question with that wording is already in the bank.'; return; }
+        it.t = qToText(q2); it.y = key; saveQB(); beRender(); refreshAfterBank(); };
+      cn.onclick = () => beRender(); b2.appendChild(sv); b2.appendChild(cn); d.appendChild(ta); d.appendChild(b2); d.appendChild(msg); };
+    btns.appendChild(ed); btns.appendChild(rm); d.appendChild(head); d.appendChild(ans); d.appendChild(cats); d.appendChild(btns); return d;
+  }
+  $('beCat').onchange = $('beKind').onchange = beRender; $('beSearch').oninput = beRender;
+  $('qBankBtn').onclick = () => { edCommit(); buildBankCat(); $('beCat').value = ''; $('beKind').value = ''; $('beSearch').value = ''; $('beMsg').textContent = ''; beRender(); show('bankEd', true); };
+  $('beDone').onclick = () => show('bankEd', false);
+  $('beAdd').onclick = () => openAddQ();
+  const afterCatChange = msg => { buildBankCat(); buildAqCats(); beRender(); refreshAfterBank(); $('beMsg').textContent = msg || ''; };
+  $('beNewCat').onclick = async () => { const nm = addCategory(await askName('Name the new category (for example Teens, Holidays, Date Night)', '')); if (!nm) return; buildBankCat(); $('beCat').value = nm; afterCatChange('Category "' + nm + '" added. Use ＋ Add a question to put questions in it, or tick it on existing questions.'); };
   $('beRen').onclick = async () => {
-    const old = beCur, i = CATS.indexOf(old); if (i < 0) return;
+    const old = $('beCat').value; if (!old || old === '__none') { $('beMsg').textContent = 'Pick a category in the Category box first, then rename it.'; return; }
     const nu = String(await askName('Rename the category "' + old + '" to…', old) || '').trim().replace(/\s+/g, ' '); if (!nu || nu === old) return;
     if (nu.length > 30) { $('beMsg').textContent = 'That name is too long (30 characters at most).'; return; }
     if (CATS.some(c => c !== old && c.toLowerCase() === nu.toLowerCase())) { $('beMsg').textContent = 'There is already a category called "' + nu + '".'; return; }
-    edCommit(); beStash();
-    CATS[i] = nu; delete CAT_ALIAS[nu]; CAT_ALIAS[old] = nu; saveCats();
-    if (beTmp[old]) { beTmp[nu] = beTmp[old]; delete beTmp[old]; }
-    const bx = loadBX(); if (bx[old]) { bx[nu] = bx[old]; delete bx[old]; store(BX, bx); }
-    moveUsed(old, nu);
-    afterCatChange(nu, 'Renamed "' + old + '" to "' + nu + '". Games and questions followed along.');
+    const i = CATS.indexOf(old); if (i < 0) return; CATS[i] = nu; delete CAT_ALIAS[nu]; CAT_ALIAS[old] = nu; saveCats();
+    getQB().items.forEach(it => { it.c = it.c.map(c => c === old ? nu : c); }); saveQB(); moveUsed(old, nu);
+    buildBankCat(); $('beCat').value = nu; afterCatChange('Renamed "' + old + '" to "' + nu + '". Its questions followed along.');
   };
   let delArm = 0;
   $('beDel').onclick = () => {
-    beStash(); const c = beCur, b = $('beDel'); if (CATS.length < 2) { $('beMsg').textContent = 'Keep at least one category.'; return; }
+    const c = $('beCat').value, b = $('beDel'); if (!c || c === '__none') { $('beMsg').textContent = 'Pick a category in the Category box first, then delete it.'; return; }
+    if (CATS.length < 2) { $('beMsg').textContent = 'Keep at least one category.'; return; }
     if (Date.now() - delArm > 8000) {
-      const t = beTmp[c] || {}, n = parseQs(t.main).length + parseQs(t.fast).length;
-      delArm = Date.now(); b.textContent = '⚠ Click again to delete'; $('beMsg').textContent = 'This deletes the category "' + c + '"' + (n ? ' and its ' + n + ' bank-only questions shown below' : '') + '. Questions that are inside a game stay in that game, but the game leaves this category. Click Delete again to confirm.';
-      setTimeout(() => { if (Date.now() - delArm >= 7900) { b.textContent = '🗑 Delete this category'; } }, 8100); return; }
-    delArm = 0; b.textContent = '🗑 Delete this category'; edCommit();
-    const i = CATS.indexOf(c); if (i >= 0) CATS.splice(i, 1);
-    Object.keys(CAT_ALIAS).forEach(k => { if (CAT_ALIAS[k] === c) delete CAT_ALIAS[k]; }); saveCats();
-    delete beTmp[c]; const bx = loadBX(); delete bx[c]; store(BX, bx); moveUsed(c, null);
-    const clean = a => a.forEach(g => { if (Array.isArray(g.cats)) g.cats = g.cats.filter(x => catFix(x) !== c); });
-    const raw = load(QK2, null); if (raw && Array.isArray(raw.sets)) { clean(raw.sets); store(QK2, raw); } clean(edSets);
-    afterCatChange(catsSorted()[0], 'Category "' + c + '" deleted.');
+      const n = getQB().items.filter(it => it.c.includes(c)).length, only = getQB().items.filter(it => it.c.length === 1 && it.c[0] === c).length;
+      delArm = Date.now(); b.textContent = '⚠ Click again to delete'; $('beMsg').textContent = 'This deletes the category "' + c + '". Its ' + n + ' questions stay in the bank' + (only ? ' (' + only + ' of them are in no other category, so they will show under "(No category)")' : '') + '. Click Delete again to confirm.';
+      setTimeout(() => { if (Date.now() - delArm >= 7900) b.textContent = '🗑 Delete this category'; }, 8100); return; }
+    delArm = 0; b.textContent = '🗑 Delete this category';
+    const i = CATS.indexOf(c); if (i >= 0) CATS.splice(i, 1); Object.keys(CAT_ALIAS).forEach(k => { if (CAT_ALIAS[k] === c) delete CAT_ALIAS[k]; }); saveCats();
+    getQB().items.forEach(it => { it.c = it.c.filter(x => x !== c); }); saveQB(); moveUsed(c, null);
+    $('beCat').value = ''; afterCatChange('Category "' + c + '" deleted.');
   };
-  $('beNewCat').onclick = async () => { const nm = addCategory(await askName('Name the new category (for example Teens, Holidays, Date Night)', '')); if (!nm) return; beStash(); buildBankCat(); buildCatBoxes(); const g = edSets[edIdx]; if (g) setCatBoxes(catsOf(g)); beShow(nm); fillSetSel(selArg()); $('beMsg').textContent = 'Category "' + nm + '" added. Type its questions below, then Save.'; };
-  $('beMain').oninput = $('beFast').oninput = beCount;
-  $('beSave').onclick = () => { beStash(); const out = {}; Object.keys(beTmp).forEach(c => { const x = beTmp[c]; if ((x.main || '').trim() || (x.fast || '').trim()) out[c] = { main: (x.main || '').trim(), fast: (x.fast || '').trim() }; }); store(BX, out); show('bankEd', false); bankSummary(); fillSetSel(selArg()); };
-  $('beCancel').onclick = () => show('bankEd', false);
-  function openEditor() { edOrphans = []; edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast, cats: g.cats, cat: g.cat, bank: g.bank })); edIdx = 0; edLoad(); show('qed', true); }
+  // ---------- Add questions window ----------
+  const aqTicked = new Set();
+  function buildAqCats() {
+    const box = $('aqCats'); box.innerHTML = '';
+    catsSorted().forEach(c => { const l = document.createElement('label'); l.style.cssText = catBoxStyle; const cb = document.createElement('input'); cb.type = 'checkbox'; cb.style.width = 'auto'; cb.checked = aqTicked.has(c);
+      cb.onchange = () => { if (cb.checked) aqTicked.add(c); else aqTicked.delete(c); }; l.appendChild(cb); l.appendChild(document.createTextNode(' ' + c)); box.appendChild(l); });
+  }
+  function openAddQ() { buildAqCats(); $('aqMsg').textContent = ''; show('addQ', true); setTimeout(() => $('aqText').focus(), 60); }
+  $('aqAdd').onclick = () => {
+    const cats = catsSorted().filter(c => aqTicked.has(c)), n = parseQs($('aqText').value).length;
+    if (!n) { $('aqMsg').textContent = 'I could not find a question. Start each one with Q: and put the answers on the lines below it.'; return; }
+    if (!cats.length) { $('aqMsg').textContent = 'Tick at least one category first.'; return; }
+    const r = addQs($('aqKind').value, $('aqText').value, cats); $('aqText').value = '';
+    $('aqMsg').textContent = '✅ ' + (r.added ? r.added + ' added' : '') + (r.added && r.dup ? ', ' : '') + (r.dup ? r.dup + ' already in the bank (the categories you ticked were added to it)' : '') + '. Paste more any time, or tap Close.';
+    if ($('bankEd').style.display === 'flex') beRender(); refreshAfterBank();
+  };
+  $('aqNewCat').onclick = async () => { const nm = addCategory(await askName('Name the new category (for example Teens, Holidays, Date Night)', '')); if (!nm) return; aqTicked.add(nm); buildAqCats(); buildBankCat(); if ($('bankEd').style.display === 'flex') beRender(); refreshAfterBank(); $('aqMsg').textContent = 'Category "' + nm + '" added and ticked.'; };
+  $('aqClose').onclick = () => show('addQ', false);
+  function openEditor() { edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast })); edIdx = 0; edLoad(); show('qed', true); }
   function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
   $('qMain').oninput = $('qFast').oninput = count;
-  $('gName').oninput = () => { const g = edSets[edIdx]; if (g) { g.name = $('gName').value; if (!g.cats) setCatBoxes(deriveCatsLive(g.name)); drawTabs(); } };   // rename the game; the tab label follows as you type
-  $('qDel').onclick = () => { if (!edSets.length) return; edCommit(); const dg = edSets[edIdx]; if (dg.bank !== false) { const cs = catsOf(dg); ['main', 'fast'].forEach(kind => parseQs(dg[kind]).forEach(q => edOrphans.push({ kind, cats: cs, text: qToText(q) }))); } edSets.splice(edIdx, 1); edIdx = Math.max(0, Math.min(edIdx, edSets.length - 1)); edLoad(); $('qMsg').textContent = dg.bank !== false ? 'Game removed — its questions stay in the ' + catsOf(dg).join(' + ') + ' bank. Tap Save to keep the change.' : 'Game removed (it was not in the banks, so its questions are gone). Tap Save to keep the change.'; };
-  $('qSave').onclick = () => { edCommit(); flushOrphans(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel(selArg()); if (S && S.qs && !S.bank) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
+  $('gName').oninput = () => { const g = edSets[edIdx]; if (g) { g.name = $('gName').value; drawTabs(); } };   // rename the game; the tab label follows as you type
+  $('qDel').onclick = () => { if (!edSets.length) return; edCommit(); edSets.splice(edIdx, 1); edIdx = Math.max(0, Math.min(edIdx, edSets.length - 1)); edLoad(); $('qMsg').textContent = 'Game removed. Tap Save to keep the change. (Questions already in the banks are not affected.)'; };
+  $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel(selArg()); if (S && S.qs && !S.bank) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor;
   // Win / loser video-or-image libraries (setup menu): add several, pick which one is used. Saved in this browser (IndexedDB); the TV window reads them from there.
@@ -2112,7 +2156,7 @@ Nevada | 4`;
     packArm = 0; btn.textContent = '📥 Add these games';
     const sets = loadSets().map(g => Object.assign({}, g)); let added = 0, updated = 0;
     k.data.forEach(g => { const x = sets.findIndex(y => y.name === g.name), one = { name: g.name, main: g.main, fast: g.fast }; if (x >= 0) { sets[x] = one; updated++; } else { sets.push(one); added++; } });
-    store(QK2, { sets }); fillSetSel(-1); refreshPackSel();
+    store(QK2, { sets }); k.data.forEach(g => { const cs = deriveCatsLive(g.name); addQs('main', g.main, cs); addQs('fast', g.fast, cs); }); fillSetSel(-1); refreshPackSel();
     note.textContent = '✅ ' + (added ? added + ' added' : '') + (added && updated ? ', ' : '') + (updated ? updated + ' replaced with the newest version' : '') + ': ' + k.data.map(g => g.name).join(', ') + '. Pick one from the game list above to play it.';
   };
   refreshPackSel();
