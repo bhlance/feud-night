@@ -404,6 +404,18 @@
   <label>Categories — the random banks these questions belong to (tick as many as fit)</label><div id="gCats" style="display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0"></div>
   <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="gBank" style="width:auto"> Include this game in the random question banks</label>
   <div class="note" id="bankSum"></div>
+  <h3>Main-round questions (<span id="cMain">0</span>)</h3>
+  <textarea id="qMain" style="min-height:240px"></textarea>
+  <h3>Fast Money questions — a game you built uses the first 5; random games draw from all of them (<span id="cFast">0</span>)</h3>
+  <textarea id="qFast" style="min-height:200px"></textarea>
+  <div class="btns">
+    <button class="mb go" id="qSave">Save</button>
+    <button class="mb" id="qSample">Load starter questions</button>
+    <button class="mb bad" id="qDel">🗑 Delete this game</button>
+    <button class="mb" id="qCancel">Cancel</button>
+  </div>
+  <div class="note" id="qMsg"></div>
+</div></div>
 
 
 
@@ -1903,8 +1915,6 @@ Nevada | 4`;
   $('gCats').innerHTML = CATS.map(c => '<label style="display:flex;gap:6px;align-items:center;font-weight:700;margin:0"><input type="checkbox" id="gc_' + c + '" style="width:auto"> ' + c + '</label>').join('');
   const setCatBoxes = a => CATS.forEach(c => { $('gc_' + c).checked = a.includes(c); });
   function bankSummary() { $('bankSum').textContent = '📚 In the banks now (round questions / Fast Money): ' + CATS.map(c => c + ' ' + bankPool(c, 'main').length + '/' + bankPool(c, 'fast').length).join(' · ') + '. Saved games feed the banks; questions from a game you delete stay in the banks.'; }
-  CATS.forEach(c => $('gc_' + c).onchange = () => { const g = edSets[edIdx]; if (g) { edCommit(); } });
-  $('gBank').onchange = () => { const g = edSets[edIdx]; if (g) edCommit(); };
   let edOrphans = [];
   function openEditor() { edOrphans = []; edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast, cats: g.cats, cat: g.cat, bank: g.bank })); edIdx = 0; edLoad(); show('qed', true); }
   function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
