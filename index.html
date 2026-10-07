@@ -373,7 +373,7 @@
   <div class="note">Every question in the banks is listed here with the categories it belongs to. Tick a category on a question to add it there, or untick it to take it out. Changes save as you click.</div>
   <div class="row">
     <div><label for="beCat">Category</label><select id="beCat" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"></select></div>
-    <div><label for="beKind">Show</label><select id="beKind" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"><option value="">Round and Fast Money questions</option><option value="main">Round questions only</option><option value="fast">Fast Money questions only</option></select></div>
+    <div><label for="beKind">Show</label><select id="beKind" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"><option value="">Type of Question</option><option value="main">Round questions only</option><option value="fast">Fast Money questions only</option></select></div>
   </div>
   <label for="beSearch">Search</label><input id="beSearch" type="text" placeholder="Type part of a question or an answer…" autocomplete="off">
   <div class="btns" style="margin:6px 0"><button class="mb go" id="beAdd">＋ Add a question</button><button class="mb" id="beNewCat">＋ New category</button><button class="mb" id="beRen">✏️ Rename this category</button><button class="mb bad" id="beDel">🗑 Delete this category</button></div>
@@ -446,7 +446,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 132';
+  const GAME_VERSION = '2026-10-03 · build 133';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1974,12 +1974,15 @@ Nevada | 4`;
     $('beCat').innerHTML = '<option value="">Select Category…</option><option value="__none">(No category)</option>' + catsSorted().map(c => '<option value="' + escH(c) + '">' + escH(c) + '</option>').join('');
     $('beCat').value = cur; if ($('beCat').selectedIndex < 0) $('beCat').value = '';
   }
-  function beRender() {
+  let beLimit = 100;
+  function beRender(keep) {
+    if (keep !== true) beLimit = 100;
     const qb = getQB(), cat = $('beCat').value, kind = $('beKind').value, term = $('beSearch').value.trim().toLowerCase();
     const list = qb.items.filter(it => (!kind || it.k === kind) && (cat === '' || (cat === '__none' ? it.c.length === 0 : it.c.includes(cat))) && (!term || it.t.toLowerCase().includes(term)));
     list.sort((a, b) => a.k !== b.k ? (a.k === 'main' ? -1 : 1) : itemQ(a).text.localeCompare(itemQ(b).text));
-    const box = $('beList'), MAX = 100; box.innerHTML = ''; list.slice(0, MAX).forEach(it => box.appendChild(beCard(it)));
-    $('beInfo').textContent = list.length + (list.length === 1 ? ' question shown' : ' questions shown') + (list.length > MAX ? ' (the first ' + MAX + ' — narrow it with the category or the search)' : '') + '. The banks hold ' + qb.items.filter(i => i.k === 'main').length + ' round and ' + qb.items.filter(i => i.k === 'fast').length + ' Fast Money questions in all.';
+    const box = $('beList'); box.innerHTML = ''; list.slice(0, beLimit).forEach(it => box.appendChild(beCard(it)));
+    if (list.length > beLimit) { const more = document.createElement('button'); more.className = 'mb go'; more.textContent = '⬇ Show ' + Math.min(100, list.length - beLimit) + ' more (' + (list.length - beLimit) + ' not shown yet)'; more.onclick = () => { beLimit += 100; beRender(true); }; box.appendChild(more); }
+    $('beInfo').textContent = list.length + (list.length === 1 ? ' question' : ' questions') + (list.length > beLimit ? ' match (' + beLimit + ' shown so far — Fast Money questions come after the round questions)' : ' match') + '. The banks hold ' + qb.items.filter(i => i.k === 'main').length + ' round and ' + qb.items.filter(i => i.k === 'fast').length + ' Fast Money questions in all.';
   }
   function beCard(it) {
     const q = itemQ(it), d = document.createElement('div'); d.style.cssText = 'border:2px solid #e3e8fb;border-radius:12px;padding:10px;margin:8px 0';
@@ -1993,17 +1996,17 @@ Nevada | 4`;
     const ed = document.createElement('button'); ed.className = 'mb'; ed.textContent = '✏️ Edit this question';
     const rm = document.createElement('button'); rm.className = 'mb bad'; rm.textContent = '🗑 Remove'; let arm = 0;
     rm.onclick = () => { if (Date.now() - arm > 5000) { arm = Date.now(); rm.textContent = '⚠ Click again to remove'; setTimeout(() => { if (Date.now() - arm >= 4900) rm.textContent = '🗑 Remove'; }, 5100); return; }
-      const qb = getQB(); qb.items = qb.items.filter(x => x !== it); saveQB(); beRender(); refreshAfterBank(); };
+      const qb = getQB(); qb.items = qb.items.filter(x => x !== it); saveQB(); beRender(true); refreshAfterBank(); };
     ed.onclick = () => {
       d.innerHTML = ''; const ta = document.createElement('textarea'); ta.style.minHeight = '150px'; ta.value = it.t; const msg = document.createElement('div'); msg.className = 'note';
       const b2 = document.createElement('div'); b2.className = 'btns'; const sv = document.createElement('button'); sv.className = 'mb go'; sv.textContent = 'Save this question'; const cn = document.createElement('button'); cn.className = 'mb'; cn.textContent = 'Cancel';
       sv.onclick = () => { const q2 = parseQs(ta.value)[0]; if (!q2) { msg.textContent = 'I could not read that. Start with Q: then one answer per line.'; return; } const key = qKey(q2.text);
         if (getQB().items.some(x => x !== it && x.k === it.k && x.y === key)) { msg.textContent = 'A question with that wording is already in the bank.'; return; }
-        it.t = qToText(q2); it.y = key; saveQB(); beRender(); refreshAfterBank(); };
-      cn.onclick = () => beRender(); b2.appendChild(sv); b2.appendChild(cn); d.appendChild(ta); d.appendChild(b2); d.appendChild(msg); };
+        it.t = qToText(q2); it.y = key; saveQB(); beRender(true); refreshAfterBank(); };
+      cn.onclick = () => beRender(true); b2.appendChild(sv); b2.appendChild(cn); d.appendChild(ta); d.appendChild(b2); d.appendChild(msg); };
     btns.appendChild(ed); btns.appendChild(rm); d.appendChild(head); d.appendChild(ans); d.appendChild(cats); d.appendChild(btns); return d;
   }
-  $('beCat').onchange = $('beKind').onchange = beRender; $('beSearch').oninput = beRender;
+  $('beCat').onchange = $('beKind').onchange = () => beRender(); $('beSearch').oninput = () => beRender();
   $('qBankBtn').onclick = () => { edCommit(); buildBankCat(); $('beCat').value = ''; $('beKind').value = ''; $('beSearch').value = ''; $('beMsg').textContent = ''; beRender(); show('bankEd', true); };
   $('beDone').onclick = () => show('bankEd', false);
   $('beAdd').onclick = () => openAddQ();
