@@ -377,10 +377,17 @@
   </div>
   <label for="beSearch">Search</label><input id="beSearch" type="text" placeholder="Type part of a question or an answer…" autocomplete="off">
   <div class="btns" style="margin:6px 0"><button class="mb go" id="beAdd">＋ Add a question</button><button class="mb" id="beNewCat">＋ New category</button><button class="mb" id="beRen">✏️ Rename this category</button><button class="mb bad" id="beDel">🗑 Delete this category</button></div>
+  <div class="btns" style="margin:6px 0"><button class="mb" id="beSim">🔍 Find similar questions</button><button class="mb" id="beExp">⬇ Export list (CSV)</button><button class="mb" id="beCopy">📋 Copy list</button></div>
   <div class="note" id="beMsg"></div>
   <div class="note" id="beInfo"></div>
   <div id="beList"></div>
   <div class="btns"><button class="mb go" id="beDone">Done</button></div>
+</div></div>
+<div class="modal" id="simModal" style="z-index:93"><div class="card">
+  <h2>🔍 Similar questions</h2>
+  <div class="note" id="simNote"></div>
+  <div id="simList"></div>
+  <div class="btns"><button class="mb go" id="simClose">Done</button></div>
 </div></div>
 <div class="modal" id="addQ" style="z-index:94"><div class="card">
   <h2>＋ Add questions to the banks</h2>
@@ -446,7 +453,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 134';
+  const GAME_VERSION = '2026-10-03 · build 135';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -2034,6 +2041,60 @@ Nevada | 4`;
     getQB().items.forEach(it => { it.c = it.c.filter(x => x !== c); }); saveQB(); moveUsed(c, null);
     $('beCat').value = ''; afterCatChange('Category "' + c + '" deleted.');
   };
+  // ---------- Export / copy the bank ----------
+  function bankRows() {
+    const items = getQB().items.slice().sort((a, b) => a.k !== b.k ? (a.k === 'main' ? -1 : 1) : itemQ(a).text.localeCompare(itemQ(b).text));
+    const n = Math.max(1, ...items.map(it => itemQ(it).answers.length)), rows = [['Type', 'Question'].concat(Array.from({ length: n }, (_, i) => 'Answer ' + (i + 1)), ['Categories'])];
+    items.forEach(it => { const q = itemQ(it), a = q.answers.map(x => x.text); while (a.length < n) a.push(''); rows.push([it.k === 'main' ? 'Round' : 'Fast Money', q.text].concat(a, [it.c.slice().sort().join('; ')])); });
+    return rows;
+  }
+  const csvCell = v => { v = String(v == null ? '' : v); return /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  const bankCsv = () => bankRows().map(r => r.map(csvCell).join(',')).join('\r\n');
+  $('beExp').onclick = () => {
+    const csv = bankCsv(), d = new Date(), stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })); a.download = 'Feud-Question-Bank-' + stamp + '.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    $('beMsg').textContent = '⬇ Exported ' + (bankRows().length - 1) + ' questions to ' + a.download + ' (check your Downloads folder). It opens in Excel or Numbers.';
+  };
+  $('beCopy').onclick = async () => {
+    const csv = bankCsv(); let ok = false; try { await navigator.clipboard.writeText(csv); ok = true; } catch (e) {}
+    if (!ok) { const t = document.createElement('textarea'); t.value = csv; document.body.appendChild(t); t.select(); try { ok = document.execCommand('copy'); } catch (e) {} t.remove(); }
+    $('beMsg').textContent = ok ? '📋 Copied ' + (bankRows().length - 1) + ' questions. Paste them into a chat.' : 'Your browser would not allow copying. Use Export list (CSV) instead.';
+  };
+  // ---------- Find similar questions ----------
+  const SIMOK = 'feud.simok.v1';
+  const STOPW = new Set('a an the of to in on at for and or you your yours i me my we our us it its is are be been was were do does did that this these those with from by as name some something someone thing things people person one more most can could would should will just than then them they their there what which who whom when where why how if so up out about into over after before while'.split(' '));
+  const kwSet = t => new Set(qKey(t).split(' ').filter(w => w && !STOPW.has(w)).map(w => w.replace(/(ing|ed|es|s)$/, '')).filter(w => w.length > 1));
+  const pairKey = (a, b) => a.k + '|' + [a.y, b.y].sort().join('|');
+  function findSimilar() {
+    const ok = new Set(load(SIMOK, [])), info = getQB().items.map(it => { const q = itemQ(it); return { it, kw: kwSet(q.text), an: new Set(q.answers.map(a => qKey(a.text))) }; }), out = [];
+    for (let i = 0; i < info.length; i++) for (let j = i + 1; j < info.length; j++) {
+      const A = info[i], B = info[j]; if (A.it.k !== B.it.k || ok.has(pairKey(A.it, B.it))) continue;
+      const inter = [...A.kw].filter(w => B.kw.has(w)).length; if (!inter) continue;
+      const jac = inter / (A.kw.size + B.kw.size - inter), cov = inter / Math.min(A.kw.size, B.kw.size);
+      const ai = [...A.an].filter(w => B.an.has(w)).length, aj = ai / ((A.an.size + B.an.size - ai) || 1);
+      let score = 0; if (jac >= 0.6 || (cov >= 0.75 && inter >= 2)) score = Math.max(jac, cov * 0.9); else if (aj >= 0.4 && cov >= 0.5) score = 0.5 + aj / 2; else continue;
+      out.push({ a: A.it, b: B.it, score });
+    }
+    return out.sort((x, y) => y.score - x.score);
+  }
+  function simRender() {
+    const pairs = findSimilar(), box = $('simList'); box.innerHTML = '';
+    $('simNote').textContent = pairs.length ? pairs.length + ' possible repeat' + (pairs.length === 1 ? '' : 's') + (pairs.length > 60 ? ' (showing the 60 most alike)' : '') + '. The game only treats questions as repeats when they are worded exactly alike, so these are ones that look alike in meaning. Remove one (its categories move to the one you keep), or tap Keep both.' : '✅ No similar questions found.';
+    pairs.slice(0, 60).forEach(pr => {
+      const card = document.createElement('div'); card.style.cssText = 'border:2px solid #e3e8fb;border-radius:12px;padding:10px;margin:8px 0';
+      const side = (it, other) => { const q = itemQ(it), d = document.createElement('div'); d.style.cssText = 'padding:6px 0;border-bottom:1px solid #eef1ff';
+        const h = document.createElement('div'); h.innerHTML = '<b style="color:#0b2a8a">' + (it.k === 'main' ? 'Round' : 'Fast Money') + '</b> · <b>' + escH(q.text) + '</b>';
+        const an = document.createElement('div'); an.className = 'note'; an.textContent = q.answers.map(a => a.text).join(' · ') + '   [' + (it.c.slice().sort().join(', ') || 'no category') + ']';
+        const b = document.createElement('button'); b.className = 'mb bad'; b.textContent = '🗑 Remove this one'; let arm = 0;
+        b.onclick = () => { if (Date.now() - arm > 5000) { arm = Date.now(); b.textContent = '⚠ Click again to remove'; setTimeout(() => { if (Date.now() - arm >= 4900) b.textContent = '🗑 Remove this one'; }, 5100); return; }
+          other.c = Array.from(new Set(other.c.concat(it.c))); const qb = getQB(); qb.items = qb.items.filter(x => x !== it); saveQB(); simRender(); if ($('bankEd').style.display === 'flex') beRender(true); refreshAfterBank(); };
+        d.appendChild(h); d.appendChild(an); d.appendChild(b); return d; };
+      const keep = document.createElement('button'); keep.className = 'mb'; keep.textContent = '✔ Keep both (not repeats)'; keep.style.marginTop = '8px';
+      keep.onclick = () => { const ok = load(SIMOK, []); ok.push(pairKey(pr.a, pr.b)); store(SIMOK, ok); simRender(); };
+      card.appendChild(side(pr.a, pr.b)); card.appendChild(side(pr.b, pr.a)); card.appendChild(keep); box.appendChild(card); });
+  }
+  $('beSim').onclick = () => { simRender(); show('simModal', true); };
+  $('simClose').onclick = () => show('simModal', false);
   // ---------- Add questions window ----------
   const aqTicked = new Set();
   function buildAqCats() {
