@@ -377,7 +377,7 @@
   <div class="note" id="beInfo"></div>
   <h3>Round questions (<span id="beCm">0</span>)</h3><textarea id="beMain" style="min-height:240px"></textarea>
   <h3>Fast Money questions (<span id="beCf">0</span>)</h3><textarea id="beFast" style="min-height:200px"></textarea>
-  <div class="btns"><button class="mb go" id="beSave">Save</button><button class="mb" id="beCancel">Cancel</button></div>
+  <div class="btns"><button class="mb" id="beNewCat">＋ New category</button><button class="mb go" id="beSave">Save</button><button class="mb" id="beCancel">Cancel</button></div>
   <div class="note" id="beMsg"></div>
 </div></div>
 <div class="modal" id="drawModal" style="z-index:95"><div class="card">
@@ -438,7 +438,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 127';
+  const GAME_VERSION = '2026-10-03 · build 128';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -753,14 +753,25 @@ Nevada | 4`;
   }
   const setFor = i => { const a = loadSets(); return a[i] || a[0]; };
   // ---------- question bank: random games draw from every set in a category ----------
-  const CATS = ['Kids', 'Adult', 'Adult R', 'Adult X', 'Empty Nesters', 'Church'];
-  const deriveCats = n => { n = String(n || ''); if (/^kids/i.test(n)) return ['Kids']; if (/^adult[\s-]*r\b/i.test(n)) return ['Adult R']; if (/^adult[\s-]*x\b/i.test(n)) return ['Adult X']; if (/^adult/i.test(n) || /^game\s*[123]$/i.test(n)) return ['Adult']; if (/^church/i.test(n)) return ['Empty Nesters', 'Church']; return ['Empty Nesters']; };
-  const catsOf = g => { const a = g && Array.isArray(g.cats) ? g.cats.filter(c => CATS.includes(c)) : (g && g.cat && CATS.includes(g.cat) ? [g.cat] : []); return a.length ? a : deriveCats(g && g.name); };
+  const CATS = ['Kids <10', 'Adult', 'Adult R', 'Adult X', 'Empty Nesters', 'Church'];
+  const CATK = 'feud.cats.v1';   // categories you added yourself
+  (function () { try { const x = JSON.parse(localStorage.getItem(CATK) || '[]'); if (Array.isArray(x)) x.forEach(c => { if (c && !CATS.includes(c)) CATS.push(c); }); } catch (e) {} })();
+  const CAT_ALIAS = { 'Kids': 'Kids <10' };   // the old name of the Kids category
+  const catFix = c => CAT_ALIAS[c] || c;
+  const escH = t => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function addCategory(name) {   // returns the category's exact name, or null if it can't be added
+    name = String(name || '').trim().replace(/\s+/g, ' '); if (!name || name.length > 30) return null;
+    const have = CATS.find(c => c.toLowerCase() === name.toLowerCase()); if (have) return have;
+    CATS.push(name); try { localStorage.setItem(CATK, JSON.stringify(CATS.slice(6))); } catch (e) {} return name;
+  }
+  const deriveCats = n => { n = String(n || ''); if (/^kids/i.test(n)) return ['Kids <10']; if (/^adult[\s-]*r\b/i.test(n)) return ['Adult R']; if (/^adult[\s-]*x\b/i.test(n)) return ['Adult X']; if (/^adult/i.test(n) || /^game\s*[123]$/i.test(n)) return ['Adult']; if (/^church/i.test(n)) return ['Empty Nesters', 'Church']; return ['Empty Nesters']; };
+  const catsOf = g => { const a = g && Array.isArray(g.cats) ? g.cats.map(catFix).filter(c => CATS.includes(c)) : (g && g.cat && CATS.includes(catFix(g.cat)) ? [catFix(g.cat)] : []); return a.length ? a : deriveCats(g && g.name); };
   const sameCats = (a, b) => a.length === b.length && a.every(x => b.includes(x));
   const qKey = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
   const BX = 'feud.bankx.v1';   // bank-only questions (not inside any game): { category: { main: text, fast: text } }
   function loadBX() {
     let b = load(BX, {});
+    if (!Array.isArray(b) && b.Kids) { b['Kids <10'] = b['Kids <10'] || { main: '', fast: '' }; ['main', 'fast'].forEach(k => { b['Kids <10'][k] = [b['Kids <10'][k], b.Kids[k]].filter(Boolean).join('\n\n'); }); delete b.Kids; store(BX, b); }   // renamed category
     if (Array.isArray(b)) { const o = {}; b.forEach(e => e.cats.forEach(c => { o[c] = o[c] || { main: '', fast: '' }; o[c][e.kind] += (o[c][e.kind] ? '\n\n' : '') + e.text; })); b = o; }   // older list format
     return b;
   }
@@ -776,9 +787,9 @@ Nevada | 4`;
     return out;
   }
   const UK = 'feud.used.v1';
-  const usedKeys = (cat, kind) => (load(UK, {})[cat + '|' + kind] || []);
+  const usedKeys = (cat, kind) => { const u = load(UK, {}); return (u[cat + '|' + kind] || []).concat(cat === 'Kids <10' ? (u['Kids|' + kind] || []) : []); };
   function markUsed(cat, kind, text) { const u = load(UK, {}), k = cat + '|' + kind, a = u[k] || [], q = qKey(text); if (!a.includes(q)) { a.push(q); u[k] = a; store(UK, u); } }
-  function clearUsed(cat, kind) { const u = load(UK, {}); delete u[cat + '|' + kind]; store(UK, u); }
+  function clearUsed(cat, kind) { const u = load(UK, {}); delete u[cat + '|' + kind]; if (cat === 'Kids <10') delete u['Kids|' + kind]; store(UK, u); }
   const qToText = q => 'Q: ' + q.text + '\n' + q.answers.map(a => a.text + ' | ' + a.pts).join('\n');
   const rangeFor = m => m >= 3 ? [5, 5] : m === 2 ? [5, 8] : [5, 10];
   const distTo = (n, r) => n < r[0] ? r[0] - n : n > r[1] ? n - r[1] : 0;
@@ -1927,7 +1938,7 @@ Nevada | 4`;
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   // Editor with one tab per game; each game has its own main-round and Fast Money questions.
   let edSets = [], edIdx = 0;
-  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); const c = CATS.filter(x => $('gc_' + x).checked); delete g.cat; if (!c.length || sameCats(c, deriveCats(g.name))) delete g.cats; else g.cats = c; g.bank = $('gBank').checked; } }
+  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); const c = CATS.filter((x, i) => $('gc_' + i).checked); delete g.cat; if (!c.length || sameCats(c, deriveCats(g.name))) delete g.cats; else g.cats = c; g.bank = $('gBank').checked; } }
   function edLoad() { const g = edSets[edIdx]; $('edFields').style.display = g ? 'block' : 'none'; $('qSample').style.display = g ? 'inline-block' : 'none'; $('noGames').style.display = g ? 'none' : 'block'; if (!g) { drawTabs(); $('qDel').style.display = 'none'; bankSummary(); $('qMsg').textContent = ''; return; } $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; setCatBoxes(catsOf(g)); bankSummary(); $('gBank').checked = g.bank !== false; count(); drawTabs(); $('qDel').style.display = 'inline-block'; $('qMsg').textContent = ''; }
   function drawTabs() {
     const box = $('setTabs'); box.innerHTML = '';
@@ -1936,14 +1947,18 @@ Nevada | 4`;
       const g = edSets[i], t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' tabsel' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
     const add = document.createElement('button'); add.className = 'mb go'; add.textContent = '＋ Add a game'; add.onclick = () => { edCommit(); edSets.push({ name: 'Custom game ' + (edSets.length + 1), main: '', fast: '' }); edIdx = edSets.length - 1; edLoad(); }; box.appendChild(add);
   }
-  $('gCats').innerHTML = CATS.map(c => '<label style="display:flex;gap:6px;align-items:center;font-weight:700;margin:0"><input type="checkbox" id="gc_' + c + '" style="width:auto"> ' + c + '</label>').join('');
-  const setCatBoxes = a => CATS.forEach(c => { $('gc_' + c).checked = a.includes(c); });
+  function buildCatBoxes() {
+    $('gCats').innerHTML = CATS.map((c, i) => '<label style="display:flex;gap:6px;align-items:center;font-weight:700;margin:0"><input type="checkbox" id="gc_' + i + '" style="width:auto"> ' + escH(c) + '</label>').join('') + '<button class="mb" id="gcNew" type="button">＋ New category</button>';
+    $('gcNew').onclick = async () => { const nm = addCategory(await askName('Name the new category (for example Teens, Holidays, Date Night)', '')); if (!nm) return; edCommit(); const g = edSets[edIdx]; if (g) g.cats = catsOf(g).concat(nm).filter((c, i, a) => a.indexOf(c) === i); buildCatBoxes(); buildBankCat(); if (g) setCatBoxes(catsOf(g)); bankSummary(); fillSetSel(selArg()); $('qMsg').textContent = 'Category "' + nm + '" added' + (g ? ' and ticked for this game.' : '.'); };
+  }
+  const setCatBoxes = a => CATS.forEach((c, i) => { const b = $('gc_' + i); if (b) b.checked = a.includes(c); });
   function bankSummary() { $('bankSum').textContent = '📚 In the banks now (round questions / Fast Money): ' + CATS.map(c => c + ' ' + bankPool(c, 'main').length + '/' + bankPool(c, 'fast').length).join(' · ') + '. Saved games feed the banks; questions from a game you delete stay in the banks.'; }
   let edOrphans = [];
   function flushOrphans() { if (edOrphans.length) { addToBX(edOrphans); edOrphans = []; } }
   // Bank editor: the questions that live in a bank on their own
   let beTmp = {}, beCur = CATS[0];
-  $('beCat').innerHTML = CATS.map(c => '<option>' + c + '</option>').join('');
+  const buildBankCat = () => { const cur = $('beCat').value; $('beCat').innerHTML = CATS.map(c => '<option>' + escH(c) + '</option>').join(''); if (CATS.includes(cur)) $('beCat').value = cur; };
+  buildCatBoxes(); buildBankCat();
   const beCount = () => { $('beCm').textContent = parseQs($('beMain').value).length; $('beCf').textContent = parseQs($('beFast').value).length; };
   function beStash() { beTmp[beCur] = { main: $('beMain').value, fast: $('beFast').value }; }
   function beShow(c) {
@@ -1953,6 +1968,7 @@ Nevada | 4`;
   }
   $('qBankBtn').onclick = () => { edCommit(); flushOrphans(); beTmp = JSON.parse(JSON.stringify(loadBX())); beShow(CATS[0]); show('bankEd', true); };
   $('beCat').onchange = () => { beStash(); beShow($('beCat').value); };
+  $('beNewCat').onclick = async () => { const nm = addCategory(await askName('Name the new category (for example Teens, Holidays, Date Night)', '')); if (!nm) return; beStash(); buildBankCat(); buildCatBoxes(); const g = edSets[edIdx]; if (g) setCatBoxes(catsOf(g)); beShow(nm); fillSetSel(selArg()); $('beMsg').textContent = 'Category "' + nm + '" added. Type its questions below, then Save.'; };
   $('beMain').oninput = $('beFast').oninput = beCount;
   $('beSave').onclick = () => { beStash(); const out = {}; Object.keys(beTmp).forEach(c => { const x = beTmp[c]; if ((x.main || '').trim() || (x.fast || '').trim()) out[c] = { main: (x.main || '').trim(), fast: (x.fast || '').trim() }; }); store(BX, out); show('bankEd', false); bankSummary(); fillSetSel(selArg()); };
   $('beCancel').onclick = () => show('bankEd', false);
@@ -2070,7 +2086,7 @@ Nevada | 4`;
     const blk = (title, qs) => '<h2>' + title + '</h2>' + qs.map((x, i) => '<div class="q"><b>' + (i + 1) + '. ' + x.text + '</b><ol>' + x.answers.map(a => '<li>' + a.text + ' <i>(' + a.pts + ')</i></li>').join('') + '</ol></div>').join('');
     const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to open the cheat sheet.'); return; }
     w.document.write('<!doctype html><title>MC Cheat Sheet</title><style>body{font-family:Arial,sans-serif;margin:24px;max-width:780px}h1{margin:0 0 6px}h2{border-bottom:2px solid #000;margin-top:26px}.q{break-inside:avoid;margin:10px 0}ol{margin:4px 0 0 20px;padding:0}li{margin:1px 0}.g{page-break-before:always}@media print{button{display:none}}</style><h1>MC Cheat Sheet</h1><p>Points shown are base values. Round multipliers: ' + (load(CK, {}).m || '1,1,2,3') + ' (applied automatically).</p><button onclick="print()">Print</button>'
-      + (S && S.bank ? '<div><h1 style="margin-top:20px">Game in progress — random from the ' + S.bank + ' bank</h1>' + blk('Main rounds (in play order)', S.qs) + blk('Fast Money', parseQs(S.fastText).slice(0, S.fmN || 5)) + '</div>' : '')
+      + (S && S.bank ? '<div><h1 style="margin-top:20px">Game in progress — random from the ' + escH(S.bank) + ' bank</h1>' + blk('Main rounds (in play order)', S.qs) + blk('Fast Money', parseQs(S.fastText).slice(0, S.fmN || 5)) + '</div>' : '')
       + sets.map((g, i) => '<div class="' + (i ? 'g' : '') + '"><h1 style="margin-top:20px">' + g.name + '</h1>' + blk('Main rounds (in play order)', parseQs(g.main)) + blk('Fast Money (first 5 are used)', parseQs(g.fast).slice(0, 5)) + '</div>').join('') + '</body>');
     w.document.close();
   }
