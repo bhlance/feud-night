@@ -267,8 +267,12 @@
     <div><label for="fmt">Fast Money target</label><input id="fmt" type="number" inputmode="numeric"></div>
   </div>
   <div class="row">
-    <div><label for="setSearch">Which game's questions?</label><input id="setSearch" list="setList" type="text" placeholder="Choose a game — click the arrow, or start typing a name…" autocomplete="off" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:10px;width:100%"><datalist id="setList"></datalist><select id="setSel" style="display:none"></select><div class="note" id="setNote" style="display:none;color:#b00020;font-weight:800;margin-top:4px">👆 Pick a game from the list first.</div></div>
-    <div class="note" style="align-self:end">After you start a game, the next one defaults to the next set — so Game 2 is ready to go with no re-entering. Add more games in ✏️ Edit questions.</div>
+    <div><label for="fmq">Fast Money questions</label><input id="fmq" type="number" inputmode="numeric"></div>
+    <div class="note" style="align-self:end">In a random game, the number of rounds is how many numbers you list in the point multipliers below.</div>
+  </div>
+  <div class="row">
+    <div><label for="setSearch">Which questions? (a random game from a category, or a game you built)</label><input id="setSearch" list="setList" type="text" placeholder="Choose — click the arrow, or start typing a name…" autocomplete="off" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:10px;width:100%"><datalist id="setList"></datalist><select id="setSel" style="display:none"></select><div class="note" id="setNote" style="display:none;color:#b00020;font-weight:800;margin-top:4px">👆 Pick a random category or a game from the list first.</div></div>
+    <div class="note" style="align-self:end">🎲 Random games pull the round questions and the Fast Money questions from the question bank for that category, and never repeat a question until every one has been used. Or pick a game you built to play it as written. Manage questions in ✏️ Edit questions.</div>
   </div>
   <div class="row">
     <div><label for="mults">Round point multipliers (round 1, 2, 3, 4… — the last one repeats)</label><input id="mults" placeholder="1,1,2,3"></div>
@@ -366,6 +370,19 @@
   <div class="note">Talk into the microphone — the green bar should jump. If it names the wrong microphone, hold the <b>Option</b> key and click the sound icon at the top of your screen (or go to System Settings &gt; Sound &gt; Input) and pick the lapel-mic receiver, then tap Check again.</div>
   <div class="btns"><button class="mb go" id="micClose">Done</button><button class="mb" id="micAgain">Check again</button></div>
 </div></div>
+<div class="modal" id="drawModal" style="z-index:95"><div class="card">
+  <h2>🎲 Questions for this game</h2>
+  <div class="note" id="drawNote"></div>
+  <h3>Rounds</h3><div id="drawMain"></div>
+  <h3>Fast Money</h3><div id="drawFast"></div>
+  <div class="btns">
+    <button class="mb go" id="drawGo">▶ Start the game</button>
+    <button class="mb" id="drawAgain">🎲 Draw all new questions</button>
+    <button class="mb" id="drawReset">♻ Start this category's cycle over</button>
+    <button class="mb" id="drawCancel">Cancel</button>
+  </div>
+  <div class="note" id="drawMsg"></div>
+</div></div>
 <div class="modal" id="newConf" style="z-index:90"><div class="card" style="text-align:center;max-width:460px"><h2>Start a NEW game?</h2><p style="margin:0">This replaces the game in progress — its scores and progress will be lost.</p><div class="btns" style="justify-content:center"><button class="mb" id="newConfNo">Cancel</button><button class="mb bad" id="newConfYes">Yes, start a new game</button></div></div></div>
 
 <!-- Fast Money answer entry -->
@@ -384,9 +401,11 @@
   <div class="note">One question per block. Start with <b>Q:</b>, then one answer per line as <b>Answer | points</b>, best answer first. Leave off the points and they're assigned automatically by order. Up to 10 answers per question. Blank lines between questions are fine.</div>
   <div class="btns" id="setTabs"></div>
   <label for="gName">Game name — shows in the game list (for example “Church 1” or “Ward party”)</label><input id="gName" type="text" placeholder="Game name" autocomplete="off">
+  <div class="row" style="align-items:end"><div><label for="gCat">Category — which random-game bank these questions belong to</label><select id="gCat" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:10px;width:100%"></select></div>
+  <label style="display:flex;gap:10px;align-items:center;font-weight:700"><input type="checkbox" id="gBank" style="width:auto"> Include in the random question bank</label></div>
   <h3>Main-round questions (<span id="cMain">0</span>)</h3>
   <textarea id="qMain" style="min-height:240px"></textarea>
-  <h3>Fast Money questions — the first 5 are used (<span id="cFast">0</span>)</h3>
+  <h3>Fast Money questions — a game you built uses the first 5; random games draw from all of them (<span id="cFast">0</span>)</h3>
   <textarea id="qFast" style="min-height:200px"></textarea>
   <div class="btns">
     <button class="mb go" id="qSave">Save</button>
@@ -404,7 +423,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 122';
+  const GAME_VERSION = '2026-10-03 · build 123';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -718,6 +737,49 @@ Nevada | 4`;
     return [{ name: 'Game 1', main: (v1 && v1.main) || SAMPLE_MAIN, fast: (v1 && v1.fast) || SAMPLE_FAST }, { name: 'Game 2', main: SAMPLE2_MAIN, fast: SAMPLE2_FAST }];
   }
   const setFor = i => { const a = loadSets(); return a[i] || a[0]; };
+  // ---------- question bank: random games draw from every set in a category ----------
+  const CATS = ['Kids', 'Adult', 'Adult R', 'Adult X', 'Empty Nesters'];
+  const deriveCat = n => { n = String(n || ''); if (/^kids/i.test(n)) return 'Kids'; if (/^adult[\s-]*r\b/i.test(n)) return 'Adult R'; if (/^adult[\s-]*x\b/i.test(n)) return 'Adult X'; if (/^adult/i.test(n) || /^game\s*[123]$/i.test(n)) return 'Adult'; return 'Empty Nesters'; };
+  const catOf = g => (g && g.cat && CATS.includes(g.cat)) ? g.cat : deriveCat(g && g.name);
+  const qKey = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  function bankPool(cat, kind) {
+    const seen = new Set(), out = [];
+    loadSets().forEach(g => { if (g.bank === false || catOf(g) !== cat) return; parseQs(g[kind]).forEach(q => { const k = qKey(q.text); if (!seen.has(k)) { seen.add(k); out.push(q); } }); });
+    return out;
+  }
+  const UK = 'feud.used.v1';
+  const usedKeys = (cat, kind) => (load(UK, {})[cat + '|' + kind] || []);
+  function markUsed(cat, kind, text) { const u = load(UK, {}), k = cat + '|' + kind, a = u[k] || [], q = qKey(text); if (!a.includes(q)) { a.push(q); u[k] = a; store(UK, u); } }
+  function clearUsed(cat, kind) { const u = load(UK, {}); delete u[cat + '|' + kind]; store(UK, u); }
+  const qToText = q => 'Q: ' + q.text + '\n' + q.answers.map(a => a.text + ' | ' + a.pts).join('\n');
+  const rangeFor = m => m >= 3 ? [5, 5] : m === 2 ? [5, 8] : [5, 10];
+  const distTo = (n, r) => n < r[0] ? r[0] - n : n > r[1] ? n - r[1] : 0;
+  // Pick one random question: unused with the right number of answers first, then unused one off (4 or 6), then start the cycle over.
+  function pickQ(pool, usedSet, taken, range, extra) {
+    const free = pool.filter(q => !taken.has(qKey(q.text)) && (!extra || extra(q)));
+    for (const [onlyUnused, d] of [[true, 0], [true, 1], [false, 0], [false, 1], [true, 99], [false, 99]]) {
+      const c = free.filter(q => (!onlyUnused || !usedSet.has(qKey(q.text))) && distTo(q.answers.length, range) <= d);
+      if (c.length) { const q = c[Math.floor(Math.random() * c.length)]; return { q, again: usedSet.has(qKey(q.text)) }; }
+    }
+    return null;
+  }
+  const longestFirst = a => { let li = 0; a.forEach((q, i) => { if (q.text.length > a[li].text.length) li = i; }); if (li > 0) a.unshift(a.splice(li, 1)[0]); };
+  function drawGame(cat, mults, n) {
+    const mp = bankPool(cat, 'main'), fp = bankPool(cat, 'fast'), um = new Set(usedKeys(cat, 'main')), uf = new Set(usedKeys(cat, 'fast'));
+    const d = { cat, mults, main: [], fast: [], restart: { main: false, fast: false } }, taken = new Set(), slots = new Array(mults.length).fill(null);
+    mults.map((m, i) => i).sort((a, b) => mults[b] - mults[a]).forEach(i => { const r = pickQ(mp, um, taken, rangeFor(mults[i])); if (r) { slots[i] = r.q; taken.add(qKey(r.q.text)); if (r.again) d.restart.main = true; } });
+    d.main = slots.filter(Boolean);
+    const t2 = new Set();
+    for (let i = 0; i < n; i++) { let r = i > 0 ? pickQ(fp, uf, t2, [6, 7], q => q.text.length <= 70) : null; if (!r) r = pickQ(fp, uf, t2, [6, 7]); if (!r) break; d.fast.push(r.q); t2.add(qKey(r.q.text)); if (r.again) d.restart.fast = true; }
+    longestFirst(d.fast);
+    return d;
+  }
+  function rerollQ(d, kind, i) {
+    const pool = bankPool(d.cat, kind), used = new Set(usedKeys(d.cat, kind)), arr = d[kind], taken = new Set(arr.map(q => qKey(q.text)));
+    const range = kind === 'main' ? rangeFor(d.mults[i]) : [6, 7];
+    let r = kind === 'fast' && i > 0 ? pickQ(pool, used, taken, range, q => q.text.length <= 70) : null; if (!r) r = pickQ(pool, used, taken, range);
+    if (!r) return false; arr[i] = r.q; if (r.again) d.restart[kind] = true; if (kind === 'fast') longestFirst(arr); return true;
+  }
   const load = (k, d) => { try { const r = localStorage.getItem(k); return r ? JSON.parse(r) : d; } catch (e) { return d; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
@@ -1004,8 +1066,9 @@ Nevada | 4`;
   const multFor = round => { const m = S.mults && S.mults.length ? S.mults : [1, 1, 2, 3]; return m[Math.min(round, m.length) - 1]; };
   const multWord = m => m === 2 ? 'DOUBLE' : m === 3 ? 'TRIPLE' : m === 4 ? 'QUADRUPLE' : '×' + m;
   function startGame(cfg) {
-    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, mults: cfg.mults, mult: 1, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: false, roundWinner: null, awarded: 0, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: parseQs(setFor(cfg.set).main), fastText: setFor(cfg.set).fast, setIdx: cfg.set || 0 };
+    S = { teams: cfg.teams, target: cfg.target, fmTarget: cfg.fmTarget, mults: cfg.mults, mult: 1, qi: -1, round: 0, pi: [0, 0], phase: 'buzz', q: null, pot: 0, ctrl: null, fw: null, strikes: 0, first: null, turn: null, best: null, fp: [0, 0], tm: null, auto: false, roundWinner: null, awarded: 0, champ: null, flash: { k: 0, n: 0 }, fm: null, qs: cfg.bank ? clone(cfg.bank.main) : parseQs(setFor(cfg.set).main), fastText: cfg.bank ? cfg.bank.fast.map(qToText).join('\n\n') : setFor(cfg.set).fast, setIdx: cfg.set || 0, bank: cfg.bank ? cfg.bank.cat : null, fmN: cfg.fq || 5 };
     undo = [];
+    if (cfg.bank) { ['main', 'fast'].forEach(k => { if (cfg.bank.restart && cfg.bank.restart[k]) clearUsed(cfg.bank.cat, k); }); }   // the bank ran low: the cycle starts over
     if (!S.qs.length) { alert('No main-round questions found. Open ✏️ Edit questions first.'); S = null; return false; }
     nextRound(); return true;
   }
@@ -1021,6 +1084,7 @@ Nevada | 4`;
   // Game decided: the target was reached, or all the questions were played and one team is ahead.
   const gameDecided = () => { const x = S.teams[0].score, y = S.teams[1].score; return x !== y && (Math.max(x, y) >= S.target || lastQuestion()); };
   function endRound(w) {
+    if (S.bank && S.q) markUsed(S.bank, 'main', S.q.text);   // a question counts as used once its round has been played
     S.teams[w].score += S.pot; S.roundWinner = w; S.awarded = S.pot; S.phase = 'roundEnd'; S.tm = null;
     S.pi[0] += Math.max(1, S.fp[0] + (S.ctrl === 0 ? (S.pp || 0) : 0)); S.pi[1] += Math.max(1, S.fp[1] + (S.ctrl === 1 ? (S.pp || 0) : 0));   // next round's face-off starts with whoever is next in the order, after everyone who answered this round
     // This round decided the game (a team reached the target)? Play the game-winner's song and fireworks right now.
@@ -1121,7 +1185,8 @@ Nevada | 4`;
 
   // ---------------- fast money ----------------
   function fmSetup() {
-    const qs = parseQs(S.fastText != null ? S.fastText : setFor(S.setIdx || 0).fast).slice(0, 5);
+    const qs = parseQs(S.fastText != null ? S.fastText : setFor(S.setIdx || 0).fast).slice(0, S.fmN || 5);
+    if (S.bank) qs.forEach(q => markUsed(S.bank, 'fast', q.text));
     if (S.fire) S.fire.active = false;   // Fast Money is starting: end the celebration
     S.fm = { names: (S.fmNames || ['', '']).slice(), q1: false, recap: false, lastRead: null, chk: [], qs, n: qs.length, pl: 1, running: false, end: 0, secs: 25, idx: 0, p: [[], []], rev: [0, 0], stage: [0, 0], done: false, won: false, draft: [[], []], passed: [], doneQ: [] };
     S.phase = 'fm'; S.fm.win = S.champ;
@@ -1711,15 +1776,22 @@ Nevada | 4`;
   };
   const closeSetup = () => { inGame = false; stopMusic(true); show('setup', false); };
   const list = s => s.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-  function fillSetSel(sel) {
-    const a = loadSets(), box = $('setSel'), dl = $('setList'); box.innerHTML = ''; dl.innerHTML = '';
-    if (sel < 0) { const o = document.createElement('option'); o.value = ''; o.textContent = '— Choose a game —'; box.appendChild(o); }   // nothing is pre-selected
-    a.map((g, i) => i).sort((x, y) => String(a[x].name).localeCompare(String(a[y].name), undefined, { numeric: true, sensitivity: 'base' })).forEach(i => { const g = a[i], info = parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money';   // alphabetical (Game 2 before Game 10); each entry keeps its real position as its value
-      const o = document.createElement('option'); o.value = i; o.textContent = g.name + ' — ' + info; box.appendChild(o);
-      const d = document.createElement('option'); d.value = g.name; d.label = info; dl.appendChild(d); });
-    box.value = sel < 0 ? '' : String(Math.min(sel, a.length - 1)); if (box.selectedIndex < 0) box.selectedIndex = 0;
-    $('setSearch').value = box.value === '' || !a[+box.value] ? '' : a[+box.value].name;
+  function setEntries() {   // random-category entries first, then the games you built
+    const a = loadSets(), out = [];
+    CATS.forEach(c => { const m = bankPool(c, 'main').length, f = bankPool(c, 'fast').length; if (m || f) out.push({ label: '🎲 Random — ' + c, val: 'R:' + c, info: m + ' round questions, ' + f + ' Fast Money in the bank' }); });
+    a.map((g, i) => i).sort((x, y) => String(a[x].name).localeCompare(String(a[y].name), undefined, { numeric: true, sensitivity: 'base' })).forEach(i => { const g = a[i]; out.push({ label: g.name, val: String(i), info: parseQs(g.main).length + ' questions, ' + parseQs(g.fast).length + ' Fast Money' }); });
+    return out;
   }
+  function fillSetSel(sel) {
+    const ent = setEntries(), box = $('setSel'), dl = $('setList'); box.innerHTML = ''; dl.innerHTML = '';
+    if (sel === -1) { const o = document.createElement('option'); o.value = ''; o.textContent = '— Choose —'; box.appendChild(o); }   // nothing is pre-selected
+    ent.forEach(e => { const o = document.createElement('option'); o.value = e.val; o.textContent = e.label + ' — ' + e.info; box.appendChild(o);
+      const d = document.createElement('option'); d.value = e.label; d.label = e.info; dl.appendChild(d); });
+    const want = sel === -1 ? '' : String(sel);
+    box.value = want; if (box.selectedIndex < 0) box.selectedIndex = 0;
+    const cur = ent.find(e => e.val === box.value); $('setSearch').value = cur ? cur.label : '';
+  }
+  const selArg = () => { const v = $('setSel').value; return v === '' ? -1 : (v.startsWith('R:') ? v : (+v || 0)); };
   function openSetup(fromGame) {
     stopMusic(!!fromGame);   // opening Menu mid-celebration leaves the winner song going; a real new game stops it
     inGame = !!(fromGame && S);
@@ -1727,13 +1799,13 @@ Nevada | 4`;
     if (inGame) {
       // the same screen, filled with the game that is running right now
       $('n0').value = S.teams[0].name; $('n1').value = S.teams[1].name; $('p0').value = S.teams[0].players.join('\n'); $('p1').value = S.teams[1].players.join('\n');
-      $('tgt').value = S.target; $('fmt').value = S.fmTarget; $('mults').value = (S.mults && S.mults.length ? S.mults : [1, 1, 2, 3]).join(',');
-      $('setSearch').value = ''; $('setSearch').disabled = true; fillSetSel(S.setIdx || 0); $('setSel').disabled = true;
+      $('tgt').value = S.target; $('fmt').value = S.fmTarget; $('fmq').value = S.fmN || 5; $('mults').value = (S.mults && S.mults.length ? S.mults : [1, 1, 2, 3]).join(',');
+      $('setSearch').value = ''; $('setSearch').disabled = true; fillSetSel(S.bank ? 'R:' + S.bank : (S.setIdx || 0)); $('setSel').disabled = true;
       $('sl0').textContent = S.teams[0].name; $('sl1').textContent = S.teams[1].name; $('s0').value = S.teams[0].score; $('s1').value = S.teams[1].score;
       $('skipFm0').textContent = '⚡ ' + S.teams[0].name + ' won'; $('skipFm1').textContent = '⚡ ' + S.teams[1].name + ' won'; $('autoX').checked = S.auto === true;
     } else {
       $('mults').value = c.m || '1,1,2,3'; $('setSearch').value = ''; $('setSearch').disabled = false; fillSetSel(-1); $('setSel').disabled = false; $('setNote').style.display = 'none';
-      $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt;
+      $('n0').value = c.n[0]; $('n1').value = c.n[1]; $('p0').value = c.p[0]; $('p1').value = c.p[1]; $('tgt').value = c.tgt; $('fmt').value = c.fmt; $('fmq').value = c.fq || 5;
     }
     $('keepAwake').checked = keepOn(); $('latNote').textContent = latencyText();
     $('inGameBanner').style.display = $('inGameTools').style.display = inGame ? 'block' : 'none';
@@ -1766,30 +1838,52 @@ Nevada | 4`;
     else if (nowPlaying && nowPlaying.title) stopMusic();
     $('titleBtn').textContent = on ? '🎬 Hide Preview Board' : '🎬 Show Preview Board';
   }
+  let drawSt = null;
   const doStart = () => {
-    if ($('setSel').value === '') { $('setNote').style.display = 'block'; return; }   // no game picked yet
-    const c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, m: $('mults').value.trim() || '1,1,2,3', set: +$('setSel').value || 0 };
-    c.nextSet = Math.min(c.set + 1, Math.max(0, loadSets().length - 1));
+    if ($('setSel').value === '') { $('setNote').style.display = 'block'; return; }   // nothing picked yet
+    const v = $('setSel').value, c = { n: [$('n0').value.trim() || 'Team 1', $('n1').value.trim() || 'Team 2'], p: [$('p0').value, $('p1').value], tgt: +$('tgt').value || 300, fmt: +$('fmt').value || 200, fq: +$('fmq').value || 5, m: $('mults').value.trim() || '1,1,2,3', set: v.startsWith('R:') ? 0 : (+v || 0) };
     store(CK, c);
-    if (startGame({ teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set })) { ensureTV(); show('setup', false); commit(); }   // starting a game also opens the TV window if it isn't open
+    const cfg = { teams: [{ name: c.n[0], score: 0, players: list(c.p[0]) }, { name: c.n[1], score: 0, players: list(c.p[1]) }], target: c.tgt, fmTarget: c.fmt, mults: parseMults(c.m), set: c.set, fq: c.fq };
+    if (v.startsWith('R:')) {   // random game: draw the questions, let the MC look them over, then start
+      const d = drawGame(v.slice(2), cfg.mults, c.fq);
+      if (!d.main.length) { alert('There are no round questions in the ' + v.slice(2) + ' bank. Open ✏️ Edit questions first.'); return; }
+      drawSt = { d, cfg }; drawRender(); show('drawModal', true); return;
+    }
+    if (startGame(cfg)) { ensureTV(); show('setup', false); commit(); }   // starting a game also opens the TV window if it isn't open
   };
+  function drawRender() {
+    const d = drawSt.d, row = (kind, q, i, label) => { const r = document.createElement('div'); r.style.cssText = 'display:flex;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid #eef1ff';
+      const t = document.createElement('div'); t.style.flex = '1'; t.innerHTML = '<b>' + label + '</b> ' + q.text.replace(/</g, '&lt;') + ' <i style="color:#667">(' + q.answers.length + ' answers)</i>';
+      const b = document.createElement('button'); b.className = 'mb'; b.textContent = '🔄'; b.title = 'Swap this one for a different random question'; b.onclick = () => { $('drawMsg').textContent = rerollQ(d, kind, i) ? '' : 'No other question is available to swap in.'; drawRender(); };
+      r.appendChild(t); r.appendChild(b); return r; };
+    $('drawMain').innerHTML = ''; $('drawFast').innerHTML = '';
+    d.main.forEach((q, i) => $('drawMain').appendChild(row('main', q, i, 'Round ' + (i + 1) + ' (×' + d.mults[i] + ')')));
+    d.fast.forEach((q, i) => $('drawFast').appendChild(row('fast', q, i, (i + 1) + '.')));
+    $('drawNote').textContent = d.cat + ' — ' + d.main.length + ' rounds and ' + d.fast.length + ' Fast Money questions.' + (d.main.length < d.mults.length ? ' (The bank has fewer questions than rounds.)' : '') + (d.restart.main || d.restart.fast ? ' ♻ The bank ran low, so the cycle starts over and some used questions come back.' : '');
+  }
+  $('drawAgain').onclick = () => { drawSt.d = drawGame(drawSt.d.cat, drawSt.cfg.mults, drawSt.cfg.fq); $('drawMsg').textContent = ''; drawRender(); };
+  $('drawCancel').onclick = () => show('drawModal', false);
+  let resetArm = 0;
+  $('drawReset').onclick = () => { const b = $('drawReset'); if (Date.now() - resetArm > 6000) { resetArm = Date.now(); b.textContent = '⚠ Click again to confirm'; setTimeout(() => { if (Date.now() - resetArm >= 5900) b.textContent = '♻ Start this category\'s cycle over'; }, 6100); return; }
+    resetArm = 0; b.textContent = '♻ Start this category\'s cycle over'; clearUsed(drawSt.d.cat, 'main'); clearUsed(drawSt.d.cat, 'fast'); drawSt.d = drawGame(drawSt.d.cat, drawSt.cfg.mults, drawSt.cfg.fq); $('drawMsg').textContent = '♻ Every question in ' + drawSt.d.cat + ' is unused again.'; drawRender(); };
+  $('drawGo').onclick = () => { const x = drawSt; if (!x) return; show('drawModal', false); if (startGame(Object.assign({}, x.cfg, { bank: { cat: x.d.cat, main: x.d.main, fast: x.d.fast, restart: x.d.restart } }))) { ensureTV(); show('setup', false); commit(); } };
   $('setSel').onchange = () => { $('setNote').style.display = 'none'; };
   // One field for choosing a game: open the list with the arrow, or start typing a name. Click the field and the whole list shows again.
   let setPrev = '';
-  $('setSearch').addEventListener('focus', () => { setPrev = $('setSearch').value; $('setSearch').placeholder = setPrev || 'Choose a game — click the arrow, or start typing a name…'; $('setSearch').value = ''; });
+  $('setSearch').addEventListener('focus', () => { setPrev = $('setSearch').value; $('setSearch').placeholder = setPrev || 'Choose — click the arrow, or start typing a name…'; $('setSearch').value = ''; });
   $('setSearch').addEventListener('blur', () => { if (!$('setSearch').value) $('setSearch').value = setPrev; });
-  $('setSearch').addEventListener('input', () => {   // picking a name from the list (or typing it exactly) selects that game
-    const v = $('setSearch').value.trim().toLowerCase(), k = loadSets().findIndex(g => g.name.toLowerCase() === v);
-    $('setSel').value = k >= 0 ? String(k) : ''; if (k >= 0) { $('setNote').style.display = 'none'; setPrev = loadSets()[k].name; }
+  $('setSearch').addEventListener('input', () => {   // picking a name from the list (or typing it exactly) selects it
+    const v = $('setSearch').value.trim().toLowerCase(), e = setEntries().find(x => x.label.toLowerCase() === v);
+    $('setSel').value = e ? e.val : ''; if (e) { $('setNote').style.display = 'none'; setPrev = e.label; }
   });
-  $('setSearch').addEventListener('change', () => {   // Enter / leaving the field: if what's typed matches exactly one game, take it
-    const v = $('setSearch').value.trim().toLowerCase(), a = loadSets(); if (!v) return;
-    const m = a.map((g, i) => [g, i]).filter(x => x[0].name.toLowerCase().includes(v));
-    if (m.length === 1) { $('setSel').value = String(m[0][1]); $('setSearch').value = m[0][0].name; setPrev = m[0][0].name; $('setNote').style.display = 'none'; }
+  $('setSearch').addEventListener('change', () => {   // Enter / leaving the field: if what's typed matches exactly one entry, take it
+    const v = $('setSearch').value.trim().toLowerCase(); if (!v) return;
+    const m = setEntries().filter(x => x.label.toLowerCase().includes(v));
+    if (m.length === 1) { $('setSel').value = m[0].val; $('setSearch').value = m[0].label; setPrev = m[0].label; $('setNote').style.display = 'none'; }
   });
   // Team names, players, targets and multipliers save as you type (for the next new game). Not while the menu is open mid-game — those changes use "Save changes & back to the game".
-  const autoSaveCfg = () => { if (inGame) return; const c = load(CK, {}); c.n = [$('n0').value.trim(), $('n1').value.trim()]; c.p = [$('p0').value, $('p1').value]; c.tgt = +$('tgt').value || c.tgt || 300; c.fmt = +$('fmt').value || c.fmt || 200; c.m = $('mults').value.trim(); store(CK, c); };
-  ['n0', 'n1', 'p0', 'p1', 'tgt', 'fmt', 'mults'].forEach(id => $(id).addEventListener('input', autoSaveCfg));
+  const autoSaveCfg = () => { if (inGame) return; const c = load(CK, {}); c.n = [$('n0').value.trim(), $('n1').value.trim()]; c.p = [$('p0').value, $('p1').value]; c.tgt = +$('tgt').value || c.tgt || 300; c.fmt = +$('fmt').value || c.fmt || 200; c.fq = +$('fmq').value || c.fq || 5; c.m = $('mults').value.trim(); store(CK, c); };
+  ['n0', 'n1', 'p0', 'p1', 'tgt', 'fmt', 'fmq', 'mults'].forEach(id => $(id).addEventListener('input', autoSaveCfg));
   $('startBtn').onclick = () => { if (inGame) show('newConf', true); else doStart(); };
   $('titleBtn').onclick = () => { if (!titleOn) ensureTV(); setTitle(!titleOn); };   // showing the preview board also opens the TV window if needed
   $('newConfNo').onclick = () => show('newConf', false);
@@ -1798,15 +1892,15 @@ Nevada | 4`;
   $('saveBackBtn').onclick = () => { if (!S) return; act(() => {
     S.teams[0].name = $('n0').value.trim() || S.teams[0].name; S.teams[1].name = $('n1').value.trim() || S.teams[1].name;
     S.teams[0].players = list($('p0').value); S.teams[1].players = list($('p1').value);
-    if (+$('tgt').value > 0) S.target = +$('tgt').value; if (+$('fmt').value > 0) S.fmTarget = +$('fmt').value; S.mults = parseMults($('mults').value);
+    if (+$('tgt').value > 0) S.target = +$('tgt').value; if (+$('fmt').value > 0) S.fmTarget = +$('fmt').value; if (+$('fmq').value > 0) S.fmN = +$('fmq').value; S.mults = parseMults($('mults').value);
     const a = parseInt($('s0').value, 10), b = parseInt($('s1').value, 10); if (!isNaN(a)) S.teams[0].score = a; if (!isNaN(b)) S.teams[1].score = b;
   }); closeSetup(); };
   $('cancelBackBtn').onclick = closeSetup;
   $('resumeBtn').onclick = () => { const s = load(LS, null); if (s) { S = s; undo = []; if (S.tm) { S.tm.running = false; S.tm.paused = false; S.tm.expired = false; } show('setup', false); commit(); } };
   // Editor with one tab per game; each game has its own main-round and Fast Money questions.
   let edSets = [], edIdx = 0;
-  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); } }
-  function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
+  function edCommit() { const g = edSets[edIdx]; if (g) { g.main = $('qMain').value; g.fast = $('qFast').value; g.name = ($('gName').value || '').trim() || ('Game ' + (edIdx + 1)); const c = $('gCat').value; if (c === deriveCat(g.name)) delete g.cat; else g.cat = c; g.bank = $('gBank').checked; } }
+  function edLoad() { const g = edSets[edIdx]; $('qMain').value = g.main; $('qFast').value = g.fast; $('gName').value = g.name; $('gCat').value = catOf(g); $('gBank').checked = g.bank !== false; count(); drawTabs(); $('qDel').style.display = edSets.length > 1 ? 'inline-block' : 'none'; $('qMsg').textContent = ''; }
   function drawTabs() {
     const box = $('setTabs'); box.innerHTML = '';
     // tabs in alphabetical order (numbers sort naturally: Game 2 before Game 10); the game being edited is highlighted in yellow
@@ -1814,13 +1908,14 @@ Nevada | 4`;
       const g = edSets[i], t = document.createElement('button'); t.className = 'mb' + (i === edIdx ? ' tabsel' : ''); t.textContent = g.name; t.onclick = () => { edCommit(); edIdx = i; edLoad(); }; box.appendChild(t); });
     const add = document.createElement('button'); add.className = 'mb go'; add.textContent = '＋ Add a game'; add.onclick = () => { edCommit(); edSets.push({ name: 'Game ' + (edSets.length + 1), main: '', fast: '' }); edIdx = edSets.length - 1; edLoad(); }; box.appendChild(add);
   }
-  function openEditor() { edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast })); edIdx = 0; edLoad(); show('qed', true); }
+  $('gCat').innerHTML = CATS.map(c => '<option>' + c + '</option>').join('');
+  function openEditor() { edSets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast, cat: g.cat, bank: g.bank })); edIdx = 0; edLoad(); show('qed', true); }
   function count() { $('cMain').textContent = parseQs($('qMain').value).length; $('cFast').textContent = parseQs($('qFast').value).length; }
   $('qMain').oninput = $('qFast').oninput = count;
-  $('gName').oninput = () => { const g = edSets[edIdx]; if (g) { g.name = $('gName').value; drawTabs(); } };   // rename the game; the tab label follows as you type
+  $('gName').oninput = () => { const g = edSets[edIdx]; if (g) { g.name = $('gName').value; if (!g.cat) $('gCat').value = deriveCat(g.name); drawTabs(); } };   // rename the game; the tab label follows as you type
   $('qSample').onclick = () => { const alt = edIdx % 2 === 1; $('qMain').value = alt ? SAMPLE2_MAIN : SAMPLE_MAIN; $('qFast').value = alt ? SAMPLE2_FAST : SAMPLE_FAST; count(); $('qMsg').textContent = 'Starter questions loaded into ' + edSets[edIdx].name + ' — tap Save to keep them.'; };
   $('qDel').onclick = () => { if (edSets.length < 2) return; edSets.splice(edIdx, 1); edSets.forEach((g, i) => { if (/^Game \d+$/.test(g.name)) g.name = 'Game ' + (i + 1); }); edIdx = Math.min(edIdx, edSets.length - 1); edLoad(); $('qMsg').textContent = 'Game removed — tap Save to keep the change.'; };
-  $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel($('setSel').value === '' ? -1 : (+$('setSel').value || 0)); if (S && S.qs) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
+  $('qSave').onclick = () => { edCommit(); store(QK2, { sets: edSets }); show('qed', false); fillSetSel(selArg()); if (S && S.qs && !S.bank) { const cur = edSets[S.setIdx || 0]; if (cur) S.qs = parseQs(cur.main); } };
   $('qCancel').onclick = () => show('qed', false);
   $('editQBtn').onclick = openEditor;
   // Win / loser video-or-image libraries (setup menu): add several, pick which one is used. Saved in this browser (IndexedDB); the TV window reads them from there.
@@ -1917,7 +2012,7 @@ Nevada | 4`;
     if (!k) { note.textContent = 'Pick a set from the list first.'; return; }
     if (Date.now() - packArm > 8000) { packArm = Date.now(); btn.textContent = '⚠ Click again to confirm'; note.textContent = 'This adds ' + k.data.map(g => g.name).join(', ') + ' to your list. If games with these names are already there, they are replaced with this newest version. Your other games are not touched.'; setTimeout(() => { if (Date.now() - packArm >= 7900) btn.textContent = '📥 Add these games'; }, 8100); return; }
     packArm = 0; btn.textContent = '📥 Add these games';
-    const sets = loadSets().map(g => ({ name: g.name, main: g.main, fast: g.fast })); let added = 0, updated = 0;
+    const sets = loadSets().map(g => Object.assign({}, g)); let added = 0, updated = 0;
     k.data.forEach(g => { const x = sets.findIndex(y => y.name === g.name), one = { name: g.name, main: g.main, fast: g.fast }; if (x >= 0) { sets[x] = one; updated++; } else { sets.push(one); added++; } });
     store(QK2, { sets }); fillSetSel(-1); refreshPackSel();
     note.textContent = '✅ ' + (added ? added + ' added' : '') + (added && updated ? ', ' : '') + (updated ? updated + ' replaced with the newest version' : '') + ': ' + k.data.map(g => g.name).join(', ') + '. Pick one from the game list above to play it.';
@@ -1928,6 +2023,7 @@ Nevada | 4`;
     const blk = (title, qs) => '<h2>' + title + '</h2>' + qs.map((x, i) => '<div class="q"><b>' + (i + 1) + '. ' + x.text + '</b><ol>' + x.answers.map(a => '<li>' + a.text + ' <i>(' + a.pts + ')</i></li>').join('') + '</ol></div>').join('');
     const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to open the cheat sheet.'); return; }
     w.document.write('<!doctype html><title>MC Cheat Sheet</title><style>body{font-family:Arial,sans-serif;margin:24px;max-width:780px}h1{margin:0 0 6px}h2{border-bottom:2px solid #000;margin-top:26px}.q{break-inside:avoid;margin:10px 0}ol{margin:4px 0 0 20px;padding:0}li{margin:1px 0}.g{page-break-before:always}@media print{button{display:none}}</style><h1>MC Cheat Sheet</h1><p>Points shown are base values. Round multipliers: ' + (load(CK, {}).m || '1,1,2,3') + ' (applied automatically).</p><button onclick="print()">Print</button>'
+      + (S && S.bank ? '<div><h1 style="margin-top:20px">Game in progress — random from the ' + S.bank + ' bank</h1>' + blk('Main rounds (in play order)', S.qs) + blk('Fast Money', parseQs(S.fastText).slice(0, S.fmN || 5)) + '</div>' : '')
       + sets.map((g, i) => '<div class="' + (i ? 'g' : '') + '"><h1 style="margin-top:20px">' + g.name + '</h1>' + blk('Main rounds (in play order)', parseQs(g.main)) + blk('Fast Money (first 5 are used)', parseQs(g.fast).slice(0, 5)) + '</div>').join('') + '</body>');
     w.document.close();
   }
