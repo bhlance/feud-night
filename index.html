@@ -376,7 +376,7 @@
     <div><label for="beKind">Questions</label><select id="beKind" style="font-family:var(--font);font-size:17px;border:2px solid #c9d2f5;border-radius:12px;padding:0 10px;width:100%;height:54px;min-height:54px;flex:none;line-height:normal"><option value="">Type of Question</option><option value="main">Round questions only</option><option value="fast">Fast Money questions only</option></select></div>
   </div>
   <label for="beSearch">Search</label><input id="beSearch" type="text" placeholder="Type part of a question or an answer…" autocomplete="off">
-  <div class="btns" style="margin:6px 0"><button class="mb go" id="beAdd">＋ Add a question</button><button class="mb" id="beNewCat">＋ New category</button><button class="mb" id="beRen">✏️ Rename this category</button><button class="mb bad" id="beDel">🗑 Delete category</button></div>
+  <div class="btns" style="margin:6px 0"><button class="mb go" id="beAdd">＋ Add a question</button><button class="mb" id="beNewCat">＋ New category</button><button class="mb" id="beRen">✏️ Rename category</button><button class="mb bad" id="beDel">🗑 Delete category</button></div>
   <div class="btns" style="margin:6px 0"><button class="mb" id="beSim">🔍 Find similar questions</button><button class="mb" id="beExp">⬇ Download questions (CSV)</button><button class="mb" id="beCopy">📋 Copy list</button></div>
   <div class="note" id="beMsg"></div>
   <div class="note" id="beInfo"></div>
@@ -453,7 +453,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 137';
+  const GAME_VERSION = '2026-10-03 · build 138';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
