@@ -339,6 +339,7 @@
     <button class="mb" id="editQBtn">✏️ Edit questions</button>
     <button class="mb" id="sheetBtn">🖨 Print MC cheat sheet</button>
     <label style="display:flex;gap:8px;align-items:center;font-weight:700;align-self:center"><input type="checkbox" id="muteChkSetup" style="width:auto"> 🔇 Mute all sounds</label>
+    <button class="mb" id="resetUsedBtn">♻ Reset used questions</button>
     <button class="mb" id="testFmBtn">⚡ Test: jump to Fast Money</button>
     <button class="mb bad" id="endGameBtn" style="display:none" title="Ends the game that is running, deletes it, and returns the TV to the welcome screen. Cannot be undone.">⏹ End this game</button>
   </div>
@@ -382,6 +383,13 @@
   <div class="note" id="beInfo"></div>
   <div id="beList"></div>
   <div class="btns"><button class="mb go" id="beDone">Done</button></div>
+</div></div>
+<div class="modal" id="resetModal" style="z-index:93"><div class="card" style="max-width:660px">
+  <h2>♻ Make questions available again</h2>
+  <div class="note">Random games skip questions that were already played, so none repeat until a category has been used up. Tick the categories you want to start over, then tap the button. Nothing is deleted or changed. The questions simply become eligible to be drawn again.</div>
+  <div id="rsList"></div>
+  <div class="btns"><button class="mb go" id="rsGo">♻ Make them available again</button><button class="mb" id="rsAll">Tick all</button><button class="mb" id="rsClose">Close</button></div>
+  <div class="note" id="rsMsg"></div>
 </div></div>
 <div class="modal" id="simModal" style="z-index:93"><div class="card">
   <h2>🔍 Similar questions</h2>
@@ -441,6 +449,7 @@
     <button class="mb go" id="qSave">Save</button>
     <button class="mb bad" id="qDel">🗑 Delete this game</button>
     <button class="mb" id="qBankBtn">📚 Question banks…</button>
+    <button class="mb" id="qResetBtn">♻ Reset used questions</button>
     <button class="mb" id="qCancel">Cancel</button>
   </div>
   <div class="note" id="qMsg"></div>
@@ -453,7 +462,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'THE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 139';
+  const GAME_VERSION = '2026-10-03 · build 140';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -2097,6 +2106,25 @@ Nevada | 4`;
   }
   $('beSim').onclick = () => { simRender(); show('simModal', true); };
   $('simClose').onclick = () => show('simModal', false);
+  // ---------- Reset used questions ----------
+  const rsTicked = new Set();
+  function rsRender() {
+    const box = $('rsList'); box.innerHTML = '';
+    catsSorted().forEach(c => {
+      const row = (kind) => { const pool = bankPool(c, kind), us = new Set(usedKeys(c, kind)); return { n: pool.length, u: pool.filter(q => us.has(qKey(q.text))).length }; };
+      const m = row('main'), f = row('fast'), l = document.createElement('label'); l.style.cssText = 'display:flex;gap:10px;align-items:center;font-weight:700;margin:6px 0';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.style.width = 'auto'; cb.checked = rsTicked.has(c); cb.onchange = () => { if (cb.checked) rsTicked.add(c); else rsTicked.delete(c); };
+      l.appendChild(cb); l.appendChild(document.createTextNode(c + ' — ' + m.u + ' of ' + m.n + ' round questions used, ' + f.u + ' of ' + f.n + ' Fast Money used')); box.appendChild(l); });
+  }
+  function openReset() { rsTicked.clear(); catsSorted().forEach(c => { if (usedKeys(c, 'main').length || usedKeys(c, 'fast').length) rsTicked.add(c); }); $('rsMsg').textContent = ''; rsRender(); show('resetModal', true); }
+  $('resetUsedBtn').onclick = $('qResetBtn').onclick = openReset;
+  $('rsAll').onclick = () => { catsSorted().forEach(c => rsTicked.add(c)); rsRender(); };
+  $('rsGo').onclick = () => {
+    const cs = catsSorted().filter(c => rsTicked.has(c)); if (!cs.length) { $('rsMsg').textContent = 'Tick at least one category first.'; return; }
+    cs.forEach(c => { clearUsed(c, 'main'); clearUsed(c, 'fast'); }); rsTicked.clear(); rsRender();
+    $('rsMsg').textContent = '✅ Every question in ' + cs.join(', ') + ' can be drawn again.';
+  };
+  $('rsClose').onclick = () => show('resetModal', false);
   // ---------- Add questions window ----------
   const aqTicked = new Set();
   function buildAqCats() {
