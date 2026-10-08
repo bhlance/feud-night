@@ -331,6 +331,10 @@
   </div>
   </details>
   </div>
+  <h3>💾 Backup</h3>
+  <div class="note">Saves your questions, categories, settings, songs, pictures and videos into one file. Keep that file in your Dropbox folder. If the game ever loses its data (for example after clearing Safari history), use Restore backup and pick the file.</div>
+  <div class="btns" id="bakBtns"><button class="mb go" id="bakSave">💾 Save backup</button><button class="mb" id="bakRestore">📂 Restore backup…</button><button class="mb bad" id="bakConfirm" style="display:none">⚠ Yes, replace everything with this backup</button><input type="file" id="bakFile" style="display:none"></div>
+  <div class="note" id="bakNote"></div>
   <div class="btns" id="setupBtns" style="position:sticky;bottom:-2.4vh;background:#fff;padding:10px 0;border-top:2px solid #eef1ff;z-index:2">
     <button class="mb go" id="saveBackBtn" style="display:none">💾 Save changes &amp; back to the game</button>
     <button class="mb" id="cancelBackBtn" style="display:none">↩ Back to the game (no changes)</button>
@@ -462,7 +466,7 @@
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
   if (isBoard) { document.body.classList.add('board'); document.title = 'THE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 140';
+  const GAME_VERSION = '2026-10-03 · build 141';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -2402,6 +2406,58 @@ Nevada | 4`;
     document.addEventListener('dblclick', fs);
     document.addEventListener('keydown', e => { if (e.key === 'f' || e.key === 'F') fs(); });
   }
+  // ---------- Backup and restore (one file: settings, questions, songs, pictures, videos) ----------
+  const BAKMAGIC = 'FEUDBAK1', LASTBAK = 'feud.lastbackup', bakKeys = () => { const a = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.startsWith('feud.') && k !== LS && k !== LASTBAK) a.push(k); } return a; };
+  const idbAll = () => new Promise((res, rej) => { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => rej(rq.error);
+    rq.onsuccess = () => { try { const db = rq.result, tx = db.transaction('kv', 'readonly'), out = [], c = tx.objectStore('kv').openCursor(); c.onsuccess = () => { const cur = c.result; if (cur) { out.push([cur.key, cur.value]); cur.continue(); } }; tx.oncomplete = () => { db.close(); res(out); }; tx.onerror = () => rej(tx.error); } catch (e) { rej(e); } }; });
+  async function makeBackup() {
+    const ls = {}; bakKeys().forEach(k => { ls[k] = localStorage.getItem(k); });
+    const rows = await idbAll(), parts = [], kv = []; let off = 0;
+    rows.forEach(([key, val]) => { if (val && typeof val === 'object' && val.blob instanceof Blob) { const b = val.blob, v = {}; Object.keys(val).forEach(k => { if (k !== 'blob') v[k] = val[k]; }); parts.push(b); kv.push({ key, value: v, blob: { off, len: b.size, type: b.type || '' } }); off += b.size; } else kv.push({ key, value: val }); });
+    const header = new TextEncoder().encode(JSON.stringify({ v: 1, created: new Date().toISOString(), version: GAME_VERSION, ls, kv })), pre = new Uint8Array(12);
+    pre.set(new TextEncoder().encode(BAKMAGIC), 0); new DataView(pre.buffer).setUint32(8, header.length, false);
+    return { blob: new Blob([pre, header].concat(parts), { type: 'application/octet-stream' }), media: parts.length, bytes: off };
+  }
+  async function readBackupHeader(file) {
+    const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    if (new TextDecoder().decode(head.slice(0, 8)) !== BAKMAGIC) throw new Error('This is not a Feud backup file.');
+    const hl = new DataView(head.buffer).getUint32(8, false);
+    return { hdr: JSON.parse(new TextDecoder().decode(new Uint8Array(await file.slice(12, 12 + hl).arrayBuffer()))), base: 12 + hl };
+  }
+  async function applyBackup(file, hdr, base) {
+    await new Promise((res, rej) => { const rq = indexedDB.open('feudMusic', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onerror = () => rej(rq.error);
+      rq.onsuccess = () => { const db = rq.result, tx = db.transaction('kv', 'readwrite'), st = tx.objectStore('kv'); st.clear();
+        hdr.kv.forEach(e => { let v = e.value; if (e.blob) v = Object.assign({}, v, { blob: file.slice(base + e.blob.off, base + e.blob.off + e.blob.len, e.blob.type) }); st.put(v, e.key); });
+        tx.oncomplete = () => { db.close(); res(); }; tx.onerror = tx.onabort = () => rej(tx.error || new Error('Could not write the songs and pictures.')); }; });
+    bakKeys().forEach(k => localStorage.removeItem(k)); Object.keys(hdr.ls || {}).forEach(k => localStorage.setItem(k, hdr.ls[k]));
+  }
+  const mb = n => (n / 1048576).toFixed(n >= 10485760 ? 0 : 1) + ' MB', fmtDate = d => new Date(d).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  function bakInfo() { let t = ''; try { const d = localStorage.getItem(LASTBAK); t = d ? 'Last backup saved: ' + fmtDate(d) + '. Make a new one after you add questions, songs or pictures.' : 'You have not saved a backup yet. It is worth doing one now.'; } catch (e) {} $('bakNote').textContent = t; }
+  let bakPending = null;
+  $('bakSave').onclick = async () => {
+    $('bakConfirm').style.display = 'none'; bakPending = null; $('bakNote').textContent = 'Putting your backup together…';
+    try {
+      const r = await makeBackup(), d = new Date(), stamp = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      const a = document.createElement('a'); a.className = 'mb go'; a.style.cssText = 'display:inline-block;text-decoration:none;margin-top:6px'; a.href = URL.createObjectURL(r.blob); a.download = 'Feud-Backup-' + stamp + '.feudbackup'; a.textContent = '⬇ Click here to download your backup (' + mb(r.blob.size) + ')';
+      a.onclick = () => { try { localStorage.setItem(LASTBAK, new Date().toISOString()); } catch (e) {} setTimeout(() => { bakInfo(); $('bakNote').textContent += ' Now move the file into your Dropbox folder.'; }, 400); };
+      $('bakNote').textContent = '✅ Backup ready: ' + r.media + ' songs, pictures and videos (' + mb(r.bytes) + ') plus your questions and settings. '; $('bakNote').appendChild(a);
+    } catch (e) { $('bakNote').textContent = 'Sorry, the backup could not be made: ' + (e && e.message ? e.message : e); }
+  };
+  $('bakRestore').onclick = () => { $('bakFile').value = ''; $('bakFile').click(); };
+  $('bakFile').onchange = async () => {
+    const f = $('bakFile').files[0]; if (!f) return; $('bakConfirm').style.display = 'none'; bakPending = null;
+    try {
+      const { hdr, base } = await readBackupHeader(f); let q = 0; try { q = JSON.parse(hdr.ls['feud.qbank.v1']).items.length; } catch (e) {}
+      const media = hdr.kv.filter(e => e.blob).length; bakPending = { f, hdr, base };
+      $('bakNote').textContent = 'This backup was saved ' + fmtDate(hdr.created) + ' and holds ' + q + ' bank questions, ' + media + ' songs, pictures and videos, and your settings. Restoring REPLACES everything now in the game. Tap the red button to go ahead.'; $('bakConfirm').style.display = 'inline-block';
+    } catch (e) { $('bakNote').textContent = e && e.message ? e.message : 'I could not read that file.'; }
+  };
+  $('bakConfirm').onclick = async () => {
+    if (!bakPending) return; $('bakConfirm').style.display = 'none'; $('bakNote').textContent = 'Restoring… please wait.';
+    try { await applyBackup(bakPending.f, bakPending.hdr, bakPending.base); $('bakNote').textContent = '✅ Restored. The game is reloading. If the TV window is open, close it and let the game open it again.'; setTimeout(() => location.reload(), 900); }
+    catch (e) { $('bakNote').textContent = 'The restore did not finish: ' + (e && e.message ? e.message : e) + '. Your backup file is untouched, so you can try again.'; }
+  };
+  bakInfo();
   try { moveUsed('Kids', 'Kids <10'); } catch (e) {}   // the old Kids question history carries over to Kids <10
   if (!isBoard) { refreshMusicUI(); openSetup(); try { getAC(); } catch (e) {} loadBundled(); } else { render(); }
 })();
