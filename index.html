@@ -227,7 +227,7 @@
 <div id="app">
   <div id="top">
     <div class="team t0" id="tm0"><span class="nm"></span><span class="sc">0</span></div>
-    <div id="mid"><img id="logo" src="logo-white.png?v=4" alt=""><div id="midText"><div id="brand">FHE FEUD</div><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div></div>
+    <div id="mid"><img id="logo" src="feud-logo.png?v=1" alt="The Feud"><div id="midText"><div class="rd" id="rd"></div><div id="multBadge"></div><div class="pot" id="pot"><small>POT</small><span>0</span></div></div></div>
     <div class="team t1" id="tm1"><span class="nm"></span><span class="sc">0</span></div>
   </div>
   <div id="q"></div>
@@ -243,7 +243,7 @@
 <button id="peekBtn">👁 Hold to peek</button>
 <canvas id="confetti"></canvas>
 <canvas id="fireworks"></canvas>
-<div id="titleScr"><img id="titleImg" src="title.jpg?v=3" alt="" onerror="this.style.display='none';document.getElementById('titleFb').style.display='block'"><div id="titleFb">FHE FEUD</div></div>
+<div id="titleScr"><img id="titleImg" src="title.jpg?v=3" alt="" onerror="this.style.display='none';document.getElementById('titleFb').style.display='block'"><div id="titleFb">THE FEUD</div></div>
 <video id="winVid" muted loop playsinline></video>
 <img id="winImg" alt="">
 <div id="soClose"><img alt=""><video id="soVid" muted loop playsinline style="display:none"></video></div>
@@ -452,8 +452,8 @@
 (function () {
   const $ = id => document.getElementById(id);
   const isBoard = new URLSearchParams(location.search).has('board');
-  if (isBoard) { document.body.classList.add('board'); document.title = 'FHE FEUD'; }
-  const GAME_VERSION = '2026-10-03 · build 138';
+  if (isBoard) { document.body.classList.add('board'); document.title = 'THE FEUD'; }
+  const GAME_VERSION = '2026-10-03 · build 139';
   const LS = 'feud.state.v1', QK = 'feud.questions.v1', QK2 = 'feud.questions.v2', CK = 'feud.cfg.v1';
 
   // ---------------- starter questions (my best-guess rankings, not survey data) ----------------
@@ -1592,7 +1592,7 @@ Nevada | 4`;
   let soTimer = 0;
   function render() {
     if (!S) { $('wait').style.display = isBoard ? 'flex' : 'none'; paintWait(); return; }
-    $('wait').style.display = isBoard && welcomeShown ? 'flex' : 'none'; if (isBoard && welcomeShown) paintWait(); if (isBoard) document.title = 'FHE FEUD';
+    $('wait').style.display = isBoard && welcomeShown ? 'flex' : 'none'; if (isBoard && welcomeShown) paintWait(); if (isBoard) document.title = 'THE FEUD';
     paintWinVideo();
     const soWait = S.fm && S.fm.loseAt ? S.fm.loseAt + LOSE_DELAY - Date.now() : 0; clearTimeout(soTimer); if (isBoard && soWait > 0) soTimer = setTimeout(render, soWait + 30);
     const soShow = isBoard && S.phase === 'fmResult' && S.fm && !S.fm.won && !S.fm.over && soWait <= 0 && !!loseMedia.url;   // only an uploaded loser video/image is shown (nothing is built in)
@@ -1880,7 +1880,7 @@ Nevada | 4`;
     show('setup', true);
     const card = $('setup').querySelector('.card'); if (card) card.scrollTop = 0;
   }
-  // Title screen: the MC clicks a button, the TV shows the FHE FEUD picture, the title music repeats until the game starts.
+  // Title screen: the MC clicks a button, the TV shows the title picture, the title music repeats until the game starts.
   let welcomeShown = false;   // TV window: the welcome screen is laid over whatever is on screen (even a running game)
   const tiMedia = { url: null, tried: false }, wtMedia = { url: null, tried: false };
   function loadSlotImg(slot, st) { return mediaSelected(slot, '__none').then(r => { st.tried = true; if (st.url) { try { URL.revokeObjectURL(st.url); } catch (e) {} } st.url = r && r.blob ? URL.createObjectURL(r.blob) : null; }); }
